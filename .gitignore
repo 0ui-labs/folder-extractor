@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Python package files
+*.egg-info/
+dist/
+build/
+
+# Test outputs
+.coverage
+.htmlcov/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# System files
+Thumbs.db
+desktop.ini
+
+# Compiled Python files
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Environment variables
+.env
+.env.local
+
+# Dependency directories
+node_modules/
+
+# Cache directories
+.cache/
+
+# Local settings
+settings.local.json
+
+# History files
+.folder_extractor_history.json
