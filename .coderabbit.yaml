@@ -1,0 +1,87 @@
+# CodeRabbit Configuration for Folder Extractor
+# https://docs.coderabbit.ai
+
+version: 1
+
+language: python
+
+reviews:
+  profile: balanced  # lenient, balanced, strict, very_strict
+  
+  auto_review:
+    enabled: true
+    comment: "🤖 CodeRabbit AI Review"
+    
+  paths:
+    include:
+      - "folder_extractor/**/*.py"
+      - "tests/**/*.py"
+      - "setup.py"
+    
+    exclude:
+      - "**/__pycache__/**"
+      - "**/*.pyc"
+      - "**/*.pyo"
+      - "**/*.pyd"
+      - "tests/fixtures/**"
+      - ".github/**"
+      - ".vscode/**"
+      - ".idea/**"
+
+  focus_areas:
+    - security
+    - performance
+    - maintainability
+    - documentation
+    - best_practices
+
+pr_description:
+  auto_generate:
+    enabled: true
+    style: detailed
+    
+  sections:
+    - summary
+    - changes
+    - impact
+    - suggestions
+
+pr_title:
+  auto_generate:
+    enabled: true
+    prefix: "[AUTO] "
+    style: concise
+
+chat:
+  auto_reply: true
+  model: gpt-4
+  
+  context:
+    include:
+      - "folder_extractor/**"
+      - "ARCHITECTURE.md"
+      - "README.md"
+    
+    exclude:
+      - "tests/**"
+      - ".github/**"
+
+suggestions:
+  auto_apply:
+    enabled: false
+    confidence_threshold: high
+  
+  categories:
+    - style
+    - performance
+    - security
+    - documentation
+
+notifications:
+  slack:
+    enabled: false
+    # channel: "#code-reviews"
+  
+  email:
+    enabled: false
+    # recipients: ["team@example.com"]
