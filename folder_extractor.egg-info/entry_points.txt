@@ -1,0 +1,2 @@
+[console_scripts]
+folder-extractor = folder_extractor.main_final:main
