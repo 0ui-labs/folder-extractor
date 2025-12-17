@@ -1,7 +1,6 @@
 """
 Unit tests for the core file operations module.
 """
-import os
 import pytest
 from pathlib import Path
 import tempfile
