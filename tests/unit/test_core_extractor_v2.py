@@ -8,10 +8,12 @@ from unittest.mock import Mock, MagicMock, patch, call
 
 from folder_extractor.core.extractor_v2 import (
     EnhancedFileExtractor,
+    EnhancedExtractionOrchestrator,
     SecurityError,
     ExtractionError
 )
 from folder_extractor.config.settings import settings
+from folder_extractor.config.constants import MESSAGES
 
 
 class TestEnhancedFileExtractor:
@@ -553,3 +555,370 @@ class TestEnhancedFileExtractorIntegration:
         assert not (tmp_path / "empty_at_root").exists()
         assert (tmp_path / "level1" / "level2_with_file").exists()
         assert (tmp_path / "level1" / "level2_with_file" / "file.txt").exists()
+
+
+class TestEnhancedExtractionOrchestrator:
+    """Test EnhancedExtractionOrchestrator class."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        # Reset settings
+        settings.reset_to_defaults()
+
+        # Create mock extractor
+        self.mock_extractor = Mock()
+
+        # Create mock state manager
+        self.mock_state_manager = Mock()
+
+        # Create orchestrator with mocks
+        self.orchestrator = EnhancedExtractionOrchestrator(
+            extractor=self.mock_extractor,
+            state_manager=self.mock_state_manager
+        )
+
+    def test_init_with_default_state_manager(self):
+        """Test __init__ creates default state manager (lines 357-358)."""
+        # Create orchestrator without state manager
+        with patch('folder_extractor.core.extractor_v2.get_state_manager') as mock_get_sm:
+            mock_default_sm = Mock()
+            mock_get_sm.return_value = mock_default_sm
+
+            orchestrator = EnhancedExtractionOrchestrator(
+                extractor=self.mock_extractor
+            )
+
+            # Verify get_state_manager was called
+            mock_get_sm.assert_called_once()
+            assert orchestrator.state_manager == mock_default_sm
+
+    def test_execute_extraction_success(self, tmp_path):
+        """Test successful extraction workflow (lines 373-419)."""
+        # Setup
+        source_path = tmp_path / "source"
+        source_path.mkdir()
+
+        files = [str(tmp_path / "file1.txt"), str(tmp_path / "file2.txt")]
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+        self.mock_extractor.discover_files.return_value = files
+        self.mock_extractor.extract_files.return_value = {
+            "moved": 2,
+            "skipped": 0,
+            "errors": 0,
+            "aborted": False
+        }
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.operation_id = "test-op-123"
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        # Mock operation stats
+        mock_stats = Mock()
+        mock_stats.duration = 1.5
+        mock_stats.success_rate = 100.0
+        self.mock_state_manager.get_operation_stats.return_value = mock_stats
+
+        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            # Execute extraction
+            result = self.orchestrator.execute_extraction(source_path)
+
+        # Verify workflow
+        self.mock_extractor.validate_security.assert_called_once()
+        self.mock_extractor.discover_files.assert_called_once_with(Path(source_path))
+        self.mock_extractor.extract_files.assert_called_once()
+
+        # Verify result
+        assert result["status"] == "success"
+        assert result["files_found"] == 2
+        assert result["moved"] == 2
+        assert result["operation_id"] == "test-op-123"
+        assert result["duration"] == 1.5
+        assert result["success_rate"] == 100.0
+
+    def test_execute_extraction_no_files(self, tmp_path):
+        """Test when no files found (lines 384-389)."""
+        # Setup
+        source_path = tmp_path / "source"
+        source_path.mkdir()
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+        self.mock_extractor.discover_files.return_value = []
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            # Execute extraction
+            result = self.orchestrator.execute_extraction(source_path)
+
+        # Verify result
+        assert result["status"] == "no_files"
+        assert result["message"] == MESSAGES["NO_FILES_FOUND"]
+        assert result["files_found"] == 0
+
+        # Verify extract_files was NOT called
+        self.mock_extractor.extract_files.assert_not_called()
+
+    def test_execute_extraction_cancelled(self, tmp_path):
+        """Test when user cancels (lines 392-398)."""
+        # Setup
+        source_path = tmp_path / "source"
+        source_path.mkdir()
+
+        files = [str(tmp_path / "file1.txt")]
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+        self.mock_extractor.discover_files.return_value = files
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        # Create confirmation callback that returns False (cancel)
+        confirmation_callback = Mock(return_value=False)
+
+        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            # Execute extraction with confirmation callback
+            result = self.orchestrator.execute_extraction(
+                source_path,
+                confirmation_callback=confirmation_callback
+            )
+
+        # Verify confirmation was called
+        confirmation_callback.assert_called_once_with(len(files))
+
+        # Verify result
+        assert result["status"] == "cancelled"
+        assert result["message"] == MESSAGES["OPERATION_CANCELLED"]
+        assert result["files_found"] == 1
+
+        # Verify extract_files was NOT called
+        self.mock_extractor.extract_files.assert_not_called()
+
+    def test_execute_extraction_dry_run_no_confirmation(self, tmp_path):
+        """Test that confirmation is skipped in dry run mode (line 392)."""
+        # Setup
+        source_path = tmp_path / "source"
+        source_path.mkdir()
+
+        files = [str(tmp_path / "file1.txt")]
+
+        # Enable dry run
+        settings.set("dry_run", True)
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+        self.mock_extractor.discover_files.return_value = files
+        self.mock_extractor.extract_files.return_value = {
+            "moved": 0,
+            "skipped": 1,
+            "errors": 0,
+            "aborted": False
+        }
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.operation_id = "test-op-123"
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        self.mock_state_manager.get_operation_stats.return_value = None
+
+        # Create confirmation callback that should NOT be called
+        confirmation_callback = Mock(return_value=False)
+
+        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            # Execute extraction with confirmation callback in dry run mode
+            result = self.orchestrator.execute_extraction(
+                source_path,
+                confirmation_callback=confirmation_callback
+            )
+
+        # Verify confirmation was NOT called in dry run
+        confirmation_callback.assert_not_called()
+
+        # Verify extract_files WAS called
+        self.mock_extractor.extract_files.assert_called_once()
+
+        # Verify result
+        assert result["status"] == "success"
+
+    def test_execute_extraction_security_error(self, tmp_path):
+        """Test SecurityError handling (lines 421-426)."""
+        # Setup
+        source_path = tmp_path / "source"
+        source_path.mkdir()
+
+        # Configure mock to raise SecurityError
+        error_message = "Unsicherer Pfad"
+        self.mock_extractor.validate_security.side_effect = SecurityError(error_message)
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            # Execute extraction
+            result = self.orchestrator.execute_extraction(source_path)
+
+        # Verify result
+        assert result["status"] == "security_error"
+        assert result["message"] == error_message
+        assert result["error"] is True
+
+        # Verify subsequent steps were NOT called
+        self.mock_extractor.discover_files.assert_not_called()
+        self.mock_extractor.extract_files.assert_not_called()
+
+    def test_execute_extraction_generic_error(self, tmp_path):
+        """Test generic Exception handling (lines 428-433)."""
+        # Setup
+        source_path = tmp_path / "source"
+        source_path.mkdir()
+
+        # Configure mock to raise generic exception
+        error_message = "Unexpected error"
+        self.mock_extractor.validate_security.side_effect = Exception(error_message)
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            # Execute extraction
+            result = self.orchestrator.execute_extraction(source_path)
+
+        # Verify result
+        assert result["status"] == "error"
+        assert f"Fehler: {error_message}" in result["message"]
+        assert result["error"] is True
+
+        # Verify subsequent steps were NOT called
+        self.mock_extractor.discover_files.assert_not_called()
+        self.mock_extractor.extract_files.assert_not_called()
+
+    def test_execute_extraction_error_during_discovery(self, tmp_path):
+        """Test error handling during file discovery phase."""
+        # Setup
+        source_path = tmp_path / "source"
+        source_path.mkdir()
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+        self.mock_extractor.discover_files.side_effect = Exception("Discovery failed")
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            # Execute extraction
+            result = self.orchestrator.execute_extraction(source_path)
+
+        # Verify result
+        assert result["status"] == "error"
+        assert "Fehler: Discovery failed" in result["message"]
+        assert result["error"] is True
+
+    def test_execute_extraction_with_progress_callback(self, tmp_path):
+        """Test extraction with progress callback."""
+        # Setup
+        source_path = tmp_path / "source"
+        source_path.mkdir()
+
+        files = [str(tmp_path / "file1.txt")]
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+        self.mock_extractor.discover_files.return_value = files
+        self.mock_extractor.extract_files.return_value = {
+            "moved": 1,
+            "skipped": 0,
+            "errors": 0,
+            "aborted": False
+        }
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.operation_id = "test-op-123"
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        self.mock_state_manager.get_operation_stats.return_value = None
+
+        # Create progress callback
+        progress_callback = Mock()
+
+        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            # Execute extraction with progress callback
+            result = self.orchestrator.execute_extraction(
+                source_path,
+                progress_callback=progress_callback
+            )
+
+        # Verify extract_files was called with progress callback
+        call_args = self.mock_extractor.extract_files.call_args
+        assert call_args[0][2] == "test-op-123"  # operation_id
+        assert call_args[0][3] == progress_callback  # progress_callback
+
+    def test_execute_undo(self, tmp_path):
+        """Test undo operation (lines 444-445)."""
+        # Setup
+        path = tmp_path / "test"
+        path.mkdir()
+
+        expected_result = {
+            "status": "success",
+            "restored": 5,
+            "errors": 0,
+            "aborted": False
+        }
+
+        # Configure mock
+        self.mock_extractor.undo_last_operation.return_value = expected_result
+
+        # Execute undo
+        result = self.orchestrator.execute_undo(path)
+
+        # Verify extractor method was called
+        self.mock_extractor.undo_last_operation.assert_called_once_with(Path(path))
+
+        # Verify result is passed through
+        assert result == expected_result
+
+    def test_execute_undo_with_string_path(self, tmp_path):
+        """Test undo with string path conversion."""
+        # Setup
+        path_str = str(tmp_path / "test")
+        Path(path_str).mkdir()
+
+        expected_result = {
+            "status": "success",
+            "restored": 3,
+            "errors": 0,
+            "aborted": False
+        }
+
+        # Configure mock
+        self.mock_extractor.undo_last_operation.return_value = expected_result
+
+        # Execute undo with string path
+        result = self.orchestrator.execute_undo(path_str)
+
+        # Verify extractor method was called with Path object
+        self.mock_extractor.undo_last_operation.assert_called_once_with(Path(path_str))
+
+        # Verify result
+        assert result == expected_result
