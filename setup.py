@@ -39,7 +39,7 @@ setup(
     python_requires=">=3.7",
     entry_points={
         "console_scripts": [
-            "folder-extractor=folder_extractor.main_final:main",
+            "folder-extractor=folder_extractor.main:main",
         ],
     },
     install_requires=[

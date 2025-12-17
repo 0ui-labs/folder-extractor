@@ -1,12 +1,12 @@
 """
-Unit tests for the enhanced extractor module (extractor_v2.py).
+Unit tests for the enhanced extractor module.
 """
 import pytest
 from pathlib import Path
 import threading
 from unittest.mock import Mock, MagicMock, patch, call
 
-from folder_extractor.core.extractor_v2 import (
+from folder_extractor.core.extractor import (
     EnhancedFileExtractor,
     EnhancedExtractionOrchestrator,
     SecurityError,
@@ -93,12 +93,12 @@ class TestEnhancedFileExtractor:
         ]
 
         # Mock FileMover behavior
-        with patch('folder_extractor.core.extractor_v2.FileMover') as MockFileMover:
+        with patch('folder_extractor.core.extractor.FileMover') as MockFileMover:
             mock_mover = MockFileMover.return_value
             mock_mover.move_files.return_value = (3, 0, 0, history)
 
             # Mock ProgressTracker
-            with patch('folder_extractor.core.extractor_v2.ProgressTracker') as MockProgress:
+            with patch('folder_extractor.core.extractor.ProgressTracker') as MockProgress:
                 mock_progress = MockProgress.return_value
 
                 # Execute extraction
@@ -106,8 +106,8 @@ class TestEnhancedFileExtractor:
 
         # Verify history was saved (line 195)
         self.mock_history_manager.save_history.assert_called_once_with(
-            str(destination),
-            history
+            history,
+            str(destination)
         )
         assert result["moved"] == 3
         assert len(result["history"]) == 3
@@ -125,12 +125,12 @@ class TestEnhancedFileExtractor:
         self.abort_signal.set()
 
         # Mock FileMover behavior
-        with patch('folder_extractor.core.extractor_v2.FileMover') as MockFileMover:
+        with patch('folder_extractor.core.extractor.FileMover') as MockFileMover:
             mock_mover = MockFileMover.return_value
             mock_mover.move_files.return_value = (1, 0, 0, [])
 
             # Mock ProgressTracker
-            with patch('folder_extractor.core.extractor_v2.ProgressTracker') as MockProgress:
+            with patch('folder_extractor.core.extractor.ProgressTracker') as MockProgress:
                 mock_progress = MockProgress.return_value
 
                 # Execute extraction
@@ -156,18 +156,18 @@ class TestEnhancedFileExtractor:
         files = [str(file1)]
 
         # Mock FileMover to simulate successful move
-        with patch('folder_extractor.core.extractor_v2.FileMover') as MockFileMover:
+        with patch('folder_extractor.core.extractor.FileMover') as MockFileMover:
             mock_mover = MockFileMover.return_value
             history = [{"original_pfad": str(file1), "neuer_pfad": str(destination / "file1.txt")}]
             mock_mover.move_files.return_value = (1, 0, 0, history)
 
             # Mock ProgressTracker
-            with patch('folder_extractor.core.extractor_v2.ProgressTracker') as MockProgress:
+            with patch('folder_extractor.core.extractor.ProgressTracker') as MockProgress:
                 mock_progress = MockProgress.return_value
 
                 # Mock get_temp_files_list to return a list
                 mock_temp_files = [".DS_Store", ".gitkeep"]
-                with patch('folder_extractor.core.extractor_v2.get_temp_files_list', return_value=mock_temp_files, create=True):
+                with patch('folder_extractor.core.extractor.get_temp_files_list', return_value=mock_temp_files, create=True):
                     # Mock _remove_empty_directories to verify it's called
                     with patch.object(self.extractor, '_remove_empty_directories', return_value=1) as mock_remove:
                         # Execute extraction (not dry run, not sort by type, no file type filter, moved > 0)
@@ -334,11 +334,11 @@ class TestEnhancedFileExtractor:
         self.abort_signal.set()
 
         # Mock ProgressTracker
-        with patch('folder_extractor.core.extractor_v2.ProgressTracker') as MockProgress:
+        with patch('folder_extractor.core.extractor.ProgressTracker') as MockProgress:
             mock_progress = MockProgress.return_value
 
             # Mock ManagedOperation
-            with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
                 # Execute undo
                 result = self.extractor.undo_last_operation(tmp_path)
 
@@ -386,11 +386,11 @@ class TestEnhancedFileExtractor:
         mock_operation.__exit__ = Mock(return_value=False)
 
         # Mock ProgressTracker
-        with patch('folder_extractor.core.extractor_v2.ProgressTracker') as MockProgress:
+        with patch('folder_extractor.core.extractor.ProgressTracker') as MockProgress:
             mock_progress = MockProgress.return_value
 
             # Mock ManagedOperation
-            with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+            with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
                 # Execute undo
                 result = self.extractor.undo_last_operation(tmp_path)
 
@@ -438,12 +438,12 @@ class TestEnhancedFileExtractor:
         settings.set("dry_run", True)
 
         # Mock FileMover behavior
-        with patch('folder_extractor.core.extractor_v2.FileMover') as MockFileMover:
+        with patch('folder_extractor.core.extractor.FileMover') as MockFileMover:
             mock_mover = MockFileMover.return_value
             mock_mover.move_files.return_value = (1, 0, 0, [])
 
             # Mock ProgressTracker
-            with patch('folder_extractor.core.extractor_v2.ProgressTracker') as MockProgress:
+            with patch('folder_extractor.core.extractor.ProgressTracker') as MockProgress:
                 mock_progress = MockProgress.return_value
 
                 # Execute extraction
@@ -460,12 +460,12 @@ class TestEnhancedFileExtractor:
         destination.mkdir()
 
         # Mock FileMover to return 0 moved files
-        with patch('folder_extractor.core.extractor_v2.FileMover') as MockFileMover:
+        with patch('folder_extractor.core.extractor.FileMover') as MockFileMover:
             mock_mover = MockFileMover.return_value
             mock_mover.move_files.return_value = (0, 0, 0, [])
 
             # Mock ProgressTracker
-            with patch('folder_extractor.core.extractor_v2.ProgressTracker') as MockProgress:
+            with patch('folder_extractor.core.extractor.ProgressTracker') as MockProgress:
                 mock_progress = MockProgress.return_value
 
                 # Execute extraction
@@ -485,13 +485,13 @@ class TestEnhancedFileExtractor:
         settings.set("sort_by_type", True)
 
         # Mock FileMover behavior for sorted mode
-        with patch('folder_extractor.core.extractor_v2.FileMover') as MockFileMover:
+        with patch('folder_extractor.core.extractor.FileMover') as MockFileMover:
             mock_mover = MockFileMover.return_value
             history = [{"original_pfad": files[0], "neuer_pfad": str(destination / "TXT" / "file.txt")}]
             mock_mover.move_files_sorted.return_value = (1, 0, 0, history, ["TXT"])
 
             # Mock ProgressTracker
-            with patch('folder_extractor.core.extractor_v2.ProgressTracker') as MockProgress:
+            with patch('folder_extractor.core.extractor.ProgressTracker') as MockProgress:
                 mock_progress = MockProgress.return_value
 
                 # Execute extraction
@@ -512,13 +512,13 @@ class TestEnhancedFileExtractor:
         operation_id = "test-op-123"
 
         # Mock FileMover behavior
-        with patch('folder_extractor.core.extractor_v2.FileMover') as MockFileMover:
+        with patch('folder_extractor.core.extractor.FileMover') as MockFileMover:
             mock_mover = MockFileMover.return_value
             history = [{"original_pfad": files[0], "neuer_pfad": str(destination / "file.txt")}]
             mock_mover.move_files.return_value = (1, 0, 0, history)
 
             # Mock ProgressTracker and capture callback
-            with patch('folder_extractor.core.extractor_v2.ProgressTracker') as MockProgress:
+            with patch('folder_extractor.core.extractor.ProgressTracker') as MockProgress:
                 mock_progress_instance = MockProgress.return_value
 
                 # Execute extraction with operation_id
@@ -580,7 +580,7 @@ class TestEnhancedExtractionOrchestrator:
     def test_init_with_default_state_manager(self):
         """Test __init__ creates default state manager (lines 357-358)."""
         # Create orchestrator without state manager
-        with patch('folder_extractor.core.extractor_v2.get_state_manager') as mock_get_sm:
+        with patch('folder_extractor.core.extractor.get_state_manager') as mock_get_sm:
             mock_default_sm = Mock()
             mock_get_sm.return_value = mock_default_sm
 
@@ -622,7 +622,7 @@ class TestEnhancedExtractionOrchestrator:
         mock_stats.success_rate = 100.0
         self.mock_state_manager.get_operation_stats.return_value = mock_stats
 
-        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+        with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
             # Execute extraction
             result = self.orchestrator.execute_extraction(source_path)
 
@@ -654,7 +654,7 @@ class TestEnhancedExtractionOrchestrator:
         mock_operation.__enter__ = Mock(return_value=mock_operation)
         mock_operation.__exit__ = Mock(return_value=False)
 
-        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+        with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
             # Execute extraction
             result = self.orchestrator.execute_extraction(source_path)
 
@@ -686,7 +686,7 @@ class TestEnhancedExtractionOrchestrator:
         # Create confirmation callback that returns False (cancel)
         confirmation_callback = Mock(return_value=False)
 
-        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+        with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
             # Execute extraction with confirmation callback
             result = self.orchestrator.execute_extraction(
                 source_path,
@@ -736,7 +736,7 @@ class TestEnhancedExtractionOrchestrator:
         # Create confirmation callback that should NOT be called
         confirmation_callback = Mock(return_value=False)
 
-        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+        with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
             # Execute extraction with confirmation callback in dry run mode
             result = self.orchestrator.execute_extraction(
                 source_path,
@@ -767,7 +767,7 @@ class TestEnhancedExtractionOrchestrator:
         mock_operation.__enter__ = Mock(return_value=mock_operation)
         mock_operation.__exit__ = Mock(return_value=False)
 
-        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+        with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
             # Execute extraction
             result = self.orchestrator.execute_extraction(source_path)
 
@@ -795,7 +795,7 @@ class TestEnhancedExtractionOrchestrator:
         mock_operation.__enter__ = Mock(return_value=mock_operation)
         mock_operation.__exit__ = Mock(return_value=False)
 
-        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+        with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
             # Execute extraction
             result = self.orchestrator.execute_extraction(source_path)
 
@@ -823,7 +823,7 @@ class TestEnhancedExtractionOrchestrator:
         mock_operation.__enter__ = Mock(return_value=mock_operation)
         mock_operation.__exit__ = Mock(return_value=False)
 
-        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+        with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
             # Execute extraction
             result = self.orchestrator.execute_extraction(source_path)
 
@@ -861,7 +861,7 @@ class TestEnhancedExtractionOrchestrator:
         # Create progress callback
         progress_callback = Mock()
 
-        with patch('folder_extractor.core.extractor_v2.ManagedOperation', return_value=mock_operation):
+        with patch('folder_extractor.core.extractor.ManagedOperation', return_value=mock_operation):
             # Execute extraction with progress callback
             result = self.orchestrator.execute_extraction(
                 source_path,

@@ -85,24 +85,9 @@ class TestBackwardCompatibility:
         assert state_manager.get_value("file_type_filter") == "pdf"
         assert state_manager.get_value("dry_run") is True
     
-    def test_extractor_adapter(self):
-        """Test extractor adapter for new interface."""
-        from folder_extractor.core.migration import ExtractorAdapter
-        from folder_extractor.core.extractor_v2 import EnhancedFileExtractor
-        
-        # Create enhanced extractor
-        enhanced_extractor = EnhancedFileExtractor()
-        
-        # Create adapter
-        adapter = ExtractorAdapter(enhanced_extractor)
-        
-        # Test methods exist
-        assert hasattr(adapter, "extract_files")
-        assert hasattr(adapter, "undo_last_operation")
-    
     def test_enhanced_cli_with_legacy_args(self):
         """Test enhanced CLI with legacy command line arguments."""
-        from folder_extractor.cli.app_v2 import EnhancedFolderExtractorCLI
+        from folder_extractor.cli.app import EnhancedFolderExtractorCLI
         
         # Create test structure
         sub_dir = Path(self.test_dir) / "subdir"
@@ -155,7 +140,7 @@ class TestBackwardCompatibility:
     
     def test_mixed_history_format(self):
         """Test handling mixed format history (German and English fields)."""
-        from folder_extractor.core.extractor_v2 import EnhancedFileExtractor
+        from folder_extractor.core.extractor import EnhancedFileExtractor
         
         # Create mixed format history
         history_file = Path(self.test_dir) / ".folder_extractor_history.json"

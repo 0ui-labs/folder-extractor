@@ -1,10 +1,11 @@
 """
-Main CLI application module.
+Enhanced CLI application with integrated state management.
 
-Coordinates the command line interface for Folder Extractor.
+Coordinates the command line interface with new state management
+and progress tracking capabilities.
 """
-import os
 import sys
+from pathlib import Path
 from typing import Optional
 
 from folder_extractor.cli.parser import create_parser
@@ -12,21 +13,24 @@ from folder_extractor.cli.interface import (
     create_console_interface, KeyboardHandler
 )
 from folder_extractor.core.extractor import (
-    FileExtractor, ExtractionOrchestrator
+    EnhancedFileExtractor, EnhancedExtractionOrchestrator
 )
-from folder_extractor.core.state import get_app_state, OperationContext
-from folder_extractor.config.settings import configure_from_args, settings
+from folder_extractor.core.state_manager import (
+    get_state_manager, ManagedOperation
+)
+from folder_extractor.core.progress import ProgressInfo
+from folder_extractor.config.settings import configure_from_args
 from folder_extractor.config.constants import MESSAGES
 
 
-class FolderExtractorCLI:
-    """Main CLI application class."""
+class EnhancedFolderExtractorCLI:
+    """Enhanced CLI application with state management."""
     
     def __init__(self):
-        """Initialize CLI application."""
+        """Initialize enhanced CLI application."""
         self.parser = create_parser()
         self.interface = create_console_interface()
-        self.app_state = get_app_state()
+        self.state_manager = get_state_manager()
     
     def run(self, args: Optional[list] = None) -> int:
         """Run the CLI application.
@@ -44,19 +48,22 @@ class FolderExtractorCLI:
             # Configure settings from arguments
             configure_from_args(parsed_args)
             
+            # Migrate settings to state manager
+            from folder_extractor.core.migration import MigrationHelper
+            MigrationHelper.migrate_settings()
+
             # Get current directory
-            current_dir = os.getcwd()
-            
+            current_dir = Path.cwd()
+
             # Show welcome message
             if not parsed_args.undo:
                 self.interface.show_welcome()
             
             # Execute operation
-            with OperationContext(self.app_state) as context:
-                if parsed_args.undo:
-                    return self._execute_undo(current_dir, context)
-                else:
-                    return self._execute_extraction(current_dir, context)
+            if parsed_args.undo:
+                return self._execute_undo(current_dir)
+            else:
+                return self._execute_extraction(current_dir)
         
         except KeyboardInterrupt:
             print("\n" + MESSAGES["OPERATION_CANCELLED"])
@@ -69,25 +76,29 @@ class FolderExtractorCLI:
             )
             return 1
     
-    def _execute_extraction(self, path: str, context: OperationContext) -> int:
+    def _execute_extraction(self, path: str) -> int:
         """Execute file extraction operation.
         
         Args:
             path: Path to extract files from
-            context: Operation context
         
         Returns:
             Exit code
         """
         # Create extractor and orchestrator
-        extractor = FileExtractor(abort_signal=context.abort_signal)
-        orchestrator = ExtractionOrchestrator(extractor)
+        extractor = EnhancedFileExtractor(state_manager=self.state_manager)
+        orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
+        
+        # Set up progress integration
+        def progress_callback(current: int, total: int, 
+                            filepath: str, error: Optional[str] = None):
+            self.interface.show_progress(current, total, filepath, error)
         
         # Set up keyboard handler for abort
         keyboard_handler = None
-        if not settings.get("dry_run", False):
+        if not self.state_manager.get_value("dry_run", False):
             keyboard_handler = KeyboardHandler(
-                lambda: self.app_state.request_abort()
+                lambda: self.state_manager.request_abort()
             )
             keyboard_handler.start()
         
@@ -96,15 +107,26 @@ class FolderExtractorCLI:
             result = orchestrator.execute_extraction(
                 source_path=path,
                 confirmation_callback=self.interface.confirm_operation,
-                progress_callback=self.interface.show_progress
+                progress_callback=progress_callback
             )
-            
-            # Check if aborted
-            if self.app_state.is_abort_requested():
-                result["aborted"] = True
             
             # Show summary
             self.interface.show_summary(result)
+            
+            # Show operation statistics if available
+            if "operation_id" in result:
+                stats = self.state_manager.get_operation_stats(result["operation_id"])
+                if stats and stats.duration:
+                    self.interface.show_message(
+                        f"\nOperation dauerte {stats.duration:.2f} Sekunden",
+                        message_type="info"
+                    )
+                    if stats.files_processed > 0:
+                        rate = stats.files_processed / stats.duration
+                        self.interface.show_message(
+                            f"Durchschnitt: {rate:.1f} Dateien/Sekunde",
+                            message_type="info"
+                        )
             
             # Return appropriate exit code
             if result.get("status") == "success":
@@ -119,19 +141,18 @@ class FolderExtractorCLI:
             if keyboard_handler:
                 keyboard_handler.stop()
     
-    def _execute_undo(self, path: str, context: OperationContext) -> int:
+    def _execute_undo(self, path: str) -> int:
         """Execute undo operation.
         
         Args:
             path: Path where history is located
-            context: Operation context
         
         Returns:
             Exit code
         """
         # Create extractor and orchestrator
-        extractor = FileExtractor(abort_signal=context.abort_signal)
-        orchestrator = ExtractionOrchestrator(extractor)
+        extractor = EnhancedFileExtractor(state_manager=self.state_manager)
+        orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
         
         # Show operation message
         self.interface.show_message(
@@ -148,11 +169,23 @@ class FolderExtractorCLI:
             message_type="success" if result["status"] == "success" else "warning"
         )
         
+        # Show statistics if available
+        if result.get("restored", 0) > 0:
+            self.interface.show_message(
+                f"✓ {result['restored']} Dateien wiederhergestellt",
+                message_type="success"
+            )
+            if result.get("errors", 0) > 0:
+                self.interface.show_message(
+                    f"✗ {result['errors']} Fehler aufgetreten",
+                    message_type="error"
+                )
+        
         return 0 if result["status"] == "success" else 1
 
 
 def main(args: Optional[list] = None) -> int:
-    """Main entry point for the CLI.
+    """Main entry point for the enhanced CLI.
     
     Args:
         args: Optional command line arguments
@@ -160,7 +193,7 @@ def main(args: Optional[list] = None) -> int:
     Returns:
         Exit code
     """
-    app = FolderExtractorCLI()
+    app = EnhancedFolderExtractorCLI()
     return app.run(args)
 
 

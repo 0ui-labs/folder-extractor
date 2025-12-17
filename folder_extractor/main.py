@@ -160,12 +160,13 @@ def parse_domains(domain_string: Optional[str]) -> Optional[List[str]]:
     return new_parse_domains(domain_string)
 
 
-# For main entry point compatibility
+# Main entry point
 def main():
-    """Main entry point - delegates to main_final."""
-    from folder_extractor.main_final import main as real_main
-    return real_main()
+    """Main entry point for Folder Extractor."""
+    from folder_extractor.cli.app import main as cli_main
+    return cli_main()
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    sys.exit(main())

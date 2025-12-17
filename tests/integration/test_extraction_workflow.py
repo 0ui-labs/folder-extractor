@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 import pytest
 
-from folder_extractor.cli.app_v2 import EnhancedFolderExtractorCLI
+from folder_extractor.cli.app import EnhancedFolderExtractorCLI
 from folder_extractor.core.state_manager import reset_state_manager
 from folder_extractor.config.settings import settings
 
