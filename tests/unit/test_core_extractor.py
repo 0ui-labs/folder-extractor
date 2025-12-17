@@ -1,10 +1,8 @@
 """
 Unit tests for the core extractor module.
 """
-import os
 import pytest
 from pathlib import Path
-import tempfile
 import threading
 from unittest.mock import Mock, MagicMock, patch
 
@@ -50,27 +48,26 @@ class TestFileExtractor:
             with pytest.raises(SecurityError):
                 self.extractor.validate_security(path)
     
-    def test_discover_files_basic(self):
+    def test_discover_files_basic(self, tmp_path):
         """Test basic file discovery."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create test structure
-            subdir = Path(temp_dir) / "subdir"
-            subdir.mkdir()
-            (subdir / "file1.txt").touch()
-            (subdir / "file2.pdf").touch()
-            
-            # Mock file discovery to return our files
-            mock_discovery = Mock()
-            mock_discovery.find_files.return_value = [
-                str(subdir / "file1.txt"),
-                str(subdir / "file2.pdf")
-            ]
-            
-            extractor = FileExtractor(file_discovery=mock_discovery)
-            files = extractor.discover_files(temp_dir)
-            
-            assert len(files) == 2
-            mock_discovery.find_files.assert_called_once()
+        # Create test structure
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        (subdir / "file1.txt").touch()
+        (subdir / "file2.pdf").touch()
+
+        # Mock file discovery to return our files
+        mock_discovery = Mock()
+        mock_discovery.find_files.return_value = [
+            str(subdir / "file1.txt"),
+            str(subdir / "file2.pdf")
+        ]
+
+        extractor = FileExtractor(file_discovery=mock_discovery)
+        files = extractor.discover_files(tmp_path)
+
+        assert len(files) == 2
+        mock_discovery.find_files.assert_called_once()
     
     def test_filter_by_domain(self):
         """Test domain filtering for weblink files."""
@@ -97,98 +94,233 @@ class TestFileExtractor:
         assert "/path/to/file.txt" in filtered
         assert "/path/to/youtube.url" in filtered
     
-    def test_extract_files_normal_mode(self):
+    def test_extract_files_normal_mode(self, tmp_path):
         """Test file extraction in normal mode."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create source files
-            source_dir = Path(temp_dir) / "source"
-            source_dir.mkdir()
-            files = []
-            for i in range(3):
-                file_path = source_dir / f"file{i}.txt"
-                file_path.touch()
-                files.append(str(file_path))
-            
-            # Extract files
-            result = self.extractor.extract_files(files, temp_dir)
-            
-            assert result["moved"] == 3
-            assert result["errors"] == 0
-            assert result["duplicates"] == 0
-            assert len(result["history"]) == 3
-            assert result["created_folders"] == []
+        # Create source files
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        files = []
+        for i in range(3):
+            file_path = source_dir / f"file{i}.txt"
+            file_path.touch()
+            files.append(str(file_path))
+
+        # Extract files
+        result = self.extractor.extract_files(files, tmp_path)
+
+        assert result["moved"] == 3
+        assert result["errors"] == 0
+        assert result["duplicates"] == 0
+        assert len(result["history"]) == 3
+        assert result["created_folders"] == []
     
-    def test_extract_files_sort_by_type(self):
+    def test_extract_files_sort_by_type(self, tmp_path):
         """Test file extraction with sort by type."""
         settings.set("sort_by_type", True)
-        
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create source files
-            source_dir = Path(temp_dir) / "source"
-            source_dir.mkdir()
-            files = [
-                str((source_dir / "doc.pdf").touch() or source_dir / "doc.pdf"),
-                str((source_dir / "img.jpg").touch() or source_dir / "img.jpg"),
-                str((source_dir / "script.py").touch() or source_dir / "script.py")
-            ]
-            
-            # Extract files
-            result = self.extractor.extract_files(files, temp_dir)
-            
-            assert result["moved"] == 3
-            assert "PDF" in result["created_folders"]
-            assert "JPEG" in result["created_folders"]
-            assert "PYTHON" in result["created_folders"]
+
+        # Create source files
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        files = [
+            str((source_dir / "doc.pdf").touch() or source_dir / "doc.pdf"),
+            str((source_dir / "img.jpg").touch() or source_dir / "img.jpg"),
+            str((source_dir / "script.py").touch() or source_dir / "script.py")
+        ]
+
+        # Extract files
+        result = self.extractor.extract_files(files, tmp_path)
+
+        assert result["moved"] == 3
+        assert "PDF" in result["created_folders"]
+        assert "JPEG" in result["created_folders"]
+        assert "PYTHON" in result["created_folders"]
     
-    def test_extract_files_dry_run(self):
+    def test_extract_files_dry_run(self, tmp_path):
         """Test extraction in dry run mode."""
         settings.set("dry_run", True)
-        
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create source file
-            source_file = Path(temp_dir) / "source.txt"
-            source_file.touch()
-            
-            # Extract
-            result = self.extractor.extract_files([str(source_file)], temp_dir)
-            
-            # File should still exist in original location
-            assert source_file.exists()
-            assert result["moved"] == 1
-            assert len(result["history"]) == 0  # No history in dry run
+
+        # Create source file
+        source_file = tmp_path / "source.txt"
+        source_file.touch()
+
+        # Extract
+        result = self.extractor.extract_files([str(source_file)], tmp_path)
+
+        # File should still exist in original location
+        assert source_file.exists()
+        assert result["moved"] == 1
+        assert len(result["history"]) == 0  # No history in dry run
     
-    def test_undo_last_operation(self):
+    def test_undo_last_operation(self, tmp_path):
         """Test undo functionality."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create history
-            operations = [{
-                "original_pfad": str(Path(temp_dir) / "original" / "file.txt"),
-                "neuer_pfad": str(Path(temp_dir) / "new" / "file.txt"),
-                "original_name": "file.txt",
-                "neuer_name": "file.txt",
-                "zeitstempel": "2024-01-01T12:00:00"
-            }]
-            
-            # Create the "moved" file
-            new_dir = Path(temp_dir) / "new"
-            new_dir.mkdir()
-            (new_dir / "file.txt").write_text("content")
-            
-            # Save history
-            HistoryManager.save_history(operations, temp_dir)
-            
-            # Undo
-            restored = self.extractor.undo_last_operation(temp_dir)
-            
-            assert restored == 1
-            assert (Path(temp_dir) / "original" / "file.txt").exists()
-            assert not (new_dir / "file.txt").exists()
+        # Create history
+        operations = [{
+            "original_pfad": str(tmp_path / "original" / "file.txt"),
+            "neuer_pfad": str(tmp_path / "new" / "file.txt"),
+            "original_name": "file.txt",
+            "neuer_name": "file.txt",
+            "zeitstempel": "2024-01-01T12:00:00"
+        }]
+
+        # Create the "moved" file
+        new_dir = tmp_path / "new"
+        new_dir.mkdir()
+        (new_dir / "file.txt").write_text("content")
+
+        # Save history
+        HistoryManager.save_history(operations, tmp_path)
+
+        # Undo
+        restored = self.extractor.undo_last_operation(tmp_path)
+
+        assert restored == 1
+        assert (tmp_path / "original" / "file.txt").exists()
+        assert not (new_dir / "file.txt").exists()
     
-    def test_undo_no_history(self):
+    def test_undo_no_history(self, tmp_path):
         """Test undo when no history exists."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            restored = self.extractor.undo_last_operation(temp_dir)
-            assert restored == 0
+        restored = self.extractor.undo_last_operation(tmp_path)
+        assert restored == 0
+
+    def test_filter_by_domain_no_domains(self):
+        """Test filter_by_domain with empty/None domains list (covers line 121)."""
+        files = [
+            "/path/to/file.txt",
+            "/path/to/youtube.url",
+            "/path/to/github.webloc"
+        ]
+
+        # Test with None
+        filtered = self.extractor.filter_by_domain(files, None)
+        assert len(filtered) == 3
+        assert filtered == files
+
+        # Test with empty list
+        filtered = self.extractor.filter_by_domain(files, [])
+        assert len(filtered) == 3
+        assert filtered == files
+
+    def test_extract_files_with_domain_filter(self, tmp_path):
+        """Test extraction with domain_filter setting (covers line 152)."""
+        # Set domain filter
+        settings.set("domain_filter", ["youtube.com"])
+
+        # Create source files including weblinks
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+
+        # Create regular file
+        regular_file = source_dir / "file.txt"
+        regular_file.touch()
+
+        # Create weblink files
+        youtube_file = source_dir / "youtube.url"
+        youtube_file.touch()
+        github_file = source_dir / "github.url"
+        github_file.touch()
+
+        files = [str(regular_file), str(youtube_file), str(github_file)]
+
+        # Mock domain checking
+        mock_discovery = Mock()
+        mock_discovery.check_weblink_domain.side_effect = [
+            True,   # youtube.url matches
+            False   # github.url doesn't match
+        ]
+
+        extractor = FileExtractor(file_discovery=mock_discovery)
+
+        # Extract files with domain filter
+        result = extractor.extract_files(files, tmp_path)
+
+        # Should only move regular file and matching weblink
+        assert result["moved"] == 2
+        assert result["errors"] == 0
+
+    def test_undo_with_abort_signal(self, tmp_path):
+        """Test undo operation being interrupted by abort signal (covers line 224)."""
+        abort_signal = threading.Event()
+
+        # Create extractor with abort signal
+        extractor = FileExtractor(abort_signal=abort_signal)
+
+        # Create history with multiple operations
+        operations = []
+        for i in range(5):
+            operations.append({
+                "original_pfad": str(tmp_path / "original" / f"file{i}.txt"),
+                "neuer_pfad": str(tmp_path / "new" / f"file{i}.txt"),
+                "original_name": f"file{i}.txt",
+                "neuer_name": f"file{i}.txt",
+                "zeitstempel": "2024-01-01T12:00:00"
+            })
+
+        # Create the "moved" files
+        new_dir = tmp_path / "new"
+        new_dir.mkdir()
+        for i in range(5):
+            (new_dir / f"file{i}.txt").write_text(f"content{i}")
+
+        # Save history
+        HistoryManager.save_history(operations, tmp_path)
+
+        # Set abort signal before undo
+        abort_signal.set()
+
+        # Undo should be interrupted
+        restored = extractor.undo_last_operation(tmp_path)
+
+        # Should have restored 0 files due to immediate abort
+        assert restored == 0
+
+    def test_undo_with_file_error(self, tmp_path):
+        """Test undo when file operation fails (covers lines 241-243)."""
+        # Create history with two operations - one will fail, one will succeed
+        operations = [
+            {
+                "original_pfad": str(tmp_path / "original" / "file1.txt"),
+                "neuer_pfad": str(tmp_path / "new" / "file1.txt"),
+                "original_name": "file1.txt",
+                "neuer_name": "file1.txt",
+                "zeitstempel": "2024-01-01T12:00:00"
+            },
+            {
+                "original_pfad": str(tmp_path / "original" / "file2.txt"),
+                "neuer_pfad": str(tmp_path / "new" / "file2.txt"),
+                "original_name": "file2.txt",
+                "neuer_name": "file2.txt",
+                "zeitstempel": "2024-01-01T12:00:00"
+            }
+        ]
+
+        # Create the "moved" files
+        new_dir = tmp_path / "new"
+        new_dir.mkdir()
+        (new_dir / "file1.txt").write_text("content1")
+        (new_dir / "file2.txt").write_text("content2")
+
+        # Save history
+        HistoryManager.save_history(operations, tmp_path)
+
+        # Mock file_operations.move_file to raise exception on first call, succeed on second
+        mock_file_ops = Mock()
+        mock_file_ops.move_file.side_effect = [
+            Exception("Simulated file error"),  # First call fails
+            None  # Second call succeeds (but won't be reached due to reverse order)
+        ]
+        mock_file_ops.remove_empty_directories.return_value = 0
+
+        # Create extractor with mocked file operations
+        extractor = FileExtractor(file_operations=mock_file_ops)
+
+        # Undo should handle the error gracefully and continue
+        restored = extractor.undo_last_operation(tmp_path)
+
+        # Should have tried both operations (reversed order)
+        # Due to reverse order: file2 fails, but file1 might succeed
+        # Actually, with side_effect, first call (file2 in reverse) fails, second (file1) succeeds
+        assert restored == 1  # One file successfully restored despite the error
+        assert mock_file_ops.move_file.call_count == 2
 
 
 class TestExtractionOrchestrator:
@@ -328,28 +460,27 @@ class TestIntegration:
             if test_dir.exists():
                 shutil.rmtree(test_dir)
     
-    def test_extraction_with_abort(self):
+    def test_extraction_with_abort(self, tmp_path):
         """Test extraction with abort signal."""
         abort_signal = threading.Event()
-        
+
         # Create extractor with abort signal
         extractor = FileExtractor(abort_signal=abort_signal)
-        
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create many files
-            source_dir = Path(temp_dir) / "source"
-            source_dir.mkdir()
-            files = []
-            for i in range(100):
-                file_path = source_dir / f"file{i}.txt"
-                file_path.touch()
-                files.append(str(file_path))
-            
-            # Set abort signal immediately
-            abort_signal.set()
-            
-            # Extract - should be interrupted
-            result = extractor.extract_files(files, temp_dir)
-            
-            # Should have processed fewer files
-            assert result["moved"] < len(files)
+
+        # Create many files
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        files = []
+        for i in range(100):
+            file_path = source_dir / f"file{i}.txt"
+            file_path.touch()
+            files.append(str(file_path))
+
+        # Set abort signal immediately
+        abort_signal.set()
+
+        # Extract - should be interrupted
+        result = extractor.extract_files(files, tmp_path)
+
+        # Should have processed fewer files
+        assert result["moved"] < len(files)
