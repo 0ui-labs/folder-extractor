@@ -17,6 +17,26 @@ from folder_extractor.config.constants import (
 )
 
 
+def get_temp_files_list() -> list:
+    """
+    Get list of temporary and system file names to ignore.
+
+    Returns:
+        List of temporary/system file names
+
+    Examples:
+        >>> temp_files = get_temp_files_list()
+        >>> ".DS_Store" in temp_files
+        True
+    """
+    temp_list = list(SYSTEM_FILES) + list(GIT_TEMP_FILES)
+    # Add patterns from editor temp files that are exact names (not wildcards)
+    for pattern in EDITOR_TEMP_FILES:
+        if not pattern.startswith('*') and not pattern.startswith('.#') and not pattern.startswith('#'):
+            temp_list.append(pattern)
+    return temp_list
+
+
 def is_temp_or_system_file(filename: Union[str, Path]) -> bool:
     """
     Check if a file is a temporary or system file.
