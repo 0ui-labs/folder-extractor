@@ -30,9 +30,9 @@ class TestExtractionWorkflow:
         """Clean up test environment."""
         # Restore working directory
         os.chdir(self.original_cwd)
-        
+
         # Remove test directory
-        if os.path.exists(self.test_dir):
+        if Path(self.test_dir).exists():
             shutil.rmtree(self.test_dir)
     
     def create_test_structure(self):
@@ -210,7 +210,7 @@ class TestUndoWorkflow:
     def teardown_method(self):
         """Clean up test environment."""
         os.chdir(self.original_cwd)
-        if os.path.exists(self.test_dir):
+        if Path(self.test_dir).exists():
             shutil.rmtree(self.test_dir)
     
     def test_undo_no_history(self):
