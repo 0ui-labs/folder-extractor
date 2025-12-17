@@ -4,6 +4,7 @@ Unit tests for CLI app module.
 import pytest
 import os
 import sys
+from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from io import StringIO
 
@@ -188,6 +189,33 @@ class TestEnhancedFolderExtractorCLI:
                 # Should return 0 (not an error)
                 assert result == 0
 
+    def test_execute_extraction_with_path_object(self):
+        """Test extraction with Path object instead of string."""
+        mock_orchestrator = Mock()
+        mock_orchestrator.execute_extraction.return_value = {
+            "status": "success",
+            "moved": 5,
+            "duplicates": 0,
+            "errors": 0
+        }
+
+        self.cli.state_manager.get_value = Mock(return_value=True)  # dry_run
+        self.cli.state_manager.get_operation_stats = Mock(return_value=None)
+        self.cli.interface.show_summary = Mock()
+
+        test_path = Path("/test/path")
+
+        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
+            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+                result = self.cli._execute_extraction(test_path)
+
+                assert result == 0
+
+                # Verify orchestrator received Path object
+                call_args = mock_orchestrator.execute_extraction.call_args
+                source_path = call_args[1]['source_path']
+                assert isinstance(source_path, Path)
+
     def test_execute_undo_success(self):
         """Test successful undo execution."""
         mock_orchestrator = Mock()
@@ -233,6 +261,30 @@ class TestEnhancedFolderExtractorCLI:
                 # Check warning message shown
                 final_call = self.cli.interface.show_message.call_args_list[-1]
                 assert final_call[1]["message_type"] == "warning"
+
+    def test_execute_undo_with_path_object(self):
+        """Test undo with Path object instead of string."""
+        mock_orchestrator = Mock()
+        mock_orchestrator.execute_undo.return_value = {
+            "status": "success",
+            "message": "5 Dateien zurück verschoben",
+            "restored": 5,
+            "errors": 0
+        }
+
+        self.cli.interface.show_message = Mock()
+
+        test_path = Path("/test/path")
+
+        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
+            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+                result = self.cli._execute_undo(test_path)
+
+                assert result == 0
+
+                # Verify orchestrator received Path object
+                call_args = mock_orchestrator.execute_undo.call_args[0]
+                assert isinstance(call_args[0], Path)
 
 
 def test_main_function():

@@ -6,7 +6,7 @@ and progress tracking capabilities.
 """
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 from folder_extractor.cli.parser import create_parser
 from folder_extractor.cli.interface import (
@@ -76,22 +76,22 @@ class EnhancedFolderExtractorCLI:
             )
             return 1
     
-    def _execute_extraction(self, path: str) -> int:
+    def _execute_extraction(self, path: Union[str, Path]) -> int:
         """Execute file extraction operation.
-        
+
         Args:
             path: Path to extract files from
-        
+
         Returns:
             Exit code
         """
         # Create extractor and orchestrator
         extractor = EnhancedFileExtractor(state_manager=self.state_manager)
         orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
-        
+
         # Set up progress integration
-        def progress_callback(current: int, total: int, 
-                            filepath: str, error: Optional[str] = None):
+        def progress_callback(current: int, total: int,
+                            filepath: Union[str, Path], error: Optional[str] = None):
             self.interface.show_progress(current, total, filepath, error)
         
         # Set up keyboard handler for abort
@@ -141,12 +141,12 @@ class EnhancedFolderExtractorCLI:
             if keyboard_handler:
                 keyboard_handler.stop()
     
-    def _execute_undo(self, path: str) -> int:
+    def _execute_undo(self, path: Union[str, Path]) -> int:
         """Execute undo operation.
-        
+
         Args:
             path: Path where history is located
-        
+
         Returns:
             Exit code
         """

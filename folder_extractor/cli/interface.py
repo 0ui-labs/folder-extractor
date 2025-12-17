@@ -3,11 +3,11 @@ Command line interface module.
 
 Handles user interaction, progress display, and terminal operations.
 """
-import os
 import sys
 import threading
 import time
-from typing import Optional, Callable, Any
+from pathlib import Path
+from typing import Optional, Callable, Any, Union
 from abc import ABC, abstractmethod
 
 from folder_extractor.config.constants import (
@@ -40,8 +40,8 @@ class IUserInterface(ABC):
         pass
     
     @abstractmethod
-    def show_progress(self, current: int, total: int, 
-                     filepath: str, error: Optional[str] = None) -> None:
+    def show_progress(self, current: int, total: int,
+                     filepath: Union[str, Path], error: Optional[str] = None) -> None:
         """Show operation progress."""
         pass
     
@@ -114,10 +114,10 @@ class ConsoleInterface(IUserInterface):
         except (KeyboardInterrupt, EOFError):
             return False
     
-    def show_progress(self, current: int, total: int, 
-                     filepath: str, error: Optional[str] = None) -> None:
+    def show_progress(self, current: int, total: int,
+                     filepath: Union[str, Path], error: Optional[str] = None) -> None:
         """Show operation progress.
-        
+
         Args:
             current: Current file number
             total: Total number of files
@@ -139,14 +139,14 @@ class ConsoleInterface(IUserInterface):
         # Format message
         if error:
             message = MESSAGES["MOVE_ERROR"].format(
-                file=os.path.basename(filepath),
+                file=Path(filepath).name,
                 error=error
             )
             print(message)
         else:
             # Show progress bar
             progress_bar = format_progress_bar(current, total, width=30)
-            filename = os.path.basename(filepath)
+            filename = Path(filepath).name
             
             # Truncate filename if too long
             max_length = 40

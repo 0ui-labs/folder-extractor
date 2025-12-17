@@ -4,6 +4,7 @@ Unit tests for CLI interface module.
 import pytest
 import sys
 import time
+from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from io import StringIO
 
@@ -113,34 +114,55 @@ class TestConsoleInterface:
     def test_show_progress(self):
         """Test progress display."""
         with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            # First update should show
+            # First update should show (string path)
             self.interface.show_progress(1, 10, "/path/to/file.txt")
             output1 = mock_stdout.getvalue()
             assert "file.txt" in output1
-            
+
             # Rate limiting - immediate second call shouldn't show
             mock_stdout.truncate(0)
             mock_stdout.seek(0)
             self.interface.show_progress(2, 10, "/path/to/file2.txt")
             output2 = mock_stdout.getvalue()
-            
+
             # Depending on timing, might be empty due to rate limiting
             # But after waiting, should show
             time.sleep(0.15)
             self.interface.show_progress(3, 10, "/path/to/file3.txt")
             output3 = mock_stdout.getvalue()
             assert "file3.txt" in output3
+
+    def test_show_progress_with_path_object(self):
+        """Test progress display with Path object."""
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            # Test with Path object
+            self.interface.show_progress(1, 10, Path("/path/to/file.txt"))
+            output = mock_stdout.getvalue()
+            assert "file.txt" in output
     
     def test_show_progress_with_error(self):
         """Test progress display with error."""
         with patch('sys.stdout', new=StringIO()) as mock_stdout:
             self.interface.show_progress(
-                5, 10, 
-                "/path/to/file.txt", 
+                5, 10,
+                "/path/to/file.txt",
                 error="Permission denied"
             )
             output = mock_stdout.getvalue()
-            
+
+            assert "file.txt" in output
+            assert "Permission denied" in output
+
+    def test_show_progress_with_error_path_object(self):
+        """Test progress display with error using Path object."""
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            self.interface.show_progress(
+                5, 10,
+                Path("/path/to/file.txt"),
+                error="Permission denied"
+            )
+            output = mock_stdout.getvalue()
+
             assert "file.txt" in output
             assert "Permission denied" in output
     
