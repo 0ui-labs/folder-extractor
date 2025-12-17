@@ -1,36 +1,33 @@
 """
 Pytest configuration and shared fixtures
 """
-import os
 import sys
 import pytest
-import tempfile
 import shutil
 from pathlib import Path
 
 # Add parent directory to path so we can import folder_extractor
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 @pytest.fixture
-def temp_dir():
+def temp_dir(tmp_path):
     """Create a temporary directory for testing."""
-    temp_dir = tempfile.mkdtemp()
-    yield temp_dir
-    # Cleanup after test
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
+    yield str(tmp_path)
+    # Cleanup handled automatically by pytest
 
 
 @pytest.fixture
 def test_file_structure(temp_dir):
     """Create a standard test file structure."""
+    base_path = Path(temp_dir)
+
     # Create directories
-    os.makedirs(os.path.join(temp_dir, "subdir1"))
-    os.makedirs(os.path.join(temp_dir, "subdir2", "nested"))
-    os.makedirs(os.path.join(temp_dir, ".hidden"))
-    os.makedirs(os.path.join(temp_dir, ".git", "objects"))
-    
+    (base_path / "subdir1").mkdir(parents=True)
+    (base_path / "subdir2" / "nested").mkdir(parents=True)
+    (base_path / ".hidden").mkdir(parents=True)
+    (base_path / ".git" / "objects").mkdir(parents=True)
+
     # Create files
     files = {
         "file1.txt": "Content 1",
@@ -44,14 +41,14 @@ def test_file_structure(temp_dir):
         ".git/HEAD": "ref: refs/heads/main",
         ".DS_Store": "System file",
     }
-    
+
     created_files = []
     for file_path, content in files.items():
-        full_path = os.path.join(temp_dir, file_path)
+        full_path = str(base_path / file_path)
         with open(full_path, 'w') as f:
             f.write(content)
         created_files.append(full_path)
-    
+
     return temp_dir, created_files
 
 
