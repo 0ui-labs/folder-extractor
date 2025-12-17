@@ -10,7 +10,7 @@ import pytest
 import json
 
 # Add parent to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from folder_extractor.config.settings import settings
 from folder_extractor.core.state_manager import reset_state_manager
@@ -33,7 +33,7 @@ class TestBackwardCompatibility:
     def teardown_method(self):
         """Clean up test environment."""
         os.chdir(self.original_cwd)
-        if os.path.exists(self.test_dir):
+        if Path(self.test_dir).exists():
             shutil.rmtree(self.test_dir)
     
     def test_legacy_history_format_reading(self):
