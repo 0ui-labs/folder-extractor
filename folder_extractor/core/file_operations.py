@@ -4,12 +4,11 @@ File operations module.
 Handles all file system operations including moving files,
 generating unique names, and managing directories.
 """
-import os
 import shutil
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import List, Tuple, Dict, Optional, Any
+from typing import List, Tuple, Dict, Optional, Any, Union
 from abc import ABC, abstractmethod
 
 from folder_extractor.config.constants import (
@@ -17,7 +16,6 @@ from folder_extractor.config.constants import (
     FILE_TYPE_FOLDERS,
     HISTORY_FILE_NAME
 )
-from folder_extractor.utils.terminal import Color
 
 
 class FileOperationError(Exception):
@@ -25,26 +23,28 @@ class FileOperationError(Exception):
     pass
 
 
-class IFileOperations(ABC):
+class IFileOperations(ABC):  # pragma: no cover
     """Interface for file operations."""
-    
+
     @abstractmethod
-    def move_file(self, source: str, destination: str, dry_run: bool = False) -> bool:
+    def move_file(self, source: Union[str, Path], destination: Union[str, Path],
+                  dry_run: bool = False) -> bool:
         """Move a single file."""
         pass
-    
+
     @abstractmethod
-    def generate_unique_name(self, directory: str, filename: str) -> str:
+    def generate_unique_name(self, directory: Union[str, Path], filename: str) -> str:
         """Generate a unique filename in the given directory."""
         pass
-    
+
     @abstractmethod
-    def remove_empty_directories(self, path: str, include_hidden: bool = False) -> int:
+    def remove_empty_directories(self, path: Union[str, Path],
+                                 include_hidden: bool = False) -> int:
         """Remove empty directories recursively."""
         pass
-    
+
     @abstractmethod
-    def determine_type_folder(self, filename: str) -> str:
+    def determine_type_folder(self, filename: Union[str, Path]) -> str:
         """Determine the folder name for a file type."""
         pass
 
@@ -60,130 +60,142 @@ class FileOperations(IFileOperations):
         """
         self.abort_signal = abort_signal
     
-    def move_file(self, source: str, destination: str, dry_run: bool = False) -> bool:
+    def move_file(self, source: Union[str, Path], destination: Union[str, Path],
+                  dry_run: bool = False) -> bool:
         """
         Move a single file from source to destination.
-        
+
         Args:
-            source: Source file path
-            destination: Destination file path
+            source: Source file path (str or Path)
+            destination: Destination file path (str or Path)
             dry_run: If True, don't actually move the file
-        
+
         Returns:
             True if successful, False otherwise
-        
+
         Raises:
             FileOperationError: If the move operation fails
         """
         if dry_run:
             return True
-        
+
+        # Convert to Path objects
+        source_path = Path(source)
+        dest_path = Path(destination)
+
         try:
             # Try to move using rename (fastest)
-            os.rename(source, destination)
+            source_path.rename(dest_path)
             return True
         except OSError:
             # Fall back to copy and delete (works across filesystems)
             try:
-                shutil.copy2(source, destination)
-                os.remove(source)
+                shutil.copy2(source_path, dest_path)
+                source_path.unlink()
                 return True
             except Exception as e:
                 raise FileOperationError(f"Failed to move file: {str(e)}")
     
-    def generate_unique_name(self, directory: str, filename: str) -> str:
+    def generate_unique_name(self, directory: Union[str, Path], filename: str) -> str:
         """
         Generate a unique filename in the given directory.
-        
+
         If a file with the given name already exists, appends _1, _2, etc.
-        
+
         Args:
-            directory: Directory to check for existing files
+            directory: Directory to check for existing files (str or Path)
             filename: Original filename
-        
+
         Returns:
             Unique filename that doesn't exist in the directory
         """
-        if not os.path.exists(os.path.join(directory, filename)):
+        # Convert to Path object
+        dir_path = Path(directory)
+
+        if not (dir_path / filename).exists():
             return filename
-        
-        # Split name and extension
-        name_parts = filename.rsplit('.', 1)
-        if len(name_parts) == 2:
-            base_name, extension = name_parts
-            extension = '.' + extension
-        else:
-            base_name = filename
-            extension = ''
-        
+
+        # Use Path for extension handling
+        file_path = Path(filename)
+        base_name = file_path.stem
+        extension = file_path.suffix  # includes the dot, e.g., '.txt'
+
         # Find unique name
         counter = 1
         while True:
             new_name = f"{base_name}_{counter}{extension}"
-            if not os.path.exists(os.path.join(directory, new_name)):
+            if not (dir_path / new_name).exists():
                 return new_name
             counter += 1
     
-    def remove_empty_directories(self, path: str, include_hidden: bool = False) -> int:
+    def remove_empty_directories(self, path: Union[str, Path],
+                                 include_hidden: bool = False) -> int:
         """
         Remove empty directories recursively.
-        
+
         Args:
-            path: Root path to start from
+            path: Root path to start from (str or Path)
             include_hidden: Whether to consider hidden files
-        
+
         Returns:
             Number of directories removed
         """
+        # Convert to Path object
+        root_path = Path(path)
         removed_count = 0
-        
-        for root, dirs, files in os.walk(path, topdown=False):
-            # Skip the root directory itself
-            if root == path:
+
+        # Walk directory tree bottom-up using sorted list of all subdirectories
+        all_dirs = sorted(root_path.rglob('*'), key=lambda p: len(p.parts), reverse=True)
+
+        for dir_path in all_dirs:
+            # Skip non-directories and the root directory itself
+            if not dir_path.is_dir() or dir_path == root_path:
                 continue
-            
+
             # Check if directory is empty
             try:
-                dir_content = os.listdir(root)
-                
+                dir_content = list(dir_path.iterdir())
+
                 # If not including hidden files, filter them out
                 if not include_hidden:
-                    dir_content = [item for item in dir_content 
-                                 if not item.startswith('.')]
-                
+                    visible_content = [item for item in dir_content
+                                      if not item.name.startswith('.')]
+                else:
+                    visible_content = dir_content
+
                 # If directory is empty (or only has hidden files), remove it
-                if not dir_content:
+                if not visible_content:
                     # Remove hidden files if not including them
                     if not include_hidden:
-                        for item in os.listdir(root):
-                            if item.startswith('.'):
-                                item_path = os.path.join(root, item)
-                                if os.path.isfile(item_path):
-                                    os.remove(item_path)
-                                elif os.path.isdir(item_path):
-                                    shutil.rmtree(item_path)
-                    
-                    os.rmdir(root)
+                        for item in dir_content:
+                            if item.name.startswith('.'):
+                                if item.is_file():
+                                    item.unlink()
+                                elif item.is_dir():
+                                    shutil.rmtree(item)
+
+                    dir_path.rmdir()
                     removed_count += 1
             except (OSError, PermissionError):
                 # Skip directories we can't access
                 pass
-        
+
         return removed_count
     
-    def determine_type_folder(self, filename: str) -> str:
+    def determine_type_folder(self, filename: Union[str, Path]) -> str:
         """
         Determine the folder name for a file based on its type.
-        
+
         Args:
-            filename: Name of the file
-        
+            filename: Name of the file (str or Path)
+
         Returns:
             Folder name for the file type
         """
-        # Get file extension
-        _, ext = os.path.splitext(filename.lower())
-        
+        # Convert to Path object and get extension
+        file_path = Path(filename)
+        ext = file_path.suffix.lower()  # suffix includes the dot, e.g., '.pdf'
+
         # Look up in mapping
         if ext in FILE_TYPE_FOLDERS:
             return FILE_TYPE_FOLDERS[ext]
@@ -197,214 +209,231 @@ class FileOperations(IFileOperations):
 
 class HistoryManager:
     """Manages operation history for undo functionality."""
-    
+
     @staticmethod
-    def save_history(operations: List[Dict[str, Any]], directory: str) -> str:
+    def save_history(operations: List[Dict[str, Any]],
+                     directory: Union[str, Path]) -> str:
         """
         Save operation history to file.
-        
+
         Args:
             operations: List of operation records
-            directory: Directory to save history file
-        
+            directory: Directory to save history file (str or Path)
+
         Returns:
-            Path to the history file
+            Path to the history file (as string)
         """
-        history_file = os.path.join(directory, HISTORY_FILE_NAME)
-        
+        dir_path = Path(directory)
+        history_file = dir_path / HISTORY_FILE_NAME
+
         history_data = {
             "zeitstempel": datetime.now().isoformat(),
             "version": "1.0",
             "operationen": operations
         }
-        
-        with open(history_file, 'w', encoding='utf-8') as f:
+
+        with history_file.open('w', encoding='utf-8') as f:
             json.dump(history_data, f, indent=2, ensure_ascii=False)
-        
-        return history_file
-    
+
+        return str(history_file)
+
     @staticmethod
-    def load_history(directory: str) -> Optional[Dict[str, Any]]:
+    def load_history(directory: Union[str, Path]) -> Optional[Dict[str, Any]]:
         """
         Load operation history from file.
-        
+
         Args:
-            directory: Directory containing history file
-        
+            directory: Directory containing history file (str or Path)
+
         Returns:
             History data or None if not found
         """
-        history_file = os.path.join(directory, HISTORY_FILE_NAME)
-        
-        if not os.path.exists(history_file):
+        dir_path = Path(directory)
+        history_file = dir_path / HISTORY_FILE_NAME
+
+        if not history_file.exists():
             return None
-        
+
         try:
-            with open(history_file, 'r', encoding='utf-8') as f:
+            with history_file.open('r', encoding='utf-8') as f:
                 return json.load(f)
         except (json.JSONDecodeError, IOError):
             return None
-    
+
     @staticmethod
-    def delete_history(directory: str) -> bool:
+    def delete_history(directory: Union[str, Path]) -> bool:
         """
         Delete history file.
-        
+
         Args:
-            directory: Directory containing history file
-        
+            directory: Directory containing history file (str or Path)
+
         Returns:
             True if deleted, False if not found
         """
-        history_file = os.path.join(directory, HISTORY_FILE_NAME)
-        
-        if os.path.exists(history_file):
-            os.remove(history_file)
+        dir_path = Path(directory)
+        history_file = dir_path / HISTORY_FILE_NAME
+
+        if history_file.exists():
+            history_file.unlink()
             return True
-        
+
         return False
 
 
 class FileMover:
     """High-level file moving operations."""
-    
+
     def __init__(self, file_ops: IFileOperations, abort_signal=None):
         """
         Initialize file mover.
-        
+
         Args:
             file_ops: File operations implementation
             abort_signal: Threading event to signal abort
         """
         self.file_ops = file_ops
         self.abort_signal = abort_signal
-    
-    def move_files(self, files: List[str], destination: str, 
+
+    def move_files(self, files: List[Union[str, Path]], destination: Union[str, Path],
                    dry_run: bool = False,
                    progress_callback=None) -> Tuple[int, int, int, List[Dict]]:
         """
         Move multiple files to destination.
-        
+
         Args:
-            files: List of file paths to move
-            destination: Destination directory
+            files: List of file paths to move (str or Path)
+            destination: Destination directory (str or Path)
             dry_run: If True, simulate the operation
             progress_callback: Optional callback for progress updates
-        
+
         Returns:
             Tuple of (moved_count, error_count, duplicate_count, history)
         """
+        # Convert destination to Path
+        dest_path = Path(destination)
+
         moved = 0
         errors = 0
         duplicates = 0
         history = []
-        
+
         for i, file_path in enumerate(files):
             # Check abort signal
             if self.abort_signal and self.abort_signal.is_set():
                 break
-            
+
+            # Convert to Path object
+            source_path = Path(file_path)
+
             # Progress callback
             if progress_callback:
                 progress_callback(i + 1, len(files), file_path)
-            
+
             try:
-                filename = os.path.basename(file_path)
-                
+                filename = source_path.name
+
                 # Generate unique name if needed
-                unique_name = self.file_ops.generate_unique_name(destination, filename)
+                unique_name = self.file_ops.generate_unique_name(dest_path, filename)
                 if unique_name != filename:
                     duplicates += 1
-                
-                dest_path = os.path.join(destination, unique_name)
-                
+
+                final_dest = dest_path / unique_name
+
                 # Move file
-                if self.file_ops.move_file(file_path, dest_path, dry_run):
+                if self.file_ops.move_file(source_path, final_dest, dry_run):
                     moved += 1
-                    
-                    # Record in history
+
+                    # Record in history (use strings for JSON serialization)
                     if not dry_run:
                         history.append({
-                            "original_pfad": file_path,
-                            "neuer_pfad": dest_path,
+                            "original_pfad": str(source_path),
+                            "neuer_pfad": str(final_dest),
                             "original_name": filename,
                             "neuer_name": unique_name,
                             "zeitstempel": datetime.now().isoformat()
                         })
-                
+
             except Exception as e:
                 errors += 1
                 if progress_callback:
                     progress_callback(i + 1, len(files), file_path, error=str(e))
-        
+
         return moved, errors, duplicates, history
-    
-    def move_files_sorted(self, files: List[str], destination: str,
-                         dry_run: bool = False,
-                         progress_callback=None) -> Tuple[int, int, int, List[Dict], List[str]]:
+
+    def move_files_sorted(self, files: List[Union[str, Path]],
+                          destination: Union[str, Path],
+                          dry_run: bool = False,
+                          progress_callback=None) -> Tuple[int, int, int, List[Dict], List[str]]:
         """
         Move files sorted by type into subdirectories.
-        
+
         Args:
-            files: List of file paths to move
-            destination: Destination directory
+            files: List of file paths to move (str or Path)
+            destination: Destination directory (str or Path)
             dry_run: If True, simulate the operation
             progress_callback: Optional callback for progress updates
-        
+
         Returns:
             Tuple of (moved_count, error_count, duplicate_count, history, created_folders)
         """
+        # Convert destination to Path
+        dest_path = Path(destination)
+
         moved = 0
         errors = 0
         duplicates = 0
         history = []
         created_folders = set()
-        
+
         for i, file_path in enumerate(files):
             # Check abort signal
             if self.abort_signal and self.abort_signal.is_set():
                 break
-            
+
+            # Convert to Path object
+            source_path = Path(file_path)
+
             # Progress callback
             if progress_callback:
                 progress_callback(i + 1, len(files), file_path)
-            
+
             try:
-                filename = os.path.basename(file_path)
-                
+                filename = source_path.name
+
                 # Determine type folder
                 type_folder = self.file_ops.determine_type_folder(filename)
-                type_path = os.path.join(destination, type_folder)
-                
+                type_path = dest_path / type_folder
+
                 # Create type folder if needed
-                if not os.path.exists(type_path) and not dry_run:
-                    os.makedirs(type_path, exist_ok=True)
+                if not type_path.exists() and not dry_run:
+                    type_path.mkdir(parents=True, exist_ok=True)
                     created_folders.add(type_folder)
-                
+
                 # Generate unique name
                 unique_name = self.file_ops.generate_unique_name(type_path, filename)
                 if unique_name != filename:
                     duplicates += 1
-                
-                dest_path = os.path.join(type_path, unique_name)
-                
+
+                final_dest = type_path / unique_name
+
                 # Move file
-                if self.file_ops.move_file(file_path, dest_path, dry_run):
+                if self.file_ops.move_file(source_path, final_dest, dry_run):
                     moved += 1
-                    
-                    # Record in history
+
+                    # Record in history (use strings for JSON serialization)
                     if not dry_run:
                         history.append({
-                            "original_pfad": file_path,
-                            "neuer_pfad": dest_path,
+                            "original_pfad": str(source_path),
+                            "neuer_pfad": str(final_dest),
                             "original_name": filename,
                             "neuer_name": unique_name,
                             "zeitstempel": datetime.now().isoformat()
                         })
-                
+
             except Exception as e:
                 errors += 1
                 if progress_callback:
                     progress_callback(i + 1, len(files), file_path, error=str(e))
-        
+
         return moved, errors, duplicates, history, list(created_folders)

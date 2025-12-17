@@ -68,15 +68,17 @@ class TestFileDiscoveryPerformance:
     def test_find_files_flat_structure(self):
         """Benchmark finding files in flat structure."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create 1000 files in single directory
+            # Create 1000 files in a subdirectory (finde_dateien skips root dir)
             print("\nCreating 1000 files in flat structure...")
+            subdir = Path(temp_dir) / "subdir"
+            subdir.mkdir()
             for i in range(1000):
-                Path(temp_dir, f"file_{i:04d}.txt").touch()
-            
+                (subdir / f"file_{i:04d}.txt").touch()
+
             # Benchmark finding files
             with BenchmarkTimer("Find 1000 files (flat)"):
                 files = finde_dateien(temp_dir)
-            
+
             assert len(files) == 1000
     
     @pytest.mark.benchmark
@@ -86,28 +88,32 @@ class TestFileDiscoveryPerformance:
             # Create deep structure
             print("\nCreating deep file structure...")
             created = create_file_tree(temp_dir, 1000, depth=5)
-            
+
             # Benchmark finding files
             with BenchmarkTimer("Find files (deep structure)"):
                 files = finde_dateien(temp_dir, max_tiefe=0)
-            
-            assert len(files) >= len(created)
+
+            # Note: finde_dateien skips files in root directory (depth 0),
+            # so we expect slightly fewer files than created (minus 10 root files)
+            assert len(files) >= len(created) - 10
     
     @pytest.mark.benchmark
     def test_find_files_with_filtering(self):
         """Benchmark finding files with type filtering."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create mixed file types
+            # Create mixed file types in a subdirectory (finde_dateien skips root dir)
             print("\nCreating mixed file types...")
+            subdir = Path(temp_dir) / "subdir"
+            subdir.mkdir()
             extensions = [".txt", ".pdf", ".jpg", ".doc", ".mp3"]
             for i in range(1000):
                 ext = extensions[i % len(extensions)]
-                Path(temp_dir, f"file_{i:04d}{ext}").touch()
-            
+                (subdir / f"file_{i:04d}{ext}").touch()
+
             # Benchmark finding only txt and pdf files
             with BenchmarkTimer("Find files with type filter"):
                 files = finde_dateien(temp_dir, dateityp_filter=[".txt", ".pdf"])
-            
+
             assert len(files) == 400  # 200 txt + 200 pdf
 
 
@@ -164,25 +170,29 @@ class TestFileMovePerformance:
         """Benchmark moving files with many duplicates."""
         source_dir = Path(safe_test_dir) / "source"
         source_dir.mkdir(exist_ok=True)
-        
-        # Create existing files
+
+        # Create existing files in destination (10 files)
         print("\nCreating existing files for duplicate testing...")
-        for i in range(100):
-            Path(safe_test_dir, f"duplicate_{i % 10}.txt").touch()
-        
-        # Create source files that will conflict
+        for i in range(10):
+            Path(safe_test_dir, f"duplicate_{i}.txt").touch()
+
+        # Create 100 unique source files that will conflict with the 10 existing names
+        # Each of the 10 names will have 10 source files trying to use it
         files = []
         for i in range(100):
-            file_path = source_dir / f"duplicate_{i % 10}.txt"
+            # Use unique subdirectories to have unique source paths
+            subdir = source_dir / f"batch_{i}"
+            subdir.mkdir(exist_ok=True)
+            file_path = subdir / f"duplicate_{i % 10}.txt"
             file_path.write_text(f"New content {i}")
             files.append(str(file_path))
-        
+
         # Benchmark moving with duplicate handling
         with BenchmarkTimer("Move 100 files with duplicates"):
             moved, errors, duplicates, history = verschiebe_dateien(
                 files, safe_test_dir, dry_run=False
             )
-        
+
         assert moved == 100
         assert duplicates == 100
 

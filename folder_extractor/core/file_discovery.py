@@ -3,9 +3,8 @@ File discovery module.
 
 Handles finding files in directories with various filtering options.
 """
-import os
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Union
 from abc import ABC, abstractmethod
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
@@ -20,16 +19,16 @@ from folder_extractor.config.constants import HIDDEN_FILE_PREFIX
 
 class IFileDiscovery(ABC):
     """Interface for file discovery operations."""
-    
+
     @abstractmethod
-    def find_files(self, directory: str, max_depth: int = 0,
+    def find_files(self, directory: Union[str, Path], max_depth: int = 0,
                   file_type_filter: Optional[List[str]] = None,
                   include_hidden: bool = False) -> List[str]:
         """Find files in directory with given criteria."""
         pass
     
     @abstractmethod
-    def check_weblink_domain(self, filepath: str, allowed_domains: List[str]) -> bool:
+    def check_weblink_domain(self, filepath: Union[str, Path], allowed_domains: List[str]) -> bool:
         """Check if a weblink file matches allowed domains."""
         pass
 
@@ -46,115 +45,132 @@ class FileDiscovery(IFileDiscovery):
         """
         self.abort_signal = abort_signal
     
-    def find_files(self, directory: str, max_depth: int = 0,
+    def find_files(self, directory: Union[str, Path], max_depth: int = 0,
                   file_type_filter: Optional[List[str]] = None,
                   include_hidden: bool = False) -> List[str]:
         """
         Find all files in directory and subdirectories.
-        
+
         Args:
             directory: Root directory to search
             max_depth: Maximum depth to search (0 = unlimited)
             file_type_filter: List of allowed file extensions
             include_hidden: Whether to include hidden files
-        
+
         Returns:
             List of file paths found
         """
+        base_path = Path(directory)
         found_files = []
-        
-        # Walk through directory
-        for root, dirs, files in os.walk(directory):
+
+        # Helper function to check if directory should be traversed
+        def should_traverse_dir(path: Path) -> bool:
+            """Check if directory should be traversed."""
+            if not include_hidden and path.name.startswith(HIDDEN_FILE_PREFIX):
+                return False
+            return True
+
+        # Walk through directory tree
+        def walk_directory(current_path: Path, current_depth: int):
+            """Recursively walk directory tree."""
             # Check abort signal
             if self.abort_signal and self.abort_signal.is_set():
-                break
-            
-            # Calculate current depth
-            depth = self._calculate_depth(directory, root)
-            
-            # Check depth limit
-            if max_depth > 0 and depth > max_depth:
-                continue  # Skip this directory entirely
-            
-            # If we're at max depth, don't go deeper
-            if max_depth > 0 and depth == max_depth:
-                dirs.clear()  # Don't go deeper but process files here
-            
-            # Filter directories if not including hidden
-            if not include_hidden:
-                # Remove hidden directories from dirs list (modifies in-place)
-                dirs[:] = [d for d in dirs if not d.startswith(HIDDEN_FILE_PREFIX)]
-            
-            # Note: Original behavior skips root directory files
-            # but we process them to match the test expectations
-            # In real usage, users typically want files from subdirectories only
-            if depth == 0:
-                # Skip root directory to maintain original behavior
-                continue
-            
-            # Process files in this directory
-            for filename in files:
-                filepath = os.path.join(root, filename)
-                
-                # Check if file should be included
-                if not should_include_file(filepath, include_hidden):
-                    continue
-                
-                # Check file type filter
-                if not validate_file_extension(filepath, file_type_filter):
-                    continue
-                
-                found_files.append(filepath)
-        
+                return
+
+            # Single iteration: process files and collect subdirectories
+            subdirs = []
+            try:
+                for item in current_path.iterdir():
+                    # Check abort signal
+                    if self.abort_signal and self.abort_signal.is_set():
+                        return
+
+                    if item.is_file():
+                        # Process files at all depths including root (depth 0)
+                        filepath = str(item)
+
+                        # Check if file should be included
+                        if not should_include_file(filepath, include_hidden):
+                            continue
+
+                        # Check file type filter
+                        if not validate_file_extension(filepath, file_type_filter):
+                            continue
+
+                        found_files.append(filepath)
+
+                    elif item.is_dir() and should_traverse_dir(item):
+                        # Collect subdirectories for later traversal
+                        subdirs.append(item)
+
+            except (OSError, PermissionError):
+                # Skip directories we can't read
+                return
+
+            # Check depth limit before traversing subdirectories
+            if max_depth > 0 and current_depth >= max_depth:
+                return  # Don't go deeper
+
+            # Traverse collected subdirectories
+            for subdir in subdirs:
+                # Check abort signal
+                if self.abort_signal and self.abort_signal.is_set():
+                    return
+                walk_directory(subdir, current_depth + 1)
+
+        # Start walking from base path
+        walk_directory(base_path, 0)
+
         return found_files
     
-    def check_weblink_domain(self, filepath: str, allowed_domains: List[str]) -> bool:
+    def check_weblink_domain(self, filepath: Union[str, Path], allowed_domains: List[str]) -> bool:
         """
         Check if a weblink file (.url or .webloc) is from an allowed domain.
-        
+
         Args:
             filepath: Path to the weblink file
             allowed_domains: List of allowed domains
-        
+
         Returns:
             True if the file is from an allowed domain
         """
-        if not os.path.exists(filepath):
+        file_path = Path(filepath)
+        if not file_path.exists():
             return False
-        
+
         try:
-            # Determine file type
-            if filepath.endswith('.url'):
-                return self._check_url_file(filepath, allowed_domains)
-            elif filepath.endswith('.webloc'):
-                return self._check_webloc_file(filepath, allowed_domains)
+            # Determine file type using Path.suffix
+            if file_path.suffix == '.url':
+                return self._check_url_file(str(file_path), allowed_domains)
+            elif file_path.suffix == '.webloc':
+                return self._check_webloc_file(str(file_path), allowed_domains)
             else:
                 return False
         except Exception:
             return False
     
-    def _calculate_depth(self, base_dir: str, current_dir: str) -> int:
+    def _calculate_depth(self, base_dir: Union[str, Path], current_dir: Union[str, Path]) -> int:
         """
         Calculate the depth of current directory relative to base.
-        
+
         Args:
             base_dir: Base directory
             current_dir: Current directory
-        
+
         Returns:
             Depth level (0 = base directory)
         """
-        base_path = os.path.abspath(base_dir)
-        current_path = os.path.abspath(current_dir)
-        
+        base_path = Path(base_dir).resolve()
+        current_path = Path(current_dir).resolve()
+
         # Get relative path
         try:
-            rel_path = os.path.relpath(current_path, base_path)
-            if rel_path == '.':
+            rel_path = current_path.relative_to(base_path)
+            if rel_path == Path('.'):
                 return 0
-            return len(rel_path.split(os.sep))
+            return len(rel_path.parts)
         except ValueError:
-            # Paths are on different drives
+            # Paths are on different drives or not relative
             return 0
     
     def _check_url_file(self, filepath: str, allowed_domains: List[str]) -> bool:
@@ -253,12 +269,12 @@ class FileFilter:
             return validate_file_extension(filepath, extensions)
         self._filters.append(filter_func)
     
-    def add_size_filter(self, min_size: Optional[int] = None, 
+    def add_size_filter(self, min_size: Optional[int] = None,
                        max_size: Optional[int] = None):
         """Add file size filter."""
         def filter_func(filepath: str) -> bool:
             try:
-                size = os.path.getsize(filepath)
+                size = Path(filepath).stat().st_size
                 if min_size is not None and size < min_size:
                     return False
                 if max_size is not None and size > max_size:
@@ -272,7 +288,7 @@ class FileFilter:
         """Add filename pattern filter (simple wildcard)."""
         import fnmatch
         def filter_func(filepath: str) -> bool:
-            filename = os.path.basename(filepath)
+            filename = Path(filepath).name
             return fnmatch.fnmatch(filename, pattern)
         self._filters.append(filter_func)
     

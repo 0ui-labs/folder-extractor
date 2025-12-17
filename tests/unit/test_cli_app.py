@@ -13,9 +13,15 @@ from folder_extractor.config.settings import settings
 
 class TestFolderExtractorCLI:
     """Test FolderExtractorCLI class."""
-    
+
     def setup_method(self):
         """Set up test fixtures."""
+        # Ensure CWD is valid (other tests may have deleted their temp directories)
+        try:
+            os.getcwd()
+        except (FileNotFoundError, OSError):
+            os.chdir(os.path.expanduser("~"))
+
         # Reset settings
         settings.reset_to_defaults()
         # Create CLI instance with mocked dependencies
