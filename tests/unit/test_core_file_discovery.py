@@ -1,7 +1,6 @@
 """
 Unit tests for the core file discovery module.
 """
-import os
 import pytest
 from pathlib import Path
 import threading
@@ -35,7 +34,7 @@ class TestFileDiscovery:
         files = self.file_discovery.find_files(str(tmp_path))
 
         assert len(files) == 3
-        filenames = [os.path.basename(f) for f in files]
+        filenames = [Path(f).name for f in files]
         assert "file1.txt" in filenames
         assert "file2.pdf" in filenames
         assert "file3.txt" in filenames
