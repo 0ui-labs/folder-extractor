@@ -4,6 +4,8 @@ Progress tracking and reporting.
 Provides progress tracking capabilities with callbacks
 and integration with state management.
 """
+from __future__ import annotations
+
 import time
 from typing import Optional, Callable, Any, Dict
 from dataclasses import dataclass
