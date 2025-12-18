@@ -1,9 +1,8 @@
 """
 Unit tests for progress tracking module.
 """
-import pytest
 import time
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from folder_extractor.core.progress import (
     ProgressInfo, ProgressTracker, BatchProgressTracker,

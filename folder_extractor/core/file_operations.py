@@ -148,8 +148,12 @@ class FileOperations(IFileOperations):
         all_dirs = sorted(root_path.rglob('*'), key=lambda p: len(p.parts), reverse=True)
 
         for dir_path in all_dirs:
-            # Skip non-directories and the root directory itself
-            if not dir_path.is_dir() or dir_path == root_path:
+            # Skip non-directories (rglob returns files too)
+            if not dir_path.is_dir():
+                continue
+
+            # Skip root directory itself (defensive, rglob shouldn't return it)
+            if dir_path == root_path:  # pragma: no cover
                 continue
 
             # Check if directory is empty

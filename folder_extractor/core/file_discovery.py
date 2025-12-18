@@ -4,15 +4,14 @@ File discovery module.
 Handles finding files in directories with various filtering options.
 """
 from pathlib import Path
-from typing import List, Optional, Set, Union
+from typing import List, Optional, Union
 from abc import ABC, abstractmethod
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 
 from folder_extractor.utils.file_validators import (
     should_include_file,
-    validate_file_extension,
-    is_hidden_file
+    validate_file_extension
 )
 from folder_extractor.config.constants import HIDDEN_FILE_PREFIX
 

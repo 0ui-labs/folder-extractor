@@ -3,17 +3,14 @@ Unit tests for the core extractor module.
 """
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 
 from folder_extractor.core.extractor import (
     EnhancedFileExtractor,
     EnhancedExtractionOrchestrator,
-    SecurityError,
-    ExtractionError
+    SecurityError
 )
 from folder_extractor.config.settings import settings
-from folder_extractor.core.file_discovery import FileDiscovery
-from folder_extractor.core.file_operations import FileOperations, HistoryManager
 
 
 class TestEnhancedFileExtractor:

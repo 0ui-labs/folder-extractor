@@ -5,7 +5,7 @@ This module provides the old German function names that wrap the new
 modular implementation. This ensures backwards compatibility with
 existing tests and code that imports from folder_extractor.main.
 """
-from typing import List, Optional, Dict, Tuple, Any
+from typing import List, Optional, Dict, Tuple
 
 from folder_extractor.utils.path_validators import is_safe_path
 from folder_extractor.core.file_operations import FileOperations, FileMover

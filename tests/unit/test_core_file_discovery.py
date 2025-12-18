@@ -1,7 +1,6 @@
 """
 Unit tests for the core file discovery module.
 """
-import pytest
 from pathlib import Path
 import threading
 import xml.etree.ElementTree as ET
@@ -445,7 +444,7 @@ class TestFileDiscoveryEdgeCases:
 
     def test_permission_error_handling(self, tmp_path):
         """Test handling of PermissionError (lines 106-108)."""
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
 
         file_discovery = FileDiscovery()
 

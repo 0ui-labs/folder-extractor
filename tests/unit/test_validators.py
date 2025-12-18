@@ -2,7 +2,6 @@
 Unit tests for validator modules.
 """
 import os
-import pytest
 import tempfile
 from pathlib import Path
 
@@ -155,7 +154,7 @@ class TestFileValidators:
 
     def test_path_object_compatibility(self):
         """Test that functions work with both str and Path objects."""
-        from typing import get_type_hints, Union
+        from typing import get_type_hints
 
         # CRITICAL: Check type hints first - this is the actual TDD requirement
         # All functions must have Union[str, Path] type hints for path parameters
@@ -284,7 +283,6 @@ class TestPathValidators:
     
     def test_normalize_path(self):
         """Test path normalization."""
-        import tempfile
 
         # Test tilde expansion (string)
         normalized = normalize_path("~/Desktop")
@@ -361,7 +359,6 @@ class TestPathValidators:
         This test verifies that functions have proper type hints and
         explicitly document Path object support through Union[str, Path].
         """
-        import inspect
         from typing import get_type_hints
 
         home = Path.home()
@@ -410,7 +407,7 @@ class TestPathValidators:
         - Line 64: Empty path parts in get_safe_path_info
         - Line 71-72: General exception in get_safe_path_info
         """
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
 
         # Test is_safe_path with general exception (lines 40-41)
         with patch('folder_extractor.utils.path_validators.Path') as mock_path:

@@ -4,8 +4,6 @@ Constants and configuration values for Folder Extractor.
 This module centralizes all constants, making them easy to modify
 and test. All values that were previously hardcoded are now here.
 """
-import os
-from pathlib import Path
 
 
 # Version Information
@@ -180,8 +178,7 @@ FILE_TYPE_FOLDERS = {
 NO_EXTENSION_FOLDER = "OHNE_ERWEITERUNG"
 
 
-# Terminal Control
-TERMINAL_CLEAR_LINE = "\r\033[K"
+# Progress Bar Configuration
 PROGRESS_BAR_WIDTH = 50
 
 
@@ -251,7 +248,7 @@ Zusammenfassung:
     
     "SORT_BY_TYPE_CREATED": "✓ Ordner '{folder}' erstellt",
     
-    "ESC_TO_ABORT": "\nDrücken Sie ESC zum Abbrechen...",
+    "ABORT_HINT": "\nDrücke Ctrl+C zum Abbrechen...",
 }
 
 
@@ -299,7 +296,7 @@ Sicherheit:
     Das Tool funktioniert nur in den Ordnern Desktop, Downloads und Documents.
     
 Tastenkürzel:
-    ESC - Operation abbrechen (während Dateien verschoben werden)
+    Ctrl+C - Operation abbrechen (während Dateien verschoben werden)
 """
 
 

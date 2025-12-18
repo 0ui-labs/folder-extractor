@@ -2,11 +2,10 @@
 Unit tests for CLI parser module.
 """
 import pytest
-import sys
 from io import StringIO
 from unittest.mock import patch
 
-from folder_extractor.cli.parser import ArgumentParser, create_parser
+from folder_extractor.cli.parser import create_parser
 
 
 class TestArgumentParser:

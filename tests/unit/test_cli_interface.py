@@ -1,206 +1,544 @@
 """
-Unit tests for CLI interface module.
+Unit tests for CLI interface module with rich integration.
+
+Tests use mocked rich components (Console, Panel, Table, Progress) to isolate
+from rich implementation details and verify behavior through call assertions.
 """
 import pytest
-import sys
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from io import StringIO
+from unittest.mock import Mock, patch, MagicMock, ANY
 
 from folder_extractor.cli.interface import (
-    ConsoleInterface, KeyboardHandler, create_console_interface
+    ConsoleInterface, create_console_interface
 )
 from folder_extractor.config.settings import settings
 
 
+@patch('folder_extractor.cli.interface.Console')
 class TestConsoleInterface:
-    """Test ConsoleInterface class."""
-    
+    """Test ConsoleInterface class with mocked Console."""
+
     def setup_method(self):
         """Set up test fixtures."""
-        self.interface = ConsoleInterface()
-        # Reset settings
         settings.reset_to_defaults()
-    
-    def test_show_welcome(self):
-        """Test showing welcome message."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            self.interface.show_welcome()
-            output = mock_stdout.getvalue()
-            
-            assert "Folder Extractor" in output
-            assert "v" in output  # Version
-            assert "Von" in output  # Author
-    
-    def test_show_message_types(self):
-        """Test showing different message types."""
-        # Mock supports_color to return True so we get colored output
-        with patch('folder_extractor.utils.terminal.supports_color', return_value=True):
-            test_cases = [
-                ("info", "Info message", "\033[36m"),      # Cyan
-                ("success", "Success message", "\033[32m"), # Green
-                ("error", "Error message", "\033[31m"),     # Red
-                ("warning", "Warning message", "\033[33m"),  # Yellow
-            ]
-            
-            for msg_type, message, color_code in test_cases:
-                with patch('sys.stdout', new=StringIO()) as mock_stdout:
-                    self.interface.show_message(message, message_type=msg_type)
-                    output = mock_stdout.getvalue()
-                    
-                    # Check message is displayed
-                    assert message in output
-                    # Check color code is applied (if not quiet mode)
-                    if not settings.get("quiet", False):
-                        assert color_code in output
-    
-    def test_show_message_quiet_mode(self):
+
+    def test_show_welcome(self, mock_console_class):
+        """Test showing welcome message creates Panel and prints it."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Panel') as mock_panel_class:
+            mock_panel = MagicMock()
+            mock_panel_class.return_value = mock_panel
+
+            interface = ConsoleInterface()
+            interface.show_welcome()
+
+            # Verify Panel was created with correct parameters
+            mock_panel_class.assert_called_once()
+            call_args = mock_panel_class.call_args
+            # Check title parameter
+            assert call_args.kwargs.get('title') == "Folder Extractor"
+            assert call_args.kwargs.get('border_style') == "cyan"
+
+            # Verify console.print was called with the panel
+            mock_console.print.assert_called_once_with(mock_panel)
+
+    def test_show_welcome_includes_version_and_author(self, mock_console_class):
+        """Test that welcome Panel content includes version and author info."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Panel') as mock_panel_class:
+            interface = ConsoleInterface()
+            interface.show_welcome()
+
+            # Check that Panel was called with message containing version info
+            call_args = mock_panel_class.call_args
+            message = call_args[0][0]  # First positional argument
+            assert "v" in message  # Version marker
+            assert "Von" in message  # Author marker (German)
+
+    def test_show_message_success(self, mock_console_class):
+        """Test showing success message with green bold style."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_message("Success!", message_type="success")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        assert call_args[0][0] == "Success!"
+        assert call_args.kwargs.get('style') == interface.success_style
+
+    def test_show_message_error(self, mock_console_class):
+        """Test showing error message with red bold style."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_message("Error!", message_type="error")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        assert call_args[0][0] == "Error!"
+        assert call_args.kwargs.get('style') == interface.error_style
+
+    def test_show_message_warning(self, mock_console_class):
+        """Test showing warning message with yellow style."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_message("Warning!", message_type="warning")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        assert call_args[0][0] == "Warning!"
+        assert call_args.kwargs.get('style') == interface.warning_style
+
+    def test_show_message_info(self, mock_console_class):
+        """Test showing info message with cyan style."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_message("Info!", message_type="info")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        assert call_args[0][0] == "Info!"
+        assert call_args.kwargs.get('style') == interface.info_style
+
+    def test_show_message_quiet_mode(self, mock_console_class):
         """Test message suppression in quiet mode."""
         settings.set("quiet", True)
-        
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            self.interface.show_message("Test message")
-            output = mock_stdout.getvalue()
-            
-            # No output in quiet mode
-            assert output == ""
-    
-    def test_confirm_operation_dry_run(self):
-        """Test confirmation in dry run mode."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_message("Test message")
+
+        # No output in quiet mode
+        mock_console.print.assert_not_called()
+
+    def test_show_message_unknown_type(self, mock_console_class):
+        """Test show_message with unknown type prints without style."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_message("Plain message", message_type="unknown")
+
+        # Should be called without style parameter
+        mock_console.print.assert_called_once_with("Plain message")
+
+    def test_show_message_none_type(self, mock_console_class):
+        """Test show_message with None type prints without style."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_message("Plain message", message_type=None)
+
+        mock_console.print.assert_called_once_with("Plain message")
+
+    def test_confirm_operation_dry_run(self, mock_console_class):
+        """Test confirmation auto-accepts in dry run mode."""
         settings.set("dry_run", True)
-        
-        # Should auto-confirm in dry run
-        result = self.interface.confirm_operation(10)
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+        result = interface.confirm_operation(10)
+
         assert result is True
-    
-    def test_confirm_operation_auto_confirm(self):
-        """Test confirmation with auto-confirm disabled."""
+
+    def test_confirm_operation_auto_confirm(self, mock_console_class):
+        """Test confirmation auto-accepts when confirm_operations is disabled."""
         settings.set("confirm_operations", False)
-        
-        # Should auto-confirm when disabled
-        result = self.interface.confirm_operation(10)
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+        result = interface.confirm_operation(10)
+
         assert result is True
-    
-    def test_confirm_operation_user_input(self):
-        """Test user confirmation input."""
+
+    def test_confirm_operation_accepts_german_ja(self, mock_console_class):
+        """Test German 'ja' is accepted as confirmation."""
         settings.set("confirm_operations", True)
-        
-        # Test different positive responses
-        positive_responses = ['j', 'ja', 'y', 'yes']
-        
-        for response in positive_responses:
-            with patch('builtins.input', return_value=response):
-                with patch('sys.stdout', new=StringIO()):
-                    result = self.interface.confirm_operation(10)
-                    assert result is True
-        
-        # Test negative responses
-        negative_responses = ['n', 'nein', 'no', '', 'x']
-        
-        for response in negative_responses:
-            with patch('builtins.input', return_value=response):
-                with patch('sys.stdout', new=StringIO()):
-                    result = self.interface.confirm_operation(10)
-                    assert result is False
-    
-    def test_confirm_operation_interrupt(self):
-        """Test confirmation with keyboard interrupt."""
-        with patch('builtins.input', side_effect=KeyboardInterrupt):
-            with patch('sys.stdout', new=StringIO()):
-                result = self.interface.confirm_operation(10)
-                assert result is False
-    
-    def test_show_progress(self):
-        """Test progress display."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            # First update should show (string path)
-            self.interface.show_progress(1, 10, "/path/to/file.txt")
-            output1 = mock_stdout.getvalue()
-            assert "file.txt" in output1
+        mock_console = MagicMock()
+        mock_console.input.return_value = 'ja'
+        mock_console_class.return_value = mock_console
 
-            # Rate limiting - immediate second call shouldn't show
-            mock_stdout.truncate(0)
-            mock_stdout.seek(0)
-            self.interface.show_progress(2, 10, "/path/to/file2.txt")
-            output2 = mock_stdout.getvalue()
+        interface = ConsoleInterface()
+        result = interface.confirm_operation(10)
 
-            # Depending on timing, might be empty due to rate limiting
-            # But after waiting, should show
-            time.sleep(0.15)
-            self.interface.show_progress(3, 10, "/path/to/file3.txt")
-            output3 = mock_stdout.getvalue()
-            assert "file3.txt" in output3
+        assert result is True
 
-    def test_show_progress_with_path_object(self):
-        """Test progress display with Path object."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            # Test with Path object
-            self.interface.show_progress(1, 10, Path("/path/to/file.txt"))
-            output = mock_stdout.getvalue()
-            assert "file.txt" in output
-    
-    def test_show_progress_with_error(self):
-        """Test progress display with error."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            self.interface.show_progress(
-                5, 10,
-                "/path/to/file.txt",
-                error="Permission denied"
+    def test_confirm_operation_accepts_german_j(self, mock_console_class):
+        """Test German 'j' is accepted as confirmation."""
+        settings.set("confirm_operations", True)
+        mock_console = MagicMock()
+        mock_console.input.return_value = 'j'
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        result = interface.confirm_operation(10)
+
+        assert result is True
+
+    def test_confirm_operation_accepts_english_yes(self, mock_console_class):
+        """Test English 'yes' is accepted as confirmation."""
+        settings.set("confirm_operations", True)
+        mock_console = MagicMock()
+        mock_console.input.return_value = 'yes'
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        result = interface.confirm_operation(10)
+
+        assert result is True
+
+    def test_confirm_operation_accepts_english_y(self, mock_console_class):
+        """Test English 'y' is accepted as confirmation."""
+        settings.set("confirm_operations", True)
+        mock_console = MagicMock()
+        mock_console.input.return_value = 'y'
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        result = interface.confirm_operation(10)
+
+        assert result is True
+
+    def test_confirm_operation_user_declines(self, mock_console_class):
+        """Test user declining returns False."""
+        settings.set("confirm_operations", True)
+        mock_console = MagicMock()
+        mock_console.input.return_value = 'n'
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        result = interface.confirm_operation(10)
+
+        assert result is False
+        # File count message should still be shown
+        mock_console.print.assert_called()
+
+    def test_confirm_operation_keyboard_interrupt(self, mock_console_class):
+        """Test KeyboardInterrupt during confirmation returns False."""
+        settings.set("confirm_operations", True)
+        mock_console = MagicMock()
+        mock_console.input.side_effect = KeyboardInterrupt
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        result = interface.confirm_operation(10)
+
+        assert result is False
+
+    def test_confirm_operation_eof_error(self, mock_console_class):
+        """Test EOFError during confirmation returns False."""
+        settings.set("confirm_operations", True)
+        mock_console = MagicMock()
+        mock_console.input.side_effect = EOFError
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        result = interface.confirm_operation(10)
+
+        assert result is False
+
+    def test_show_progress_initializes_progress(self, mock_console_class):
+        """Test first progress call initializes Progress component."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress.add_task.return_value = "task_id_123"
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+            interface.show_progress(1, 10, "/path/to/file.txt")
+
+            # Verify Progress was created with console and transient=True
+            mock_progress_class.assert_called_once()
+            call_kwargs = mock_progress_class.call_args.kwargs
+            assert call_kwargs['console'] == mock_console
+            assert call_kwargs['transient'] is True
+
+            # Verify progress was started and task added
+            mock_progress.start.assert_called_once()
+            mock_progress.add_task.assert_called_once()
+            assert "Verschiebe Dateien" in mock_progress.add_task.call_args[0][0]
+
+            # Verify update was called
+            mock_progress.update.assert_called()
+
+    def test_show_progress_with_path_object(self, mock_console_class):
+        """Test progress display handles Path objects."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress.add_task.return_value = "task_id"
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+            interface.show_progress(1, 10, Path("/path/to/file.txt"))
+
+            mock_progress.update.assert_called()
+            update_call = mock_progress.update.call_args
+            assert "file.txt" in update_call.kwargs['description']
+
+    def test_show_progress_with_error(self, mock_console_class):
+        """Test error messages are printed immediately with error style."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Progress'):
+            interface = ConsoleInterface()
+            interface.show_progress(
+                5, 10, "/path/to/file.txt", error="Permission denied"
             )
-            output = mock_stdout.getvalue()
 
-            assert "file.txt" in output
-            assert "Permission denied" in output
+            # Error should be printed via console
+            mock_console.print.assert_called()
+            call_args = mock_console.print.call_args
+            error_message = call_args[0][0]
+            assert "file.txt" in error_message
+            assert "Permission denied" in error_message
+            assert call_args.kwargs['style'] == interface.error_style
 
-    def test_show_progress_with_error_path_object(self):
-        """Test progress display with error using Path object."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            self.interface.show_progress(
-                5, 10,
-                Path("/path/to/file.txt"),
-                error="Permission denied"
+    def test_show_progress_with_error_path_object(self, mock_console_class):
+        """Test error messages work with Path objects."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Progress'):
+            interface = ConsoleInterface()
+            interface.show_progress(
+                5, 10, Path("/path/to/file.txt"), error="Permission denied"
             )
-            output = mock_stdout.getvalue()
 
-            assert "file.txt" in output
-            assert "Permission denied" in output
-    
-    def test_show_progress_quiet_mode(self):
-        """Test progress suppression in quiet mode."""
+            mock_console.print.assert_called()
+            call_args = mock_console.print.call_args
+            error_message = call_args[0][0]
+            assert "file.txt" in error_message
+            assert "Permission denied" in error_message
+
+    def test_show_progress_quiet_mode(self, mock_console_class):
+        """Test progress is not shown in quiet mode."""
         settings.set("quiet", True)
-        
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            self.interface.show_progress(1, 10, "/path/to/file.txt")
-            output = mock_stdout.getvalue()
-            
-            # No output in quiet mode
-            assert output == ""
-    
-    def test_show_summary_aborted(self):
-        """Test showing summary for aborted operation."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            results = {"aborted": True}
-            self.interface.show_summary(results)
-            output = mock_stdout.getvalue()
-            
-            assert "abgebrochen" in output.lower()
-    
-    def test_show_summary_no_files(self):
-        """Test showing summary when no files found."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            results = {
-                "status": "no_files",
-                "message": "Keine Dateien gefunden"
-            }
-            self.interface.show_summary(results)
-            output = mock_stdout.getvalue()
-            
-            assert "Keine Dateien gefunden" in output
-    
-    def test_show_summary_success(self):
-        """Test showing summary for successful operation."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+        mock_console_class.return_value = MagicMock()
+
+        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+            interface = ConsoleInterface()
+            interface.show_progress(1, 10, "/path/to/file.txt")
+
+            # Progress should not be initialized in quiet mode
+            mock_progress_class.assert_not_called()
+
+    def test_show_progress_rate_limiting(self, mock_console_class):
+        """Test rate limiting of progress updates."""
+        mock_console_class.return_value = MagicMock()
+
+        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress.add_task.return_value = "task_id"
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+
+            # First call
+            interface.show_progress(1, 10, "/path/to/file1.txt")
+            update_count_1 = mock_progress.update.call_count
+
+            # Immediate second call should be rate-limited
+            interface.show_progress(2, 10, "/path/to/file2.txt")
+            update_count_2 = mock_progress.update.call_count
+
+            # Should be the same (rate limited)
+            assert update_count_2 == update_count_1
+
+            # Wait and try again
+            time.sleep(0.15)
+            interface.show_progress(3, 10, "/path/to/file3.txt")
+            update_count_3 = mock_progress.update.call_count
+
+            # Should have increased
+            assert update_count_3 > update_count_2
+
+    def test_show_progress_error_bypasses_rate_limiting(self, mock_console_class):
+        """Test error messages bypass rate limiting."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress.add_task.return_value = "task_id"
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+
+            # First call - normal progress
+            interface.show_progress(1, 10, "/path/to/file1.txt")
+
+            # Immediate second call with error - should NOT be rate-limited
+            interface.show_progress(
+                2, 10, "/path/to/file2.txt", error="Permission denied"
+            )
+
+            # Error message should have been printed
+            mock_console.print.assert_called()
+            call_args = mock_console.print.call_args
+            assert "Permission denied" in call_args[0][0]
+
+    def test_show_progress_reuses_progress_instance(self, mock_console_class):
+        """Test subsequent calls reuse the same Progress instance."""
+        mock_console_class.return_value = MagicMock()
+
+        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress.add_task.return_value = "task_id"
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+
+            # First call
+            interface.show_progress(1, 10, "/path/to/file1.txt")
+
+            # Wait to avoid rate limiting
+            time.sleep(0.15)
+
+            # Second call
+            interface.show_progress(2, 10, "/path/to/file2.txt")
+
+            # Progress should only be created once
+            mock_progress_class.assert_called_once()
+            mock_progress.start.assert_called_once()
+
+    def test_show_progress_long_filename_truncation(self, mock_console_class):
+        """Test long filenames are truncated to 40 characters."""
+        mock_console_class.return_value = MagicMock()
+
+        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress.add_task.return_value = "task_id"
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+            interface.last_progress_update = 0  # Ensure no rate limiting
+
+            long_filename = "a" * 50 + ".txt"
+            interface.show_progress(1, 10, f"/path/{long_filename}")
+
+            mock_progress.update.assert_called()
+            update_call = mock_progress.update.call_args
+            description = update_call.kwargs['description']
+
+            # Should be truncated with "..."
+            assert "..." in description
+            # Original full filename should NOT be in description
+            assert long_filename not in description
+
+    def test_finish_progress(self, mock_console_class):
+        """Test finish_progress stops Progress and cleans up."""
+        mock_console_class.return_value = MagicMock()
+
+        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress.add_task.return_value = "task_id"
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+
+            # Initialize progress
+            interface.show_progress(1, 10, "/path/to/file.txt")
+            assert interface.progress is not None
+            assert interface.task_id is not None
+
+            # Finish progress
+            interface.finish_progress()
+
+            # Verify stop was called
+            mock_progress.stop.assert_called_once()
+
+            # Verify attributes are reset
+            assert interface.progress is None
+            assert interface.task_id is None
+
+    def test_finish_progress_when_not_started(self, mock_console_class):
+        """Test finish_progress is safe when progress was never started."""
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+        # Should not raise when progress is None
+        interface.finish_progress()
+
+        assert interface.progress is None
+        assert interface.task_id is None
+
+    def test_show_summary_aborted(self, mock_console_class):
+        """Test summary shows abort message when operation was aborted."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {"aborted": True}
+        interface.show_summary(results)
+
+        # Should print abort message
+        mock_console.print.assert_called()
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "abgebrochen" in call_args_str.lower()
+
+    def test_show_summary_no_files(self, mock_console_class):
+        """Test summary shows no files message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "no_files",
+            "message": "Keine Dateien gefunden"
+        }
+        interface.show_summary(results)
+
+        mock_console.print.assert_called()
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "Keine Dateien gefunden" in call_args_str
+
+    def test_show_summary_cancelled(self, mock_console_class):
+        """Test summary shows cancelled message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "cancelled",
+            "message": "Operation abgebrochen"
+        }
+        interface.show_summary(results)
+
+        mock_console.print.assert_called()
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "abgebrochen" in call_args_str.lower()
+
+    def test_show_summary_success_creates_table(self, mock_console_class):
+        """Test successful summary creates Table with move statistics."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Table') as mock_table_class:
+            mock_table = MagicMock()
+            mock_table_class.return_value = mock_table
+
+            interface = ConsoleInterface()
             results = {
                 "status": "success",
                 "moved": 15,
@@ -209,219 +547,204 @@ class TestConsoleInterface:
                 "created_folders": ["PDF", "BILDER"],
                 "removed_directories": 5
             }
-            self.interface.show_summary(results)
-            output = mock_stdout.getvalue()
-            
-            # Check move summary
-            assert "15" in output
-            assert "3" in output
-            assert "1" in output
-            
-            # Check created folders
-            assert "PDF" in output
-            assert "BILDER" in output
-            
-            # Check removed directories
-            assert "5" in output
-            assert "leere" in output.lower()
-            
-            # Check undo hint
-            assert "rückgängig" in output.lower()
+            interface.show_summary(results)
 
+            # Verify Table was created with correct parameters
+            mock_table_class.assert_called_once()
+            call_kwargs = mock_table_class.call_args.kwargs
+            assert call_kwargs.get('title') == "Zusammenfassung"
+            assert call_kwargs.get('border_style') == "cyan"
 
-class TestKeyboardHandler:
-    """Test KeyboardHandler class."""
-    
-    def test_init(self):
-        """Test keyboard handler initialization."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        
-        assert handler.abort_callback == mock_callback
-        assert handler.running is False
-        assert handler.thread is None
-    
-    @pytest.mark.skipif(sys.platform == 'win32', reason="Not supported on Windows")
-    def test_start_stop(self):
-        """Test starting and stopping keyboard handler."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        
-        # Test basic state management
-        assert handler.running is False
-        assert handler.thread is None
-        
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            # Start handler
-            handler.start()
-            
-            # Check hint message
-            output = mock_stdout.getvalue()
-            assert "ESC" in output
-            
-            # Check running flag was set
-            assert handler.running is True
-            
-            # Stop handler
-            handler.stop()
-            
-            # Check stopped
-            assert handler.running is False
-    
-    def test_windows_skip(self):
-        """Test that keyboard handler skips on Windows."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        
-        with patch('sys.platform', 'win32'):
-            handler.start()
-            
-            # Should not start thread on Windows
-            assert handler.thread is None
-    
-    @pytest.mark.skipif(sys.platform == 'win32', reason="Not supported on Windows")
-    def test_esc_detection(self):
-        """Test ESC key detection logic."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        
-        # Test the callback mechanism directly
-        # The actual _listen method is complex with threading
-        # So we test the core logic
-        handler.abort_callback()
-        mock_callback.assert_called_once()
+            # Verify columns were added
+            assert mock_table.add_column.call_count == 2
 
+            # Verify rows were added (moved, duplicates, errors)
+            assert mock_table.add_row.call_count == 3
 
-def test_create_console_interface():
-    """Test interface factory function."""
-    interface = create_console_interface()
-    assert isinstance(interface, ConsoleInterface)
+            # Verify table was printed
+            table_printed = any(
+                call[0][0] == mock_table
+                for call in mock_console.print.call_args_list
+                if call[0]
+            )
+            assert table_printed
 
+    def test_show_summary_success_shows_created_folders(self, mock_console_class):
+        """Test successful summary shows created folders."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
 
-class TestConsoleInterfaceEdgeCases:
-    """Test edge cases for console interface to achieve 100% coverage."""
-
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.interface = ConsoleInterface()
-        settings.reset_to_defaults()
-
-    def test_show_progress_with_long_filename(self):
-        """Test progress display with filename truncation (line 154)."""
-        # Reset last update time to ensure progress is shown
-        self.interface.last_progress_update = 0
-
-        # Create a very long filename that needs truncation
-        long_filename = "a" * 50 + ".txt"  # 54 characters, max is 40
-        long_path = f"/path/to/{long_filename}"
-
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            self.interface.show_progress(1, 10, long_path)
-            output = mock_stdout.getvalue()
-
-            # Should be truncated with "..."
-            assert "..." in output
-            # Original full filename should NOT be in output (it's truncated)
-            assert long_filename not in output
-
-    def test_show_summary_cancelled(self):
-        """Test showing summary for cancelled operation."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            results = {
-                "status": "cancelled",
-                "message": "Operation abgebrochen"
-            }
-            self.interface.show_summary(results)
-            output = mock_stdout.getvalue()
-
-            assert "abgebrochen" in output.lower()
-
-    def test_show_summary_dry_run_no_undo_hint(self):
-        """Test that undo hint is not shown in dry run mode."""
-        settings.set("dry_run", True)
-
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+        with patch('folder_extractor.cli.interface.Table'):
+            interface = ConsoleInterface()
             results = {
                 "status": "success",
                 "moved": 10,
-                "duplicates": 0,
-                "errors": 0
+                "created_folders": ["PDF", "BILDER"],
             }
-            self.interface.show_summary(results)
-            output = mock_stdout.getvalue()
+            interface.show_summary(results)
 
-            # Undo hint should not be shown in dry run mode
-            assert "rückgängig" not in output.lower()
+            call_args_str = str(mock_console.print.call_args_list)
+            assert "PDF" in call_args_str
+            assert "BILDER" in call_args_str
 
-    def test_confirm_operation_eof_error(self):
-        """Test confirmation with EOFError (e.g., piped input)."""
-        settings.set("confirm_operations", True)
+    def test_show_summary_success_shows_removed_directories(self, mock_console_class):
+        """Test successful summary shows removed directories count."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
 
-        with patch('builtins.input', side_effect=EOFError):
-            with patch('sys.stdout', new=StringIO()):
-                result = self.interface.confirm_operation(10)
-                assert result is False
-
-    def test_show_message_unknown_type(self):
-        """Test show_message with unknown message_type (branch 87->90)."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            # Use an unknown message type - should fall through to plain print
-            self.interface.show_message("Plain message", message_type="unknown")
-            output = mock_stdout.getvalue()
-
-            # Message should still be printed (no color)
-            assert "Plain message" in output
-
-    def test_show_message_none_type(self):
-        """Test show_message with None message_type."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            self.interface.show_message("Plain message", message_type=None)
-            output = mock_stdout.getvalue()
-
-            # Message should be printed
-            assert "Plain message" in output
-
-    def test_show_summary_success_without_moved(self):
-        """Test show_summary with success status but no 'moved' key (branch 180->189)."""
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            # Success status but no 'moved' key
+        with patch('folder_extractor.cli.interface.Table'):
+            interface = ConsoleInterface()
             results = {
                 "status": "success",
-                # No "moved" key - should skip the move summary block
+                "moved": 10,
+                "removed_directories": 5
+            }
+            interface.show_summary(results)
+
+            call_args_str = str(mock_console.print.call_args_list)
+            assert "5" in call_args_str
+            assert "leere" in call_args_str.lower()
+
+    def test_show_summary_success_shows_undo_hint(self, mock_console_class):
+        """Test successful summary shows undo hint."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Table'):
+            interface = ConsoleInterface()
+            results = {
+                "status": "success",
+                "moved": 10,
+            }
+            interface.show_summary(results)
+
+            call_args_str = str(mock_console.print.call_args_list)
+            assert "rückgängig" in call_args_str.lower()
+
+    def test_show_summary_dry_run_no_undo_hint(self, mock_console_class):
+        """Test undo hint is not shown in dry run mode."""
+        settings.set("dry_run", True)
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Table'):
+            interface = ConsoleInterface()
+            results = {
+                "status": "success",
+                "moved": 10,
+            }
+            interface.show_summary(results)
+
+            call_args_str = str(mock_console.print.call_args_list)
+            assert "rückgängig" not in call_args_str.lower()
+
+    def test_show_summary_success_without_moved(self, mock_console_class):
+        """Test summary without 'moved' key skips table but shows other info."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch('folder_extractor.cli.interface.Table') as mock_table_class:
+            interface = ConsoleInterface()
+            results = {
+                "status": "success",
                 "created_folders": ["PDF"],
                 "removed_directories": 2
             }
-            self.interface.show_summary(results)
-            output = mock_stdout.getvalue()
+            interface.show_summary(results)
 
-            # Should still show created folders and removed directories
-            assert "PDF" in output
-            assert "2" in output
+            # Table should NOT be created (no moved key)
+            mock_table_class.assert_not_called()
+
+            # But folders and directories should still be shown
+            call_args_str = str(mock_console.print.call_args_list)
+            assert "PDF" in call_args_str
+            assert "2" in call_args_str
 
 
-class TestKeyboardHandlerEdgeCases:
-    """Test edge cases for KeyboardHandler to achieve 100% coverage."""
+@patch('folder_extractor.cli.interface.Console')
+def test_create_console_interface(mock_console_class):
+    """Test interface factory function creates ConsoleInterface."""
+    mock_console_class.return_value = MagicMock()
 
-    def test_stop_without_thread(self):
-        """Test stop() when thread is None (branch 235->exit)."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
+    interface = create_console_interface()
 
-        # Verify thread is None
-        assert handler.thread is None
+    assert isinstance(interface, ConsoleInterface)
 
-        # stop() should not raise when thread is None
-        handler.stop()
 
-        # Still should not have a thread
-        assert handler.thread is None
+@patch('folder_extractor.cli.interface.Console')
+class TestConsoleInterfaceStyles:
+    """Test style attributes are correctly initialized."""
 
-    def test_stop_with_running_false(self):
-        """Test stop() when already stopped."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        handler.running = False
+    def test_has_style_attributes(self, mock_console_class):
+        """Test ConsoleInterface has all style attributes."""
+        mock_console_class.return_value = MagicMock()
 
-        # stop() should handle this gracefully
-        handler.stop()
-        assert handler.running is False
+        interface = ConsoleInterface()
+
+        assert hasattr(interface, 'success_style')
+        assert hasattr(interface, 'error_style')
+        assert hasattr(interface, 'warning_style')
+        assert hasattr(interface, 'info_style')
+
+    def test_styles_are_configured(self, mock_console_class):
+        """Test styles are non-None Style objects."""
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+
+        # All styles should be defined (not None)
+        assert interface.success_style is not None
+        assert interface.error_style is not None
+        assert interface.warning_style is not None
+        assert interface.info_style is not None
+
+
+@patch('folder_extractor.cli.interface.Console')
+class TestConsoleInterfaceAttributes:
+    """Test ConsoleInterface initialization and attributes."""
+
+    def test_has_console_attribute(self, mock_console_class):
+        """Test ConsoleInterface has a console attribute."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+
+        assert hasattr(interface, 'console')
+        assert interface.console == mock_console
+
+    def test_progress_initialized_to_none(self, mock_console_class):
+        """Test progress attribute is initialized to None."""
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+
+        assert hasattr(interface, 'progress')
+        assert interface.progress is None
+
+    def test_task_id_initialized_to_none(self, mock_console_class):
+        """Test task_id attribute is initialized to None."""
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+
+        assert hasattr(interface, 'task_id')
+        assert interface.task_id is None
+
+    def test_last_progress_update_initialized(self, mock_console_class):
+        """Test last_progress_update is initialized to 0."""
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+
+        assert hasattr(interface, 'last_progress_update')
+        assert interface.last_progress_update == 0
+
+    def test_progress_update_interval_configured(self, mock_console_class):
+        """Test progress_update_interval is configured."""
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+
+        assert hasattr(interface, 'progress_update_interval')
+        assert interface.progress_update_interval > 0

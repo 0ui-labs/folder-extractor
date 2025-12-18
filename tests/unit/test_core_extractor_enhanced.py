@@ -4,13 +4,12 @@ Unit tests for the enhanced extractor module.
 import pytest
 from pathlib import Path
 import threading
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, patch
 
 from folder_extractor.core.extractor import (
     EnhancedFileExtractor,
     EnhancedExtractionOrchestrator,
-    SecurityError,
-    ExtractionError
+    SecurityError
 )
 from folder_extractor.config.settings import settings
 from folder_extractor.config.constants import MESSAGES

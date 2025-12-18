@@ -4,7 +4,6 @@ Runtime settings and configuration management.
 This module handles runtime configuration that can be modified
 during execution, unlike constants which are fixed.
 """
-import os
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
