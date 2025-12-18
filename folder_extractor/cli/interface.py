@@ -3,12 +3,10 @@ Command line interface module.
 
 Handles user interaction, progress display, and terminal operations.
 """
-import sys
-import threading
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 from rich.console import Console
 from rich.panel import Panel
@@ -25,11 +23,6 @@ from rich.table import Table
 
 from folder_extractor.config.constants import MESSAGES, VERSION, AUTHOR
 from folder_extractor.config.settings import settings
-from folder_extractor.utils.terminal import (
-    restore_terminal_settings,
-    save_terminal_settings,
-    set_raw_mode,
-)
 
 
 class IUserInterface(ABC):
@@ -253,71 +246,6 @@ class ConsoleInterface(IUserInterface):
             # Show undo hint
             if not settings.get("dry_run", False) and results.get("moved", 0) > 0:
                 self.console.print(MESSAGES["UNDO_AVAILABLE"])
-
-
-class KeyboardHandler:
-    """Handles keyboard input for abort functionality."""
-    
-    def __init__(self, abort_callback: Callable[[], None]):
-        """Initialize keyboard handler.
-        
-        Args:
-            abort_callback: Function to call when ESC is pressed
-        """
-        self.abort_callback = abort_callback
-        self.running = False
-        self.thread = None
-        self.terminal_settings = None
-    
-    def start(self) -> None:
-        """Start listening for keyboard input."""
-        if sys.platform == 'win32':
-            # Windows not supported for now
-            return
-        
-        self.running = True
-        self.thread = threading.Thread(target=self._listen, daemon=True)
-        self.thread.start()
-        
-        # Show hint
-        print(MESSAGES["ESC_TO_ABORT"])
-    
-    def stop(self) -> None:
-        """Stop listening for keyboard input."""
-        self.running = False
-        if self.thread:
-            self.thread.join(timeout=0.5)
-    
-    def _listen(self) -> None:
-        """Listen for ESC key press."""
-        try:
-            # Save terminal settings
-            self.terminal_settings = save_terminal_settings()
-            
-            # Set raw mode
-            if not set_raw_mode():
-                return
-            
-            # Listen for keys - requires actual terminal interaction
-            while self.running:  # pragma: no cover
-                try:
-                    if sys.stdin.isatty():
-                        # Read one character
-                        char = sys.stdin.read(1)
-
-                        # Check for ESC (ASCII 27)
-                        if ord(char) == 27:
-                            self.abort_callback()
-                            break
-                except Exception:
-                    pass
-
-                time.sleep(0.01)
-
-        finally:
-            # Restore terminal settings
-            if self.terminal_settings:  # pragma: no cover
-                restore_terminal_settings(self.terminal_settings)
 
 
 def create_console_interface() -> ConsoleInterface:

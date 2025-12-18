@@ -248,7 +248,7 @@ Zusammenfassung:
     
     "SORT_BY_TYPE_CREATED": "✓ Ordner '{folder}' erstellt",
     
-    "ESC_TO_ABORT": "\nDrücken Sie ESC zum Abbrechen...",
+    "ABORT_HINT": "\nDrücke Ctrl+C zum Abbrechen...",
 }
 
 
@@ -296,7 +296,7 @@ Sicherheit:
     Das Tool funktioniert nur in den Ordnern Desktop, Downloads und Documents.
     
 Tastenkürzel:
-    ESC - Operation abbrechen (während Dateien verschoben werden)
+    Ctrl+C - Operation abbrechen (während Dateien verschoben werden)
 """
 
 

@@ -133,22 +133,15 @@ class TestEnhancedFolderExtractorCLI:
 
         with patch('folder_extractor.cli.app.EnhancedFileExtractor', return_value=mock_extractor):
             with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
-                with patch('folder_extractor.cli.app.KeyboardHandler') as mock_handler_class:
-                    result = self.cli._execute_extraction("/test/path")
+                result = self.cli._execute_extraction("/test/path")
 
-                    assert result == 0
+                assert result == 0
 
-                    # Check orchestrator called correctly
-                    mock_orchestrator.execute_extraction.assert_called_once()
+                # Check orchestrator called correctly
+                mock_orchestrator.execute_extraction.assert_called_once()
 
-                    # Check keyboard handler started and stopped
-                    mock_handler_class.assert_called_once()
-                    mock_handler = mock_handler_class.return_value
-                    mock_handler.start.assert_called_once()
-                    mock_handler.stop.assert_called_once()
-
-                    # Check summary shown
-                    self.cli.interface.show_summary.assert_called_once()
+                # Check summary shown
+                self.cli.interface.show_summary.assert_called_once()
 
     def test_execute_extraction_no_files(self):
         """Test extraction with no files found."""
@@ -483,3 +476,35 @@ class TestCLIAppEdgeCases:
 
                 assert duration_shown  # Duration should be shown
                 assert not rate_shown  # Rate should NOT be shown
+
+    def test_execute_extraction_keyboard_interrupt_aborts_gracefully(self):
+        """Test that Ctrl+C (KeyboardInterrupt) during extraction triggers abort."""
+        mock_orchestrator = Mock()
+        # Simulate KeyboardInterrupt during extraction
+        mock_orchestrator.execute_extraction.side_effect = KeyboardInterrupt
+
+        self.cli.interface.show_summary = Mock()
+        self.cli.interface.show_message = Mock()
+        self.cli.state_manager.get_value = Mock(return_value=False)  # Not dry run
+        self.cli.state_manager.request_abort = Mock()
+
+        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
+            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+                with patch('time.sleep'):  # Mock at module level
+                    result = self.cli._execute_extraction("/test/path")
+
+                    # Should return 1 (error exit code)
+                    assert result == 1
+
+                    # Should have called request_abort on state manager
+                    self.cli.state_manager.request_abort.assert_called_once()
+
+                    # Should have shown a warning message about aborting
+                    warning_calls = [
+                        call for call in self.cli.interface.show_message.call_args_list
+                        if call[1].get("message_type") == "warning"
+                    ]
+                    assert len(warning_calls) > 0
+                    # Message should mention "abbrechen" or similar
+                    assert any("abbrechen" in call[0][0].lower() or "abgebrochen" in call[0][0].lower()
+                              for call in warning_calls)

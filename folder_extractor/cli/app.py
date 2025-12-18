@@ -5,13 +5,12 @@ Coordinates the command line interface with new state management
 and progress tracking capabilities.
 """
 import sys
+import time
 from pathlib import Path
 from typing import Optional, Union
 
 from folder_extractor.cli.parser import create_parser
-from folder_extractor.cli.interface import (
-    create_console_interface, KeyboardHandler
-)
+from folder_extractor.cli.interface import create_console_interface
 from folder_extractor.core.extractor import (
     EnhancedFileExtractor, EnhancedExtractionOrchestrator
 )
@@ -92,15 +91,7 @@ class EnhancedFolderExtractorCLI:
         def progress_callback(current: int, total: int,
                             filepath: Union[str, Path], error: Optional[str] = None):
             self.interface.show_progress(current, total, filepath, error)
-        
-        # Set up keyboard handler for abort
-        keyboard_handler = None
-        if not self.state_manager.get_value("dry_run", False):
-            keyboard_handler = KeyboardHandler(
-                lambda: self.state_manager.request_abort()
-            )
-            keyboard_handler.start()
-        
+
         try:
             # Execute extraction
             result = orchestrator.execute_extraction(
@@ -108,10 +99,10 @@ class EnhancedFolderExtractorCLI:
                 confirmation_callback=self.interface.confirm_operation,
                 progress_callback=progress_callback
             )
-            
+
             # Show summary
             self.interface.show_summary(result)
-            
+
             # Show operation statistics if available
             if "operation_id" in result:
                 stats = self.state_manager.get_operation_stats(result["operation_id"])
@@ -126,7 +117,7 @@ class EnhancedFolderExtractorCLI:
                             f"Durchschnitt: {rate:.1f} Dateien/Sekunde",
                             message_type="info"
                         )
-            
+
             # Return appropriate exit code
             if result.get("status") == "success":
                 return 0
@@ -134,11 +125,17 @@ class EnhancedFolderExtractorCLI:
                 return 0  # Not an error
             else:
                 return 1
-        
-        finally:
-            # Stop keyboard handler
-            if keyboard_handler:
-                keyboard_handler.stop()
+
+        except KeyboardInterrupt:
+            # User pressed Ctrl+C - request abort via state manager
+            self.state_manager.request_abort()
+            self.interface.show_message(
+                "\nOperation wird abgebrochen...",
+                message_type="warning"
+            )
+            # Give extractor time to finish current file
+            time.sleep(0.5)
+            return 1
     
     def _execute_undo(self, path: Union[str, Path]) -> int:
         """Execute undo operation.

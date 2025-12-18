@@ -2,14 +2,12 @@
 Unit tests for CLI interface module.
 """
 import pytest
-import sys
 import time
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from io import StringIO
 
 from folder_extractor.cli.interface import (
-    ConsoleInterface, KeyboardHandler, create_console_interface
+    ConsoleInterface, create_console_interface
 )
 from folder_extractor.config.settings import settings
 from folder_extractor.config.constants import VERSION, AUTHOR
@@ -418,69 +416,6 @@ class TestConsoleInterface:
             assert len(undo_calls) >= 1, "Expected undo hint to be printed"
 
 
-class TestKeyboardHandler:
-    """Test KeyboardHandler class."""
-    
-    def test_init(self):
-        """Test keyboard handler initialization."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        
-        assert handler.abort_callback == mock_callback
-        assert handler.running is False
-        assert handler.thread is None
-    
-    @pytest.mark.skipif(sys.platform == 'win32', reason="Not supported on Windows")
-    def test_start_stop(self):
-        """Test starting and stopping keyboard handler."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        
-        # Test basic state management
-        assert handler.running is False
-        assert handler.thread is None
-        
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
-            # Start handler
-            handler.start()
-            
-            # Check hint message
-            output = mock_stdout.getvalue()
-            assert "ESC" in output
-            
-            # Check running flag was set
-            assert handler.running is True
-            
-            # Stop handler
-            handler.stop()
-            
-            # Check stopped
-            assert handler.running is False
-    
-    def test_windows_skip(self):
-        """Test that keyboard handler skips on Windows."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        
-        with patch('sys.platform', 'win32'):
-            handler.start()
-            
-            # Should not start thread on Windows
-            assert handler.thread is None
-    
-    @pytest.mark.skipif(sys.platform == 'win32', reason="Not supported on Windows")
-    def test_esc_detection(self):
-        """Test ESC key detection logic."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        
-        # Test the callback mechanism directly
-        # The actual _listen method is complex with threading
-        # So we test the core logic
-        handler.abort_callback()
-        mock_callback.assert_called_once()
-
-
 def test_create_console_interface():
     """Test interface factory function."""
     interface = create_console_interface()
@@ -612,34 +547,6 @@ class TestConsoleInterfaceEdgeCases:
             removed_calls = [call for call in mock_print.call_args_list
                             if len(call[0]) > 0 and isinstance(call[0][0], str) and "2" in str(call[0][0])]
             assert len(removed_calls) >= 1, "Expected removed directories message"
-
-
-class TestKeyboardHandlerEdgeCases:
-    """Test edge cases for KeyboardHandler to achieve 100% coverage."""
-
-    def test_stop_without_thread(self):
-        """Test stop() when thread is None (branch 235->exit)."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-
-        # Verify thread is None
-        assert handler.thread is None
-
-        # stop() should not raise when thread is None
-        handler.stop()
-
-        # Still should not have a thread
-        assert handler.thread is None
-
-    def test_stop_with_running_false(self):
-        """Test stop() when already stopped."""
-        mock_callback = Mock()
-        handler = KeyboardHandler(mock_callback)
-        handler.running = False
-
-        # stop() should handle this gracefully
-        handler.stop()
-        assert handler.running is False
 
 
 @pytest.mark.skipif(not RICH_AVAILABLE, reason="Rich not installed")
