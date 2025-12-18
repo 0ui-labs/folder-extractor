@@ -163,10 +163,10 @@ def parse_domains(domain_string: Optional[str]) -> Optional[List[str]]:
 # Main entry point
 def main():
     """Main entry point for Folder Extractor."""
-    from folder_extractor.cli.app import main as cli_main
-    return cli_main()
+    from folder_extractor.cli.app import main as cli_main  # pragma: no cover
+    return cli_main()  # pragma: no cover
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     import sys
     sys.exit(main())

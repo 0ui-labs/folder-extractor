@@ -36,19 +36,17 @@ class TestEnhancedFileExtractor:
 
         self.extractor = EnhancedFileExtractor(state_manager=self.mock_state_manager)
 
-    def test_validate_security_safe_path(self):
-        """Test security validation with safe path."""
+    def test_validate_security_accepts_safe_path(self):
+        """Safe paths (Desktop, Downloads, Documents) are accepted without exception."""
         home = Path.home()
         safe_path = str(home / "Desktop" / "test")
 
-        # Create directory
         Path(safe_path).mkdir(parents=True, exist_ok=True)
-
-        # Should not raise
-        self.extractor.validate_security(safe_path)
-
-        # Cleanup
-        Path(safe_path).rmdir()
+        try:
+            # No exception means path is accepted
+            self.extractor.validate_security(safe_path)
+        finally:
+            Path(safe_path).rmdir()
 
     def test_validate_security_unsafe_path(self):
         """Test security validation with unsafe path."""
@@ -268,6 +266,29 @@ class TestEnhancedExtractionOrchestrator:
 
         assert result["status"] == "cancelled"
         confirmation.assert_called_once_with(1)
+
+    def test_execute_extraction_confirmed(self):
+        """Test extraction when user confirms (branch 393->404)."""
+        self.mock_extractor.discover_files.return_value = ["/file.txt"]
+        self.mock_extractor.extract_files.return_value = {
+            "status": "success",
+            "moved": 1,
+            "errors": 0,
+            "duplicates": 0
+        }
+
+        # Confirmation callback returns True - user confirms
+        confirmation = Mock(return_value=True)
+
+        result = self.orchestrator.execute_extraction(
+            "/safe/path",
+            confirmation_callback=confirmation
+        )
+
+        # Should proceed to extraction
+        assert result["status"] == "success"
+        confirmation.assert_called_once_with(1)
+        self.mock_extractor.extract_files.assert_called_once()
 
     def test_execute_extraction_security_error(self):
         """Test extraction with security error."""

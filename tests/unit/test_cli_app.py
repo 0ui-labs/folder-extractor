@@ -319,3 +319,168 @@ def test_main_entry_point():
             if sys.modules[test_module].__name__ == '__main__':
                 result = mock_main()
                 assert result == 0
+
+
+class TestCLIAppEdgeCases:
+    """Test edge cases for CLI app to achieve 100% coverage."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        try:
+            os.getcwd()
+        except (FileNotFoundError, OSError):
+            os.chdir(os.path.expanduser("~"))
+
+        with patch('folder_extractor.cli.app.create_parser'):
+            with patch('folder_extractor.cli.app.create_console_interface'):
+                with patch('folder_extractor.cli.app.get_state_manager'):
+                    self.cli = EnhancedFolderExtractorCLI()
+
+    def test_execute_undo_with_errors(self):
+        """Test undo execution with errors (line 179)."""
+        mock_orchestrator = Mock()
+        mock_orchestrator.execute_undo.return_value = {
+            "status": "success",
+            "message": "8 Dateien zurück verschoben",
+            "restored": 8,
+            "errors": 2  # Has errors
+        }
+
+        # Mock interface
+        self.cli.interface.show_message = Mock()
+
+        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
+            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+                result = self.cli._execute_undo("/test/path")
+
+                assert result == 0
+
+                # Check that error message was shown
+                # Find the call with "error" message_type
+                error_calls = [
+                    call for call in self.cli.interface.show_message.call_args_list
+                    if call[1].get("message_type") == "error"
+                ]
+                assert len(error_calls) > 0
+                # The error message should mention the error count
+                error_call_args = error_calls[0][0][0]
+                assert "2" in error_call_args or "Fehler" in error_call_args
+
+    def test_execute_extraction_with_operation_stats(self):
+        """Test extraction with operation stats showing duration and rate."""
+        mock_stats = Mock()
+        mock_stats.duration = 2.5
+        mock_stats.files_processed = 25
+
+        mock_orchestrator = Mock()
+        mock_orchestrator.execute_extraction.return_value = {
+            "status": "success",
+            "moved": 25,
+            "duplicates": 0,
+            "errors": 0,
+            "operation_id": "test_op_123"
+        }
+
+        self.cli.interface.show_summary = Mock()
+        self.cli.interface.show_message = Mock()
+        self.cli.state_manager.get_value = Mock(return_value=True)  # dry_run
+        self.cli.state_manager.get_operation_stats = Mock(return_value=mock_stats)
+
+        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
+            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+                result = self.cli._execute_extraction("/test/path")
+
+                assert result == 0
+
+                # Check that duration and rate messages were shown
+                message_calls = [call[0][0] for call in self.cli.interface.show_message.call_args_list]
+
+                # Should have messages about duration and rate
+                duration_msg = any("2.5" in msg or "Sekunden" in msg for msg in message_calls)
+                rate_msg = any("Dateien/Sekunde" in msg for msg in message_calls)
+
+                assert duration_msg or rate_msg  # At least one should be shown
+
+    def test_execute_extraction_error_status(self):
+        """Test extraction returning error status."""
+        mock_orchestrator = Mock()
+        mock_orchestrator.execute_extraction.return_value = {
+            "status": "error",
+            "message": "Something went wrong"
+        }
+
+        self.cli.interface.show_summary = Mock()
+        self.cli.state_manager.get_value = Mock(return_value=True)
+        self.cli.state_manager.get_operation_stats = Mock(return_value=None)
+
+        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
+            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+                result = self.cli._execute_extraction("/test/path")
+
+                # Should return 1 for error status
+                assert result == 1
+
+    def test_execute_extraction_stats_zero_duration(self):
+        """Test extraction with stats having zero duration (branch 119->132)."""
+        mock_stats = Mock()
+        mock_stats.duration = 0  # Zero duration - should skip the message
+        mock_stats.files_processed = 10
+
+        mock_orchestrator = Mock()
+        mock_orchestrator.execute_extraction.return_value = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 0,
+            "errors": 0,
+            "operation_id": "test_op_zero_duration"
+        }
+
+        self.cli.interface.show_summary = Mock()
+        self.cli.interface.show_message = Mock()
+        self.cli.state_manager.get_value = Mock(return_value=True)
+        self.cli.state_manager.get_operation_stats = Mock(return_value=mock_stats)
+
+        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
+            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+                result = self.cli._execute_extraction("/test/path")
+
+                assert result == 0
+
+                # Should NOT show duration message since duration is 0
+                message_calls = [call[0][0] for call in self.cli.interface.show_message.call_args_list]
+                duration_shown = any("Sekunden" in msg for msg in message_calls)
+                assert not duration_shown
+
+    def test_execute_extraction_stats_zero_files_processed(self):
+        """Test extraction with stats having zero files_processed (branch 124->132)."""
+        mock_stats = Mock()
+        mock_stats.duration = 2.5  # Has duration
+        mock_stats.files_processed = 0  # Zero files - should skip rate message
+
+        mock_orchestrator = Mock()
+        mock_orchestrator.execute_extraction.return_value = {
+            "status": "success",
+            "moved": 0,
+            "duplicates": 0,
+            "errors": 0,
+            "operation_id": "test_op_zero_files"
+        }
+
+        self.cli.interface.show_summary = Mock()
+        self.cli.interface.show_message = Mock()
+        self.cli.state_manager.get_value = Mock(return_value=True)
+        self.cli.state_manager.get_operation_stats = Mock(return_value=mock_stats)
+
+        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
+            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+                result = self.cli._execute_extraction("/test/path")
+
+                assert result == 0
+
+                # Should show duration message but NOT rate message
+                message_calls = [call[0][0] for call in self.cli.interface.show_message.call_args_list]
+                duration_shown = any("Sekunden" in msg for msg in message_calls)
+                rate_shown = any("Dateien/Sekunde" in msg for msg in message_calls)
+
+                assert duration_shown  # Duration should be shown
+                assert not rate_shown  # Rate should NOT be shown

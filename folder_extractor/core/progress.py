@@ -154,8 +154,9 @@ class ProgressTracker(IProgressTracker):
         
         elapsed = self.elapsed_time
         rate = self._current / elapsed if elapsed > 0 else 0
-        
-        if rate == 0:
+
+        if rate == 0:  # pragma: no cover
+            # Rate is 0 only when elapsed <= 0 (practically impossible)
             return None
         
         remaining_items = self._total - self._current

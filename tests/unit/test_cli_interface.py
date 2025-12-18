@@ -296,3 +296,132 @@ def test_create_console_interface():
     """Test interface factory function."""
     interface = create_console_interface()
     assert isinstance(interface, ConsoleInterface)
+
+
+class TestConsoleInterfaceEdgeCases:
+    """Test edge cases for console interface to achieve 100% coverage."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.interface = ConsoleInterface()
+        settings.reset_to_defaults()
+
+    def test_show_progress_with_long_filename(self):
+        """Test progress display with filename truncation (line 154)."""
+        # Reset last update time to ensure progress is shown
+        self.interface.last_progress_update = 0
+
+        # Create a very long filename that needs truncation
+        long_filename = "a" * 50 + ".txt"  # 54 characters, max is 40
+        long_path = f"/path/to/{long_filename}"
+
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            self.interface.show_progress(1, 10, long_path)
+            output = mock_stdout.getvalue()
+
+            # Should be truncated with "..."
+            assert "..." in output
+            # Original full filename should NOT be in output (it's truncated)
+            assert long_filename not in output
+
+    def test_show_summary_cancelled(self):
+        """Test showing summary for cancelled operation."""
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            results = {
+                "status": "cancelled",
+                "message": "Operation abgebrochen"
+            }
+            self.interface.show_summary(results)
+            output = mock_stdout.getvalue()
+
+            assert "abgebrochen" in output.lower()
+
+    def test_show_summary_dry_run_no_undo_hint(self):
+        """Test that undo hint is not shown in dry run mode."""
+        settings.set("dry_run", True)
+
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            results = {
+                "status": "success",
+                "moved": 10,
+                "duplicates": 0,
+                "errors": 0
+            }
+            self.interface.show_summary(results)
+            output = mock_stdout.getvalue()
+
+            # Undo hint should not be shown in dry run mode
+            assert "rückgängig" not in output.lower()
+
+    def test_confirm_operation_eof_error(self):
+        """Test confirmation with EOFError (e.g., piped input)."""
+        settings.set("confirm_operations", True)
+
+        with patch('builtins.input', side_effect=EOFError):
+            with patch('sys.stdout', new=StringIO()):
+                result = self.interface.confirm_operation(10)
+                assert result is False
+
+    def test_show_message_unknown_type(self):
+        """Test show_message with unknown message_type (branch 87->90)."""
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            # Use an unknown message type - should fall through to plain print
+            self.interface.show_message("Plain message", message_type="unknown")
+            output = mock_stdout.getvalue()
+
+            # Message should still be printed (no color)
+            assert "Plain message" in output
+
+    def test_show_message_none_type(self):
+        """Test show_message with None message_type."""
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            self.interface.show_message("Plain message", message_type=None)
+            output = mock_stdout.getvalue()
+
+            # Message should be printed
+            assert "Plain message" in output
+
+    def test_show_summary_success_without_moved(self):
+        """Test show_summary with success status but no 'moved' key (branch 180->189)."""
+        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+            # Success status but no 'moved' key
+            results = {
+                "status": "success",
+                # No "moved" key - should skip the move summary block
+                "created_folders": ["PDF"],
+                "removed_directories": 2
+            }
+            self.interface.show_summary(results)
+            output = mock_stdout.getvalue()
+
+            # Should still show created folders and removed directories
+            assert "PDF" in output
+            assert "2" in output
+
+
+class TestKeyboardHandlerEdgeCases:
+    """Test edge cases for KeyboardHandler to achieve 100% coverage."""
+
+    def test_stop_without_thread(self):
+        """Test stop() when thread is None (branch 235->exit)."""
+        mock_callback = Mock()
+        handler = KeyboardHandler(mock_callback)
+
+        # Verify thread is None
+        assert handler.thread is None
+
+        # stop() should not raise when thread is None
+        handler.stop()
+
+        # Still should not have a thread
+        assert handler.thread is None
+
+    def test_stop_with_running_false(self):
+        """Test stop() when already stopped."""
+        mock_callback = Mock()
+        handler = KeyboardHandler(mock_callback)
+        handler.running = False
+
+        # stop() should handle this gracefully
+        handler.stop()
+        assert handler.running is False

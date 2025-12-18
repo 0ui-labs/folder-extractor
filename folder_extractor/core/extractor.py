@@ -233,8 +233,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         )
 
         for directory in directories:
-            # Skip root directory
-            if directory == path:
+            # Skip root directory (defensive - rglob('*') doesn't include root)
+            if directory == path:  # pragma: no cover
                 continue
 
             # Get directory contents

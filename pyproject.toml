@@ -1,0 +1,43 @@
+[tool.coverage.run]
+source = ["folder_extractor"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    # Standard pragma
+    "pragma: no cover",
+
+    # Don't complain about abstract methods
+    "@abstractmethod",
+    "raise NotImplementedError",
+
+    # Don't complain if non-runnable code isn't run
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+
+    # Don't complain about pass statements in abstract methods
+    "^\\s*pass\\s*$",
+
+    # Don't complain about defensive assertions
+    "raise AssertionError",
+
+    # Don't complain about platform-specific code that can't be tested
+    "if platform.system\\(\\) == .Windows.:",
+    "if sys.platform == .win32.:",
+]
+
+fail_under = 100
+show_missing = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "error::DeprecationWarning",
+]

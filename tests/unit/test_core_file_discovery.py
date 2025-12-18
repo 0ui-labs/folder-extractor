@@ -402,3 +402,194 @@ class TestFileFilter:
         # Non-existent file should return False (OSError handling)
         result = filter.apply("/nonexistent/path/file.txt")
         assert result is False
+
+
+class TestFileDiscoveryEdgeCases:
+    """Test edge cases for file discovery to achieve 100% coverage."""
+
+    def test_abort_signal_during_file_iteration(self, tmp_path):
+        """Test abort signal triggers during file iteration (line 86)."""
+        abort_signal = threading.Event()
+        file_discovery = FileDiscovery(abort_signal)
+
+        # Create a directory with files
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        for i in range(5):
+            (subdir / f"file{i}.txt").touch()
+
+        # Set abort immediately - should abort during file iteration
+        abort_signal.set()
+
+        files = file_discovery.find_files(str(tmp_path))
+        # Should return early due to abort
+        assert len(files) < 5
+
+    def test_abort_signal_during_subdir_traversal(self, tmp_path):
+        """Test abort signal triggers during subdirectory traversal (line 118)."""
+        abort_signal = threading.Event()
+        file_discovery = FileDiscovery(abort_signal)
+
+        # Create multiple subdirectories
+        for i in range(5):
+            subdir = tmp_path / f"subdir{i}"
+            subdir.mkdir()
+            (subdir / "file.txt").touch()
+
+        # Set abort after starting
+        abort_signal.set()
+
+        files = file_discovery.find_files(str(tmp_path))
+        # Should return early
+        assert len(files) < 5
+
+    def test_permission_error_handling(self, tmp_path):
+        """Test handling of PermissionError (lines 106-108)."""
+        from unittest.mock import patch, MagicMock
+
+        file_discovery = FileDiscovery()
+
+        # Create test structure
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        (subdir / "file.txt").touch()
+
+        # Mock Path.iterdir to raise PermissionError
+        original_iterdir = Path.iterdir
+
+        def mock_iterdir(self):
+            if "subdir" in str(self):
+                raise PermissionError("Access denied")
+            return original_iterdir(self)
+
+        with patch.object(Path, 'iterdir', mock_iterdir):
+            # Should handle the error gracefully
+            files = file_discovery.find_files(str(tmp_path))
+            # Should still complete without error, just skip inaccessible dirs
+            assert isinstance(files, list)
+
+    def test_check_weblink_exception_handling(self, tmp_path):
+        """Test exception handling in check_weblink_domain (lines 149-150)."""
+        file_discovery = FileDiscovery()
+
+        # Create a .url file with problematic content
+        url_file = tmp_path / "broken.url"
+        url_file.write_bytes(b'\xff\xfe\x00\x00')  # Invalid encoding
+
+        # Should return False on exception
+        result = file_discovery.check_weblink_domain(str(url_file), ["example.com"])
+        assert result is False
+
+    def test_check_webloc_alternative_structure(self, tmp_path):
+        """Test webloc parsing with alternative XML structure (lines 223-226)."""
+        file_discovery = FileDiscovery()
+
+        # Create a .webloc file with alternative structure
+        # (where string element position doesn't match key position directly)
+        webloc_file = tmp_path / "alt.webloc"
+
+        # Create plist with multiple keys/strings
+        plist_content = '''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>URL</key>
+    <string>https://github.com/test</string>
+</dict>
+</plist>'''
+        webloc_file.write_text(plist_content)
+
+        # Should extract domain correctly
+        result = file_discovery.check_weblink_domain(str(webloc_file), ["github.com"])
+        assert result is True
+
+    def test_check_url_domain_exception(self, tmp_path):
+        """Test exception handling in _check_url_domain (lines 255-256)."""
+        file_discovery = FileDiscovery()
+
+        # Test with malformed URL that causes urlparse to fail
+        result = file_discovery._check_url_domain("not a valid url :://", ["example.com"])
+        # urlparse doesn't actually throw, but let's test the flow
+        assert result is False
+
+        # Test with None (should trigger exception path)
+        result = file_discovery._check_url_domain(None, ["example.com"])
+        assert result is False
+
+    def test_check_webloc_invalid_xml_structure(self, tmp_path):
+        """Test webloc parsing with malformed XML structure."""
+        file_discovery = FileDiscovery()
+
+        # Create a .webloc file with valid XML but wrong structure
+        webloc_file = tmp_path / "malformed.webloc"
+        webloc_file.write_text('''<?xml version="1.0"?>
+<plist version="1.0">
+<dict>
+    <key>SomeOtherKey</key>
+    <string>not a url</string>
+</dict>
+</plist>''')
+
+        # Should return False (no URL key found)
+        result = file_discovery.check_weblink_domain(str(webloc_file), ["example.com"])
+        assert result is False
+
+    def test_url_file_without_url_line(self, tmp_path):
+        """Test .url file that doesn't have URL= line."""
+        file_discovery = FileDiscovery()
+
+        url_file = tmp_path / "nourl.url"
+        url_file.write_text("[InternetShortcut]\nIconIndex=0\n")
+
+        result = file_discovery.check_weblink_domain(str(url_file), ["example.com"])
+        assert result is False
+
+    def test_webloc_with_alternative_xml_structure(self, tmp_path):
+        """Test webloc parsing with alternative structure where XPath index fails (lines 223-226).
+
+        The webloc parser tries to find string[i+1] first, and if that fails,
+        falls back to finding strings by index in the findall result.
+
+        This happens when there's a non-string element between <key>URL</key>
+        and the <string> containing the URL. ElementTree's XPath string[2]
+        counts element positions, not just string elements, so it returns None.
+        The fallback uses findall('string') which only gets string elements.
+        """
+        file_discovery = FileDiscovery()
+
+        # Create a webloc with intervening element that breaks XPath indexing
+        # The <data> element causes string[2] to fail, but strings[1] works
+        webloc_file = tmp_path / "alt_structure.webloc"
+
+        plist_content = '''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>SomeOtherKey</key>
+    <string>some value</string>
+    <key>URL</key>
+    <data>extra element that breaks XPath</data>
+    <string>https://github.com/example/repo</string>
+</dict>
+</plist>'''
+        webloc_file.write_text(plist_content)
+
+        # Should extract domain correctly via alternative path (lines 224-227)
+        result = file_discovery.check_weblink_domain(str(webloc_file), ["github.com"])
+        assert result is True
+
+    def test_check_url_domain_with_none_url(self):
+        """Test _check_url_domain with None URL (line 255-256)."""
+        file_discovery = FileDiscovery()
+
+        # Passing None should trigger exception handling
+        result = file_discovery._check_url_domain(None, ["example.com"])
+        assert result is False
+
+    def test_check_url_domain_with_invalid_url_type(self):
+        """Test _check_url_domain with invalid URL that causes exception."""
+        file_discovery = FileDiscovery()
+
+        # Pass an object that will fail when urlparse tries to process it
+        result = file_discovery._check_url_domain(123, ["example.com"])
+        assert result is False

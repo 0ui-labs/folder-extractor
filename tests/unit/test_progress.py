@@ -275,17 +275,104 @@ class TestCompositeProgressTracker:
         info = composite.get_info()
         assert info == mock_info
     
-    def test_empty_composite(self):
-        """Test composite with no trackers."""
+    def test_empty_composite_operations_are_noops(self):
+        """Empty composite tracker accepts all operations without effect."""
         composite = CompositeProgressTracker([])
-        
-        # Should not crash
+
+        # All operations are valid no-ops
         composite.start(10)
         composite.update(5)
         composite.increment()
         composite.finish()
-        
-        # Get info returns empty
+
+        # State reflects no actual tracking
         info = composite.get_info()
         assert info.current == 0
         assert info.total == 0
+
+
+class TestProgressTrackerEdgeCases:
+    """Test edge cases for progress tracker."""
+
+    def test_elapsed_time_is_zero_before_start(self):
+        """Elapsed time is 0 before tracking has started."""
+        tracker = ProgressTracker()
+
+        assert tracker.elapsed_time == 0.0
+
+    def test_estimated_remaining_time_zero_current(self):
+        """Test estimated_remaining_time returns None when current is 0."""
+        tracker = ProgressTracker()
+        tracker.start(total=10)
+
+        # current is 0 after start(), so should return None
+        remaining = tracker.estimated_remaining_time
+        assert remaining is None
+
+    def test_estimated_remaining_time_with_progress(self, monkeypatch):
+        """Test estimated_remaining_time calculates correctly with progress."""
+        mock_time = [100.0]  # Mutable container for mock time
+
+        def mock_time_func():
+            return mock_time[0]
+
+        monkeypatch.setattr(time, 'time', mock_time_func)
+
+        tracker = ProgressTracker()
+        tracker.start(total=10)  # Starts at t=100.0
+
+        # Advance time by 2 seconds and update to current=2
+        mock_time[0] = 102.0
+        tracker.update(current=2)
+
+        # Rate = 2 items / 2 seconds = 1 item/sec
+        # Remaining items = 10 - 2 = 8
+        # Estimated remaining = 8 / 1 = 8 seconds
+        remaining = tracker.estimated_remaining_time
+        assert remaining is not None
+        assert remaining == 8.0
+
+    def test_estimated_remaining_time_zero_total(self):
+        """Test estimated_remaining_time returns None when total is 0."""
+        tracker = ProgressTracker()
+        tracker.start(total=0)
+
+        remaining = tracker.estimated_remaining_time
+        assert remaining is None
+
+    def test_get_statistics_with_deterministic_time(self, monkeypatch):
+        """Test get_statistics with deterministic elapsed time."""
+        mock_time = [100.0]
+
+        def mock_time_func():
+            return mock_time[0]
+
+        monkeypatch.setattr(time, 'time', mock_time_func)
+
+        tracker = ProgressTracker()
+        tracker.start(total=10)
+
+        # Advance time by 5 seconds and process 5 items
+        mock_time[0] = 105.0
+        tracker.update(current=5)
+
+        stats = tracker.get_statistics()
+
+        assert stats['current'] == 5
+        assert stats['total'] == 10
+        assert stats['elapsed_time'] == 5.0
+        assert stats['average_rate'] == 1.0  # 5 items / 5 seconds
+        assert stats['estimated_remaining'] == 5.0  # 5 remaining / 1 per sec
+
+    def test_get_statistics_zero_elapsed(self, monkeypatch):
+        """Test get_statistics when elapsed_time is 0 (start and check at same instant)."""
+        monkeypatch.setattr(time, 'time', lambda: 100.0)
+
+        tracker = ProgressTracker()
+        tracker.start(total=10)
+
+        # elapsed_time is 0 (same mock time)
+        stats = tracker.get_statistics()
+
+        assert stats['elapsed_time'] == 0.0
+        assert stats['average_rate'] == 0  # Division by zero handled gracefully

@@ -245,25 +245,25 @@ class KeyboardHandler:
             if not set_raw_mode():
                 return
             
-            # Listen for keys
-            while self.running:
+            # Listen for keys - requires actual terminal interaction
+            while self.running:  # pragma: no cover
                 try:
                     if sys.stdin.isatty():
                         # Read one character
                         char = sys.stdin.read(1)
-                        
+
                         # Check for ESC (ASCII 27)
                         if ord(char) == 27:
                             self.abort_callback()
                             break
                 except Exception:
                     pass
-                
+
                 time.sleep(0.01)
-        
+
         finally:
             # Restore terminal settings
-            if self.terminal_settings:
+            if self.terminal_settings:  # pragma: no cover
                 restore_terminal_settings(self.terminal_settings)
 
 

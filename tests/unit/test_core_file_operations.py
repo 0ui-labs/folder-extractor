@@ -252,10 +252,11 @@ class TestFileOperations:
                 return original_iterdir(self)
 
             with patch.object(Path, 'iterdir', mock_iterdir):
-                # Should not raise, just skip the directory
                 removed = self.file_ops.remove_empty_directories(temp_path)
-                # Directory was skipped due to permission error
+
+                # Inaccessible directory is skipped, not deleted
                 assert removed == 0
+                assert empty_dir.exists()
 
     def test_remove_empty_directories_with_hidden_subdir(self):
         """Test removing directories with hidden subdirectories."""
@@ -287,6 +288,71 @@ class TestFileOperations:
             # Without include_hidden - should remove hidden subdir (with rmtree) and parent
             removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
             assert removed == 1  # Only parent_dir (hidden subdir is removed via rmtree, not counted)
+            assert not parent_dir.exists()
+
+    def test_remove_empty_directories_include_hidden_true_empty_dir(self):
+        """Test removing empty directory with include_hidden=True (branch 169->177)."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            # Create completely empty directory
+            empty_dir = temp_path / "empty_dir"
+            empty_dir.mkdir()
+
+            # With include_hidden=True, should still remove empty directory
+            # This tests the branch 169->177 where we skip hidden file cleanup
+            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=True)
+            assert removed == 1
+            assert not empty_dir.exists()
+
+    def test_remove_empty_directories_multiple_hidden_files(self):
+        """Test removing directory with multiple hidden files (branch 171->170)."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            # Directory with multiple hidden files
+            hidden_dir = temp_path / "hidden_dir"
+            hidden_dir.mkdir()
+            (hidden_dir / ".hidden1").touch()
+            (hidden_dir / ".hidden2").touch()
+            (hidden_dir / ".hidden3").touch()
+
+            # Without include_hidden - should remove all hidden files and the directory
+            # This tests the loop continuation branch 171->170
+            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
+            assert removed == 1
+            assert not hidden_dir.exists()
+
+    def test_remove_empty_directories_multiple_hidden_subdirs(self):
+        """Test removing directory with multiple hidden subdirectories (branch 174->170)."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            # Directory with multiple hidden subdirectories
+            parent_dir = temp_path / "parent_dir"
+            parent_dir.mkdir()
+            (parent_dir / ".hidden_dir1").mkdir()
+            (parent_dir / ".hidden_dir2").mkdir()
+
+            # Without include_hidden - should remove all hidden subdirs and the parent
+            # This tests the loop continuation after shutil.rmtree (branch 174->170)
+            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
+            # 3 directories: .hidden_dir1, .hidden_dir2, parent_dir
+            assert removed == 3
+            assert not parent_dir.exists()
+
+    def test_remove_empty_directories_mixed_hidden_content(self):
+        """Test removing directory with mixed hidden files and directories."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            # Directory with both hidden files and hidden subdirectories
+            parent_dir = temp_path / "parent_dir"
+            parent_dir.mkdir()
+            (parent_dir / ".hidden_file").touch()
+            (parent_dir / ".hidden_dir").mkdir()
+            (parent_dir / ".hidden_dir" / "nested_file.txt").write_text("content")
+
+            # Without include_hidden - should remove everything
+            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
+            # Only parent_dir counted (hidden items cleaned via rmtree/unlink)
+            assert removed == 1
             assert not parent_dir.exists()
 
 

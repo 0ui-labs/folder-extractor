@@ -67,3 +67,43 @@ class TestNewParsers:
         
         with pytest.raises(ValueError, match="keine Zahl"):
             parse_depth("1.5")
+
+
+class TestParserEdgeCases:
+    """Test edge cases for parsers to achieve 100% coverage."""
+
+    def test_parse_file_types_star_prefix_without_dot(self):
+        """Test parse_file_types with *prefix (no dot) pattern (line 42)."""
+        # Pattern like "*pdf" (star but no dot)
+        result = parse_file_types("*pdf")
+        assert result == [".pdf"]
+
+        # Multiple patterns with mixed formats
+        result = parse_file_types("*pdf,*.jpg,.txt,doc")
+        assert result == [".pdf", ".jpg", ".txt", ".doc"]
+
+    def test_parse_file_types_empty_items(self):
+        """Test parse_file_types with empty items after split."""
+        # Double comma creates empty item
+        result = parse_file_types("pdf,,jpg")
+        assert result == [".pdf", ".jpg"]
+
+        # Trailing comma
+        result = parse_file_types("pdf,")
+        assert result == [".pdf"]
+
+    def test_parse_file_types_whitespace_only(self):
+        """Test parse_file_types with whitespace-only string."""
+        result = parse_file_types("   ")
+        assert result is None
+
+    def test_parse_domains_whitespace_only(self):
+        """Test parse_domains with whitespace-only string."""
+        result = parse_domains("   ")
+        assert result is None
+
+    def test_parse_domains_empty_items(self):
+        """Test parse_domains with empty items after split."""
+        # Double comma creates empty item
+        result = parse_domains("example.com,,test.org")
+        assert result == ["example.com", "test.org"]

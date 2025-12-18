@@ -430,3 +430,54 @@ class TestPathValidators:
             safe, reason = get_safe_path_info("/some/path")
             assert safe is False
             assert "Error validating path" in reason
+
+
+class TestFileValidatorEdgeCases:
+    """Test edge cases for file validators to achieve 100% coverage."""
+
+    def test_case_insensitive_system_file_detection(self):
+        """Test case-insensitive matching of system files (line 68)."""
+        # Test lowercase variants of SYSTEM_FILES
+        assert is_temp_or_system_file("thumbs.db") is True  # lowercase of Thumbs.db
+        assert is_temp_or_system_file("desktop.INI") is True  # mixed case
+        assert is_temp_or_system_file("THUMBS.DB") is True  # uppercase
+
+    def test_editor_temp_file_patterns_ending_with_star(self):
+        """Test wildcard patterns from EDITOR_TEMP_FILES that end with * (lines 77-79)."""
+        # Test patterns that end with * like "~$" prefix files
+        # These are patterns like "~$*" that match anything starting with "~$"
+        assert is_temp_or_system_file("~$document.docx") is True
+        assert is_temp_or_system_file("~$spreadsheet.xlsx") is True
+
+    def test_tilde_dollar_prefix(self):
+        """Test ~$ prefix for Office temp files (line 88)."""
+        assert is_temp_or_system_file("~$MyWord.docx") is True
+        assert is_temp_or_system_file("~$Excel.xlsx") is True
+
+    def test_dot_tilde_prefix(self):
+        """Test .~ prefix (line 88)."""
+        assert is_temp_or_system_file(".~lock.document.docx#") is True
+        assert is_temp_or_system_file(".~temp_file") is True
+
+    def test_emacs_hash_temp_files(self):
+        """Test #...# pattern for Emacs autosave files (line 91)."""
+        assert is_temp_or_system_file("#autosave#") is True
+        assert is_temp_or_system_file("#backup#") is True
+        # But not files that just start with #
+        assert is_temp_or_system_file("#not_temp.txt") is False
+
+    def test_dot_hash_prefix(self):
+        """Test .# prefix for Emacs lock files (line 91)."""
+        assert is_temp_or_system_file(".#lockfile") is True
+        assert is_temp_or_system_file(".#document.txt") is True
+
+    def test_tilde_suffix(self):
+        """Test ~ suffix for backup files (line 94)."""
+        assert is_temp_or_system_file("document.txt~") is True
+        assert is_temp_or_system_file("backup~") is True
+
+    def test_macos_resource_fork_prefix(self):
+        """Test ._ prefix for macOS resource forks (line 98)."""
+        assert is_temp_or_system_file("._document.pdf") is True
+        assert is_temp_or_system_file("._image.jpg") is True
+        assert is_temp_or_system_file("._DS_Store") is True

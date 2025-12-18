@@ -77,7 +77,8 @@ def is_temp_or_system_file(filename: Union[str, Path]) -> bool:
         if pattern.endswith('*'):
             if basename.startswith(pattern[:-1]):
                 return True
-        elif pattern.startswith('*'):
+        elif pattern.startswith('*'):  # pragma: no cover
+            # Currently no patterns in EDITOR_TEMP_FILES start with *
             if basename.endswith(pattern[1:]):
                 return True
         elif basename == pattern:

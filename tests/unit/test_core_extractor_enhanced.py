@@ -43,12 +43,12 @@ class TestEnhancedFileExtractor:
         # Replace history manager with mock
         self.extractor.history_manager = self.mock_history_manager
 
-    def test_validate_security_safe_path(self):
-        """Test security validation with safe path."""
+    def test_validate_security_accepts_safe_path(self):
+        """Safe paths (Desktop, Downloads, Documents) are accepted without exception."""
         home = Path.home()
         safe_path = str(home / "Desktop" / "test")
 
-        # Should not raise
+        # No exception means path is accepted
         self.extractor.validate_security(safe_path)
 
     def test_validate_security_unsafe_path(self):
@@ -278,34 +278,26 @@ class TestEnhancedFileExtractor:
         assert removed_count == 0
         assert subdir.exists()
 
-    def test_remove_empty_directories_handles_os_errors(self, tmp_path):
-        """Test that _remove_empty_directories handles OSError gracefully."""
-        # Create a directory
+    def test_remove_empty_directories_skips_inaccessible_directories(self, tmp_path):
+        """Directories that raise OSError on iterdir are skipped, not crashed on."""
         subdir = tmp_path / "subdir"
         subdir.mkdir()
 
-        # Mock iterdir to raise OSError
         with patch.object(Path, 'iterdir', side_effect=OSError("Permission denied")):
-            # Should not raise, just skip the directory
             removed_count = self.extractor._remove_empty_directories(tmp_path, [])
 
-            # No directories should be removed due to error
             assert removed_count == 0
 
-    def test_remove_empty_directories_handles_rmdir_errors(self, tmp_path):
-        """Test that _remove_empty_directories handles rmdir OSError gracefully."""
-        # Create an empty directory
+    def test_remove_empty_directories_skips_undeletable_directories(self, tmp_path):
+        """Directories that raise OSError on rmdir are skipped and preserved."""
         subdir = tmp_path / "subdir"
         subdir.mkdir()
 
-        # Mock rmdir to raise OSError
         with patch.object(Path, 'rmdir', side_effect=OSError("Cannot remove")):
-            # Should not raise, just skip the removal
             removed_count = self.extractor._remove_empty_directories(tmp_path, [])
 
-            # No directories should be removed due to error
             assert removed_count == 0
-            assert subdir.exists()
+            assert subdir.exists()  # Directory preserved despite removal attempt
 
     def test_undo_with_abort_signal(self, tmp_path):
         """Test undo operation being interrupted by abort signal (line 306)."""
