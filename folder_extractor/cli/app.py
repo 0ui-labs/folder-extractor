@@ -129,6 +129,7 @@ class EnhancedFolderExtractorCLI:
         except KeyboardInterrupt:
             # User pressed Ctrl+C - request abort via state manager
             self.state_manager.request_abort()
+            self.interface.finish_progress()
             self.interface.show_message(
                 "\nOperation wird abgebrochen...",
                 message_type="warning"

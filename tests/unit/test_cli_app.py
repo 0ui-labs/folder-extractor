@@ -485,6 +485,7 @@ class TestCLIAppEdgeCases:
 
         self.cli.interface.show_summary = Mock()
         self.cli.interface.show_message = Mock()
+        self.cli.interface.finish_progress = Mock()
         self.cli.state_manager.get_value = Mock(return_value=False)  # Not dry run
         self.cli.state_manager.request_abort = Mock()
 
@@ -498,6 +499,9 @@ class TestCLIAppEdgeCases:
 
                     # Should have called request_abort on state manager
                     self.cli.state_manager.request_abort.assert_called_once()
+
+                    # Should have stopped the progress bar
+                    self.cli.interface.finish_progress.assert_called_once()
 
                     # Should have shown a warning message about aborting
                     warning_calls = [
