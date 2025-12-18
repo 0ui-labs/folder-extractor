@@ -279,6 +279,30 @@ class TestConsoleInterface:
             # Should have increased
             assert update_count_3 > update_count_2
 
+    def test_show_progress_error_bypasses_rate_limiting(self):
+        """Error messages are shown immediately, bypassing rate limiting."""
+
+        with patch('folder_extractor.cli.interface.Progress') as MockProgress:
+            mock_progress = MagicMock()
+            MockProgress.return_value = mock_progress
+
+            with patch.object(self.interface.console, 'print') as mock_print:
+                # First call - normal progress
+                self.interface.show_progress(1, 10, "/path/to/file1.txt")
+
+                # Immediate second call with error - should NOT be rate-limited
+                self.interface.show_progress(
+                    2, 10,
+                    "/path/to/file2.txt",
+                    error="Permission denied"
+                )
+
+                # Error message should have been printed despite rate limiting
+                mock_print.assert_called()
+                call_args = mock_print.call_args
+                error_message = call_args[0][0]
+                assert "Permission denied" in error_message
+
     def test_show_progress_reuses_progress_instance(self):
         """Test that subsequent calls reuse the same Progress instance."""
 

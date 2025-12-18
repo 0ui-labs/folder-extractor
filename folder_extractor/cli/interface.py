@@ -162,34 +162,35 @@ class ConsoleInterface(IUserInterface):
             self.progress.start()
             self.task_id = self.progress.add_task("Verschiebe Dateien...", total=total)
 
-        # Rate limit updates
-        current_time = time.time()
-        if (current_time - self.last_progress_update) < self.progress_update_interval:
-            return
-        self.last_progress_update = current_time
-
-        # Format message
+        # Handle errors immediately - no rate limiting for error messages
         if error:
             message = MESSAGES["MOVE_ERROR"].format(
                 file=Path(filepath).name,
                 error=error
             )
             self.console.print(message, style=self.error_style)
-        else:
-            # Get filename and truncate if necessary
-            filename = Path(filepath).name
+            return
 
-            # Truncate filename if too long
-            max_length = 40
-            if len(filename) > max_length:
-                filename = filename[:max_length-3] + "..."
+        # Rate limit normal progress updates (not errors)
+        current_time = time.time()
+        if (current_time - self.last_progress_update) < self.progress_update_interval:
+            return
+        self.last_progress_update = current_time
 
-            # Update progress
-            self.progress.update(
-                self.task_id,
-                completed=current,
-                description=f"Verschiebe: {filename}"
-            )
+        # Get filename and truncate if necessary
+        filename = Path(filepath).name
+
+        # Truncate filename if too long
+        max_length = 40
+        if len(filename) > max_length:
+            filename = filename[:max_length-3] + "..."
+
+        # Update progress
+        self.progress.update(
+            self.task_id,
+            completed=current,
+            description=f"Verschiebe: {filename}"
+        )
 
     def finish_progress(self) -> None:
         """Stop the progress display."""
