@@ -134,8 +134,6 @@ class EnhancedFolderExtractorCLI:
                 "\nOperation wird abgebrochen...",
                 message_type="warning"
             )
-            # Give extractor time to finish current file
-            time.sleep(0.5)
             return 1
     
     def _execute_undo(self, path: Union[str, Path]) -> int:

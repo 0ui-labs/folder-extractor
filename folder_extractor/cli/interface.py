@@ -168,6 +168,8 @@ class ConsoleInterface(IUserInterface):
                 file=Path(filepath).name,
                 error=error
             )
+            # Still advance progress for error files
+            self.progress.update(self.task_id, completed=current)
             self.console.print(message, style=self.error_style)
             return
 
