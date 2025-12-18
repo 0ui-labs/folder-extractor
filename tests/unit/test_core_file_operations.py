@@ -354,6 +354,45 @@ class TestFileOperations:
             assert removed == 1
             assert not parent_dir.exists()
 
+    def test_remove_empty_directories_skips_files_in_rglob(self):
+        """Test that files returned by rglob are properly skipped.
+
+        This ensures coverage of the 'continue' branch when iterating
+        over non-directory entries from rglob('*').
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create deeply nested structure with files at various levels
+            level1 = temp_path / "level1"
+            level2 = level1 / "level2"
+            level2.mkdir(parents=True)
+
+            # Create files at different levels
+            (temp_path / "root_file.txt").touch()
+            (level1 / "level1_file.txt").touch()
+            (level2 / "level2_file.txt").touch()
+
+            # Create empty directories that SHOULD be removed
+            (temp_path / "empty_dir").mkdir()
+
+            # Call remove_empty_directories - it should skip the files
+            # and only remove empty_dir
+            removed = self.file_ops.remove_empty_directories(temp_path)
+
+            # Only empty_dir should be removed (not the dirs with files)
+            assert removed == 1
+            assert not (temp_path / "empty_dir").exists()
+
+            # Directories with files should still exist
+            assert level1.exists()
+            assert level2.exists()
+
+            # Files should still exist
+            assert (temp_path / "root_file.txt").exists()
+            assert (level1 / "level1_file.txt").exists()
+            assert (level2 / "level2_file.txt").exists()
+
 
 class TestHistoryManager:
     """Test HistoryManager class."""
