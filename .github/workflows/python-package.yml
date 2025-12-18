@@ -28,7 +28,7 @@ jobs:
     
     - name: Run tests with coverage
       run: |
-        python -m pytest tests/ --cov=folder_extractor --cov-report=xml
+        python -m pytest tests/ --cov=folder_extractor --cov-report=xml --cov-report=term-missing
     
     - name: Upload coverage to Codecov
       if: matrix.python-version == '3.12'
