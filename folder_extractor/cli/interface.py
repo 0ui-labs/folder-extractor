@@ -17,7 +17,6 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
-from rich.prompt import Confirm
 from rich.style import Style
 from rich.table import Table
 
@@ -129,9 +128,10 @@ class ConsoleInterface(IUserInterface):
         # Show file count
         self.console.print(MESSAGES["FILES_FOUND"].format(count=file_count))
 
-        # Get confirmation
+        # Get confirmation - accept both German and English responses
         try:
-            return Confirm.ask(MESSAGES["CONFIRM_MOVE"])
+            response = self.console.input(MESSAGES["CONFIRM_MOVE"]).lower().strip()
+            return response in ['j', 'ja', 'y', 'yes']
         except (KeyboardInterrupt, EOFError):
             return False
     

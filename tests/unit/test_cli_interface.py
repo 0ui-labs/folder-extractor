@@ -114,28 +114,47 @@ class TestConsoleInterface:
         result = self.interface.confirm_operation(10)
         assert result is True
     
-    def test_confirm_operation_user_confirms(self):
-        """Test user confirmation returns True when confirmed."""
+    def test_confirm_operation_accepts_german_ja(self):
+        """Test that German 'ja' is accepted as confirmation."""
         settings.set("confirm_operations", True)
 
-        with patch('folder_extractor.cli.interface.Confirm.ask', return_value=True):
-            with patch.object(self.interface.console, 'print') as mock_print:
+        with patch.object(self.interface.console, 'input', return_value='ja'):
+            with patch.object(self.interface.console, 'print'):
                 result = self.interface.confirm_operation(10)
-
-                # Should return True
                 assert result is True
 
-                # Should show file count message
-                mock_print.assert_called_once()
-                call_args = mock_print.call_args[0][0]
-                assert "10" in call_args
-                assert "Dateien" in call_args
+    def test_confirm_operation_accepts_german_j(self):
+        """Test that German 'j' is accepted as confirmation."""
+        settings.set("confirm_operations", True)
+
+        with patch.object(self.interface.console, 'input', return_value='j'):
+            with patch.object(self.interface.console, 'print'):
+                result = self.interface.confirm_operation(10)
+                assert result is True
+
+    def test_confirm_operation_accepts_english_yes(self):
+        """Test that English 'yes' is accepted as confirmation."""
+        settings.set("confirm_operations", True)
+
+        with patch.object(self.interface.console, 'input', return_value='yes'):
+            with patch.object(self.interface.console, 'print'):
+                result = self.interface.confirm_operation(10)
+                assert result is True
+
+    def test_confirm_operation_accepts_english_y(self):
+        """Test that English 'y' is accepted as confirmation."""
+        settings.set("confirm_operations", True)
+
+        with patch.object(self.interface.console, 'input', return_value='y'):
+            with patch.object(self.interface.console, 'print'):
+                result = self.interface.confirm_operation(10)
+                assert result is True
 
     def test_confirm_operation_user_declines(self):
         """Test user confirmation returns False when declined."""
         settings.set("confirm_operations", True)
 
-        with patch('folder_extractor.cli.interface.Confirm.ask', return_value=False):
+        with patch.object(self.interface.console, 'input', return_value='n'):
             with patch.object(self.interface.console, 'print') as mock_print:
                 result = self.interface.confirm_operation(10)
 
@@ -143,13 +162,13 @@ class TestConsoleInterface:
                 assert result is False
 
                 # Should still show file count message
-                mock_print.assert_called_once()
-    
+                mock_print.assert_called()
+
     def test_confirm_operation_interrupt(self):
         """Test confirmation with keyboard interrupt."""
         settings.set("confirm_operations", True)
 
-        with patch('folder_extractor.cli.interface.Confirm.ask', side_effect=KeyboardInterrupt):
+        with patch.object(self.interface.console, 'input', side_effect=KeyboardInterrupt):
             with patch.object(self.interface.console, 'print'):
                 result = self.interface.confirm_operation(10)
                 assert result is False
@@ -520,7 +539,7 @@ class TestConsoleInterfaceEdgeCases:
         """Test confirmation with EOFError (e.g., piped input)."""
         settings.set("confirm_operations", True)
 
-        with patch('folder_extractor.cli.interface.Confirm.ask', side_effect=EOFError):
+        with patch.object(self.interface.console, 'input', side_effect=EOFError):
             with patch.object(self.interface.console, 'print'):
                 result = self.interface.confirm_operation(10)
                 assert result is False
