@@ -16,7 +16,7 @@ from folder_extractor.core.state_manager import (
     IStateManager, ManagedOperation, get_state_manager
 )
 from folder_extractor.core.progress import (
-    IProgressTracker, ProgressTracker, ProgressInfo
+    ProgressTracker, ProgressInfo
 )
 from folder_extractor.config.settings import settings
 from folder_extractor.utils.path_validators import is_safe_path

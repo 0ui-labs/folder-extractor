@@ -42,8 +42,9 @@ setup(
             "folder-extractor=folder_extractor.main:main",
         ],
     },
+    # Runtime dependencies for modern CLI experience
     install_requires=[
-        # Keine externen Abhängigkeiten - nur Standard-Bibliotheken
+        "rich>=13.0.0",
     ],
     extras_require={
         "test": [

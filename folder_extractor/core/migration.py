@@ -4,10 +4,9 @@ Migration utilities for transitioning to new architecture.
 Provides utilities to ensure settings are properly migrated to the
 new state management system.
 """
-from typing import Optional
 
 from folder_extractor.core.state_manager import (
-    IStateManager, get_state_manager
+    get_state_manager
 )
 
 

@@ -4,9 +4,8 @@ Unit tests for the core file operations module.
 import pytest
 from pathlib import Path
 import tempfile
-import shutil
 import threading
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from folder_extractor.core.file_operations import (
     FileOperations,

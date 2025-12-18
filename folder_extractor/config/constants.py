@@ -4,8 +4,6 @@ Constants and configuration values for Folder Extractor.
 This module centralizes all constants, making them easy to modify
 and test. All values that were previously hardcoded are now here.
 """
-import os
-from pathlib import Path
 
 
 # Version Information
@@ -180,8 +178,7 @@ FILE_TYPE_FOLDERS = {
 NO_EXTENSION_FOLDER = "OHNE_ERWEITERUNG"
 
 
-# Terminal Control
-TERMINAL_CLEAR_LINE = "\r\033[K"
+# Progress Bar Configuration
 PROGRESS_BAR_WIDTH = 50
 
 

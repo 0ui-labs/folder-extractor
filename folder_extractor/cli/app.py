@@ -16,9 +16,8 @@ from folder_extractor.core.extractor import (
     EnhancedFileExtractor, EnhancedExtractionOrchestrator
 )
 from folder_extractor.core.state_manager import (
-    get_state_manager, ManagedOperation
+    get_state_manager
 )
-from folder_extractor.core.progress import ProgressInfo
 from folder_extractor.config.settings import configure_from_args
 from folder_extractor.config.constants import MESSAGES
 

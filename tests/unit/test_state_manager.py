@@ -1,12 +1,10 @@
 """
 Unit tests for state manager module.
 """
-import pytest
 import time
 import threading
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from pathlib import Path
-import json
 import tempfile
 
 from folder_extractor.core.state_manager import (

@@ -1,7 +1,6 @@
 """
 Unit tests for utils/terminal.py module.
 """
-import io
 import sys
 import platform
 from unittest.mock import patch, MagicMock

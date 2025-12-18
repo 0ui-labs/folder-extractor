@@ -1,7 +1,6 @@
 """
 Unit tests for CLI app module.
 """
-import pytest
 import os
 import sys
 from pathlib import Path

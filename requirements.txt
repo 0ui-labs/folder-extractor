@@ -10,3 +10,6 @@ twine==4.0.2
 # Optional for better testing
 pytest-mock==3.12.0
 coverage==7.4.0
+
+# Runtime dependencies
+rich>=13.0.0

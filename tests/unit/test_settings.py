@@ -2,9 +2,7 @@
 Unit tests for config/settings.py module.
 """
 import json
-from pathlib import Path
 from unittest.mock import MagicMock
-import pytest
 
 from folder_extractor.config.settings import Settings, settings, configure_from_args
 
