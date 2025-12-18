@@ -23,6 +23,7 @@ build/
 # Test outputs
 .coverage
 .htmlcov/
+coverage.xml
 
 # Logs
 *.log
