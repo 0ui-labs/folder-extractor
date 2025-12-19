@@ -1,11 +1,12 @@
 """
 Unit tests for CLI app module.
 """
+
 import os
 import sys
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 from io import StringIO
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI, main
 
@@ -22,16 +23,18 @@ class TestEnhancedFolderExtractorCLI:
             os.chdir(os.path.expanduser("~"))
 
         # Create CLI instance with mocked dependencies
-        with patch('folder_extractor.cli.app.create_parser'):
-            with patch('folder_extractor.cli.app.create_console_interface'):
-                with patch('folder_extractor.cli.app.get_state_manager'):
+        with patch("folder_extractor.cli.app.create_parser"):
+            with patch("folder_extractor.cli.app.create_console_interface"):
+                with patch("folder_extractor.cli.app.get_state_manager"):
                     self.cli = EnhancedFolderExtractorCLI()
 
     def test_init(self):
         """Test CLI initialization."""
-        with patch('folder_extractor.cli.app.create_parser') as mock_parser:
-            with patch('folder_extractor.cli.app.create_console_interface') as mock_interface:
-                with patch('folder_extractor.cli.app.get_state_manager') as mock_state:
+        with patch("folder_extractor.cli.app.create_parser") as mock_parser:
+            with patch(
+                "folder_extractor.cli.app.create_console_interface"
+            ) as mock_interface:
+                with patch("folder_extractor.cli.app.get_state_manager") as mock_state:
                     cli = EnhancedFolderExtractorCLI()
 
                     # Check all components initialized
@@ -48,7 +51,7 @@ class TestEnhancedFolderExtractorCLI:
         # Mock parser to raise KeyboardInterrupt
         self.cli.parser.parse_args = Mock(side_effect=KeyboardInterrupt)
 
-        with patch('sys.stdout', new=StringIO()) as mock_stdout:
+        with patch("sys.stdout", new=StringIO()) as mock_stdout:
             result = self.cli.run()
 
             assert result == 1
@@ -77,9 +80,9 @@ class TestEnhancedFolderExtractorCLI:
         self.cli.parser.parse_args = Mock(return_value=mock_args)
 
         # Mock execute_undo
-        with patch.object(self.cli, '_execute_undo', return_value=0) as mock_undo:
-            with patch('folder_extractor.cli.app.configure_from_args'):
-                with patch('folder_extractor.core.migration.MigrationHelper'):
+        with patch.object(self.cli, "_execute_undo", return_value=0) as mock_undo:
+            with patch("folder_extractor.cli.app.configure_from_args"):
+                with patch("folder_extractor.core.migration.MigrationHelper"):
                     result = self.cli.run()
 
                     assert result == 0
@@ -97,9 +100,11 @@ class TestEnhancedFolderExtractorCLI:
         self.cli.interface.show_welcome = Mock()
 
         # Mock execute_extraction
-        with patch.object(self.cli, '_execute_extraction', return_value=0) as mock_extract:
-            with patch('folder_extractor.cli.app.configure_from_args'):
-                with patch('folder_extractor.core.migration.MigrationHelper'):
+        with patch.object(
+            self.cli, "_execute_extraction", return_value=0
+        ) as mock_extract:
+            with patch("folder_extractor.cli.app.configure_from_args"):
+                with patch("folder_extractor.core.migration.MigrationHelper"):
                     result = self.cli.run()
 
                     assert result == 0
@@ -116,7 +121,7 @@ class TestEnhancedFolderExtractorCLI:
             "status": "success",
             "moved": 10,
             "duplicates": 2,
-            "errors": 0
+            "errors": 0,
         }
 
         # Mock interface
@@ -131,8 +136,14 @@ class TestEnhancedFolderExtractorCLI:
         self.cli.state_manager.get_value = Mock(return_value=False)
         self.cli.state_manager.get_operation_stats = Mock(return_value=None)
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor', return_value=mock_extractor):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch(
+            "folder_extractor.cli.app.EnhancedFileExtractor",
+            return_value=mock_extractor,
+        ):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_extraction("/test/path")
 
                 assert result == 0
@@ -148,15 +159,18 @@ class TestEnhancedFolderExtractorCLI:
         mock_orchestrator = Mock()
         mock_orchestrator.execute_extraction.return_value = {
             "status": "no_files",
-            "message": "Keine Dateien gefunden"
+            "message": "Keine Dateien gefunden",
         }
 
         self.cli.state_manager.get_value = Mock(return_value=True)  # dry_run
         self.cli.state_manager.get_operation_stats = Mock(return_value=None)
         self.cli.interface.show_summary = Mock()
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_extraction("/test/path")
 
                 # Should still return 0 (not an error)
@@ -167,15 +181,18 @@ class TestEnhancedFolderExtractorCLI:
         mock_orchestrator = Mock()
         mock_orchestrator.execute_extraction.return_value = {
             "status": "cancelled",
-            "message": "Operation abgebrochen"
+            "message": "Operation abgebrochen",
         }
 
         self.cli.state_manager.get_value = Mock(return_value=True)  # dry_run
         self.cli.state_manager.get_operation_stats = Mock(return_value=None)
         self.cli.interface.show_summary = Mock()
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_extraction("/test/path")
 
                 # Should return 0 (not an error)
@@ -188,7 +205,7 @@ class TestEnhancedFolderExtractorCLI:
             "status": "success",
             "moved": 5,
             "duplicates": 0,
-            "errors": 0
+            "errors": 0,
         }
 
         self.cli.state_manager.get_value = Mock(return_value=True)  # dry_run
@@ -197,15 +214,18 @@ class TestEnhancedFolderExtractorCLI:
 
         test_path = Path("/test/path")
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_extraction(test_path)
 
                 assert result == 0
 
                 # Verify orchestrator received Path object
                 call_args = mock_orchestrator.execute_extraction.call_args
-                source_path = call_args[1]['source_path']
+                source_path = call_args[1]["source_path"]
                 assert isinstance(source_path, Path)
 
     def test_execute_undo_success(self):
@@ -215,14 +235,17 @@ class TestEnhancedFolderExtractorCLI:
             "status": "success",
             "message": "10 Dateien zurück verschoben",
             "restored": 10,
-            "errors": 0
+            "errors": 0,
         }
 
         # Mock interface
         self.cli.interface.show_message = Mock()
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_undo("/test/path")
 
                 assert result == 0
@@ -239,13 +262,16 @@ class TestEnhancedFolderExtractorCLI:
         mock_orchestrator.execute_undo.return_value = {
             "status": "no_history",
             "message": "Keine History gefunden",
-            "restored": 0
+            "restored": 0,
         }
 
         self.cli.interface.show_message = Mock()
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_undo("/test/path")
 
                 assert result == 1
@@ -261,15 +287,18 @@ class TestEnhancedFolderExtractorCLI:
             "status": "success",
             "message": "5 Dateien zurück verschoben",
             "restored": 5,
-            "errors": 0
+            "errors": 0,
         }
 
         self.cli.interface.show_message = Mock()
 
         test_path = Path("/test/path")
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_undo(test_path)
 
                 assert result == 0
@@ -281,7 +310,7 @@ class TestEnhancedFolderExtractorCLI:
 
 def test_main_function():
     """Test main entry point function."""
-    with patch('folder_extractor.cli.app.EnhancedFolderExtractorCLI') as mock_cli_class:
+    with patch("folder_extractor.cli.app.EnhancedFolderExtractorCLI") as mock_cli_class:
         mock_cli = Mock()
         mock_cli.run.return_value = 0
         mock_cli_class.return_value = mock_cli
@@ -293,7 +322,7 @@ def test_main_function():
 
         # Test with arguments
         mock_cli.run.reset_mock()
-        test_args = ['--dry-run', '--depth', '3']
+        test_args = ["--dry-run", "--depth", "3"]
         result = main(test_args)
         assert result == 0
         mock_cli.run.assert_called_once_with(test_args)
@@ -304,11 +333,11 @@ def test_main_entry_point():
     # Test that main can be called when module is run directly
     test_module = "folder_extractor.cli.app"
 
-    with patch(f'{test_module}.main', return_value=0) as mock_main:
+    with patch(f"{test_module}.main", return_value=0) as mock_main:
         # Simulate the module being run as __main__
-        with patch.dict('sys.modules', {test_module: MagicMock(__name__='__main__')}):
+        with patch.dict("sys.modules", {test_module: MagicMock(__name__="__main__")}):
             # The actual code that would run
-            if sys.modules[test_module].__name__ == '__main__':
+            if sys.modules[test_module].__name__ == "__main__":
                 result = mock_main()
                 assert result == 0
 
@@ -323,9 +352,9 @@ class TestCLIAppEdgeCases:
         except (FileNotFoundError, OSError):
             os.chdir(os.path.expanduser("~"))
 
-        with patch('folder_extractor.cli.app.create_parser'):
-            with patch('folder_extractor.cli.app.create_console_interface'):
-                with patch('folder_extractor.cli.app.get_state_manager'):
+        with patch("folder_extractor.cli.app.create_parser"):
+            with patch("folder_extractor.cli.app.create_console_interface"):
+                with patch("folder_extractor.cli.app.get_state_manager"):
                     self.cli = EnhancedFolderExtractorCLI()
 
     def test_execute_undo_with_errors(self):
@@ -335,14 +364,17 @@ class TestCLIAppEdgeCases:
             "status": "success",
             "message": "8 Dateien zurück verschoben",
             "restored": 8,
-            "errors": 2  # Has errors
+            "errors": 2,  # Has errors
         }
 
         # Mock interface
         self.cli.interface.show_message = Mock()
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_undo("/test/path")
 
                 assert result == 0
@@ -350,7 +382,8 @@ class TestCLIAppEdgeCases:
                 # Check that error message was shown
                 # Find the call with "error" message_type
                 error_calls = [
-                    call for call in self.cli.interface.show_message.call_args_list
+                    call
+                    for call in self.cli.interface.show_message.call_args_list
                     if call[1].get("message_type") == "error"
                 ]
                 assert len(error_calls) > 0
@@ -370,7 +403,7 @@ class TestCLIAppEdgeCases:
             "moved": 25,
             "duplicates": 0,
             "errors": 0,
-            "operation_id": "test_op_123"
+            "operation_id": "test_op_123",
         }
 
         self.cli.interface.show_summary = Mock()
@@ -378,17 +411,25 @@ class TestCLIAppEdgeCases:
         self.cli.state_manager.get_value = Mock(return_value=True)  # dry_run
         self.cli.state_manager.get_operation_stats = Mock(return_value=mock_stats)
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_extraction("/test/path")
 
                 assert result == 0
 
                 # Check that duration and rate messages were shown
-                message_calls = [call[0][0] for call in self.cli.interface.show_message.call_args_list]
+                message_calls = [
+                    call[0][0]
+                    for call in self.cli.interface.show_message.call_args_list
+                ]
 
                 # Should have messages about duration and rate
-                duration_msg = any("2.5" in msg or "Sekunden" in msg for msg in message_calls)
+                duration_msg = any(
+                    "2.5" in msg or "Sekunden" in msg for msg in message_calls
+                )
                 rate_msg = any("Dateien/Sekunde" in msg for msg in message_calls)
 
                 assert duration_msg or rate_msg  # At least one should be shown
@@ -398,15 +439,18 @@ class TestCLIAppEdgeCases:
         mock_orchestrator = Mock()
         mock_orchestrator.execute_extraction.return_value = {
             "status": "error",
-            "message": "Something went wrong"
+            "message": "Something went wrong",
         }
 
         self.cli.interface.show_summary = Mock()
         self.cli.state_manager.get_value = Mock(return_value=True)
         self.cli.state_manager.get_operation_stats = Mock(return_value=None)
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_extraction("/test/path")
 
                 # Should return 1 for error status
@@ -424,7 +468,7 @@ class TestCLIAppEdgeCases:
             "moved": 10,
             "duplicates": 0,
             "errors": 0,
-            "operation_id": "test_op_zero_duration"
+            "operation_id": "test_op_zero_duration",
         }
 
         self.cli.interface.show_summary = Mock()
@@ -432,14 +476,20 @@ class TestCLIAppEdgeCases:
         self.cli.state_manager.get_value = Mock(return_value=True)
         self.cli.state_manager.get_operation_stats = Mock(return_value=mock_stats)
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_extraction("/test/path")
 
                 assert result == 0
 
                 # Should NOT show duration message since duration is 0
-                message_calls = [call[0][0] for call in self.cli.interface.show_message.call_args_list]
+                message_calls = [
+                    call[0][0]
+                    for call in self.cli.interface.show_message.call_args_list
+                ]
                 duration_shown = any("Sekunden" in msg for msg in message_calls)
                 assert not duration_shown
 
@@ -455,7 +505,7 @@ class TestCLIAppEdgeCases:
             "moved": 0,
             "duplicates": 0,
             "errors": 0,
-            "operation_id": "test_op_zero_files"
+            "operation_id": "test_op_zero_files",
         }
 
         self.cli.interface.show_summary = Mock()
@@ -463,14 +513,20 @@ class TestCLIAppEdgeCases:
         self.cli.state_manager.get_value = Mock(return_value=True)
         self.cli.state_manager.get_operation_stats = Mock(return_value=mock_stats)
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
                 result = self.cli._execute_extraction("/test/path")
 
                 assert result == 0
 
                 # Should show duration message but NOT rate message
-                message_calls = [call[0][0] for call in self.cli.interface.show_message.call_args_list]
+                message_calls = [
+                    call[0][0]
+                    for call in self.cli.interface.show_message.call_args_list
+                ]
                 duration_shown = any("Sekunden" in msg for msg in message_calls)
                 rate_shown = any("Dateien/Sekunde" in msg for msg in message_calls)
 
@@ -489,9 +545,12 @@ class TestCLIAppEdgeCases:
         self.cli.state_manager.get_value = Mock(return_value=False)  # Not dry run
         self.cli.state_manager.request_abort = Mock()
 
-        with patch('folder_extractor.cli.app.EnhancedFileExtractor'):
-            with patch('folder_extractor.cli.app.EnhancedExtractionOrchestrator', return_value=mock_orchestrator):
-                with patch('time.sleep'):  # Mock at module level
+        with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+            with patch(
+                "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                return_value=mock_orchestrator,
+            ):
+                with patch("time.sleep"):  # Mock at module level
                     result = self.cli._execute_extraction("/test/path")
 
                     # Should return 1 (error exit code)
@@ -505,10 +564,14 @@ class TestCLIAppEdgeCases:
 
                     # Should have shown a warning message about aborting
                     warning_calls = [
-                        call for call in self.cli.interface.show_message.call_args_list
+                        call
+                        for call in self.cli.interface.show_message.call_args_list
                         if call[1].get("message_type") == "warning"
                     ]
                     assert len(warning_calls) > 0
                     # Message should mention "abbrechen" or similar
-                    assert any("abbrechen" in call[0][0].lower() or "abgebrochen" in call[0][0].lower()
-                              for call in warning_calls)
+                    assert any(
+                        "abbrechen" in call[0][0].lower()
+                        or "abgebrochen" in call[0][0].lower()
+                        for call in warning_calls
+                    )

@@ -1,29 +1,29 @@
 """
 Unit tests for validator modules.
 """
+
 import os
 import tempfile
 from pathlib import Path
 
 from folder_extractor.utils.file_validators import (
-    is_temp_or_system_file,
     is_git_path,
     is_hidden_file,
+    is_temp_or_system_file,
     should_include_file,
-    validate_file_extension
+    validate_file_extension,
 )
-
 from folder_extractor.utils.path_validators import (
-    is_safe_path,
     get_safe_path_info,
+    is_safe_path,
+    is_subdirectory,
     normalize_path,
-    is_subdirectory
 )
 
 
 class TestFileValidators:
     """Test file validation functions."""
-    
+
     def test_temp_system_file_detection(self):
         """Test temporary and system file detection."""
         # System files (strings)
@@ -53,7 +53,7 @@ class TestFileValidators:
         # Normal files (Path objects) - TDD Red Phase
         assert is_temp_or_system_file(Path("document.pdf")) is False
         assert is_temp_or_system_file(Path("normal.txt")) is False
-    
+
     def test_git_path_detection(self):
         """Test git path detection."""
         # Git internal paths (strings)
@@ -73,7 +73,7 @@ class TestFileValidators:
         # Normal paths (Path objects)
         assert is_git_path(Path("src/main.py")) is False
         assert is_git_path(Path(".gitignore")) is False
-    
+
     def test_is_hidden_file(self):
         """Test hidden file detection."""
         # Test with strings
@@ -89,7 +89,7 @@ class TestFileValidators:
         assert is_hidden_file(Path("normal.txt")) is False
         assert is_hidden_file(Path(".")) is False  # Current directory
         assert is_hidden_file(Path("..")) is False  # Parent directory
-    
+
     def test_should_include_file(self):
         """Test comprehensive file inclusion logic."""
         # Normal files should be included (strings)
@@ -119,7 +119,7 @@ class TestFileValidators:
 
         # Git files always excluded (Path objects)
         assert should_include_file(Path(".git/config"), include_hidden=True) is False
-    
+
     def test_validate_file_extension(self):
         """Test file extension validation."""
         # No filter allows all (strings)
@@ -161,28 +161,31 @@ class TestFileValidators:
 
         # Check is_temp_or_system_file type hints
         temp_hints = get_type_hints(is_temp_or_system_file)
-        filename_type = temp_hints.get('filename')
-        assert hasattr(filename_type, '__args__'), \
+        filename_type = temp_hints.get("filename")
+        assert hasattr(filename_type, "__args__"), (
             "is_temp_or_system_file must have Union[str, Path] type hint for filename parameter"
+        )
 
         # Check is_hidden_file type hints
         hidden_hints = get_type_hints(is_hidden_file)
-        path_type = hidden_hints.get('path')
-        assert hasattr(path_type, '__args__'), \
+        path_type = hidden_hints.get("path")
+        assert hasattr(path_type, "__args__"), (
             "is_hidden_file must have Union[str, Path] type hint for path parameter"
+        )
 
         # Check validate_file_extension type hints
         validate_hints = get_type_hints(validate_file_extension)
-        filepath_type = validate_hints.get('filepath')
-        assert hasattr(filepath_type, '__args__'), \
+        filepath_type = validate_hints.get("filepath")
+        assert hasattr(filepath_type, "__args__"), (
             "validate_file_extension must have Union[str, Path] type hint for filepath parameter"
+        )
 
         # Test cases for is_temp_or_system_file
         temp_system_cases = [
             (".DS_Store", True),
             ("document.pdf", False),
             ("Thumbs.db", True),
-            ("normal.txt", False)
+            ("normal.txt", False),
         ]
 
         for filename, expected in temp_system_cases:
@@ -195,7 +198,7 @@ class TestFileValidators:
             (".hidden", True),
             (".DS_Store", True),
             ("normal.txt", False),
-            ("document.pdf", False)
+            ("document.pdf", False),
         ]
 
         for filename, expected in hidden_cases:
@@ -206,7 +209,7 @@ class TestFileValidators:
 
 class TestPathValidators:
     """Test path validation functions."""
-    
+
     def test_safe_path_compatibility(self):
         """Test compatibility with original function."""
         from folder_extractor.main import ist_sicherer_pfad as old_func
@@ -218,7 +221,7 @@ class TestPathValidators:
             str(home / "Documents" / "test"),
             "/etc/passwd",
             str(home),
-            str(home / "Library")
+            str(home / "Library"),
         ]
 
         for path in test_paths:
@@ -237,18 +240,20 @@ class TestPathValidators:
             home / "Documents" / "test",
             Path("/etc/passwd"),
             home,
-            home / "Library"
+            home / "Library",
         ]
 
         for path_obj in path_object_tests:
             # Create directory if it's supposed to be safe
-            if any(safe in str(path_obj) for safe in ["Desktop", "Downloads", "Documents"]):
+            if any(
+                safe in str(path_obj) for safe in ["Desktop", "Downloads", "Documents"]
+            ):
                 path_obj.mkdir(parents=True, exist_ok=True)
 
             old_result = old_func(str(path_obj))
             new_result = is_safe_path(path_obj)
             assert old_result == new_result, f"Mismatch for Path object '{path_obj}'"
-    
+
     def test_get_safe_path_info(self):
         """Test detailed path safety information."""
         home = Path.home()
@@ -280,7 +285,7 @@ class TestPathValidators:
         safe, reason = get_safe_path_info(home / "Pictures")
         assert safe is False
         assert "not in allowed folders" in reason
-    
+
     def test_normalize_path(self):
         """Test path normalization."""
 
@@ -328,7 +333,7 @@ class TestPathValidators:
                 assert normalized == str(Path(resolved_temp) / "test")
             finally:
                 os.chdir(original_cwd)
-    
+
     def test_is_subdirectory(self):
         """Test subdirectory checking."""
         # Simple case (strings)
@@ -344,7 +349,9 @@ class TestPathValidators:
 
         # Test with Path objects
         assert is_subdirectory(Path("/parent"), Path("/parent/child")) is True
-        assert is_subdirectory(Path("/parent"), Path("/parent/child/grandchild")) is True
+        assert (
+            is_subdirectory(Path("/parent"), Path("/parent/child/grandchild")) is True
+        )
 
         # Not subdirectory (Path objects)
         assert is_subdirectory(Path("/parent"), Path("/other")) is False
@@ -366,37 +373,48 @@ class TestPathValidators:
         # Test type hints - these should show Union[str, Path] support
         # This will fail until we update the type annotations
         is_safe_path_hints = get_type_hints(is_safe_path)
-        get_safe_path_info_hints = get_type_hints(get_safe_path_info)
-        normalize_path_hints = get_type_hints(normalize_path)
-        is_subdirectory_hints = get_type_hints(is_subdirectory)
+        get_type_hints(get_safe_path_info)
+        get_type_hints(normalize_path)
+        get_type_hints(is_subdirectory)
 
         # Verify Path is in the type hints (Union[str, Path])
         # Note: This is the actual TDD requirement - type hints must be updated
-        assert hasattr(is_safe_path_hints.get('path', None), '__args__') or \
-               is_safe_path_hints.get('path').__name__ == 'Path', \
-               "is_safe_path should have Union[str, Path] type hint for path parameter"
+        assert (
+            hasattr(is_safe_path_hints.get("path", None), "__args__")
+            or is_safe_path_hints.get("path").__name__ == "Path"
+        ), "is_safe_path should have Union[str, Path] type hint for path parameter"
 
         # Test is_safe_path with Path object
         desktop_path = home / "Desktop" / "pathlib_test"
         desktop_path.mkdir(parents=True, exist_ok=True)
         result = is_safe_path(desktop_path)
-        assert isinstance(result, bool), "is_safe_path should return bool for Path object"
+        assert isinstance(result, bool), (
+            "is_safe_path should return bool for Path object"
+        )
 
         # Test get_safe_path_info with Path object
         safe, reason = get_safe_path_info(desktop_path)
-        assert isinstance(safe, bool), "get_safe_path_info should return bool for Path object"
-        assert isinstance(reason, str), "get_safe_path_info should return string reason for Path object"
+        assert isinstance(safe, bool), (
+            "get_safe_path_info should return bool for Path object"
+        )
+        assert isinstance(reason, str), (
+            "get_safe_path_info should return string reason for Path object"
+        )
 
         # Test normalize_path with Path object
         normalized = normalize_path(Path("~/Desktop"))
-        assert isinstance(normalized, str), "normalize_path should return string for Path object"
+        assert isinstance(normalized, str), (
+            "normalize_path should return string for Path object"
+        )
         assert normalized == str(home / "Desktop")
 
         # Test is_subdirectory with Path objects
         parent = Path("/test/parent")
         child = Path("/test/parent/child")
         result = is_subdirectory(parent, child)
-        assert isinstance(result, bool), "is_subdirectory should return bool for Path objects"
+        assert isinstance(result, bool), (
+            "is_subdirectory should return bool for Path objects"
+        )
         assert result is True
 
     def test_edge_cases_for_coverage(self):
@@ -410,7 +428,7 @@ class TestPathValidators:
         from unittest.mock import patch
 
         # Test is_safe_path with general exception (lines 40-41)
-        with patch('folder_extractor.utils.path_validators.Path') as mock_path:
+        with patch("folder_extractor.utils.path_validators.Path") as mock_path:
             mock_path.side_effect = Exception("Mocked exception")
             result = is_safe_path("/some/path")
             assert result is False
@@ -422,7 +440,7 @@ class TestPathValidators:
         assert "Invalid path structure" in reason
 
         # Test get_safe_path_info with general exception (lines 71-72)
-        with patch('folder_extractor.utils.path_validators.Path') as mock_path:
+        with patch("folder_extractor.utils.path_validators.Path") as mock_path:
             mock_path.side_effect = Exception("Mocked exception")
             safe, reason = get_safe_path_info("/some/path")
             assert safe is False

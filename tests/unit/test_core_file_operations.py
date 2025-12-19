@@ -1,27 +1,29 @@
 """
 Unit tests for the core file operations module.
 """
-import pytest
-from pathlib import Path
+
 import tempfile
 import threading
+from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from folder_extractor.core.file_operations import (
-    FileOperations,
     FileMover,
+    FileOperationError,
+    FileOperations,
     HistoryManager,
-    FileOperationError
 )
 
 
 class TestFileOperations:
     """Test FileOperations class."""
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         self.file_ops = FileOperations()
-    
+
     def test_generate_unique_name_no_conflict(self):
         """Test unique name generation when no conflict."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -58,7 +60,7 @@ class TestFileOperations:
             # Test with string (backward compatibility)
             name = self.file_ops.generate_unique_name(temp_dir, "test.txt")
             assert name == "test.txt"
-    
+
     def test_move_file_success(self):
         """Test successful file move."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -75,7 +77,7 @@ class TestFileOperations:
             assert not source.exists()
             assert dest.exists()
             assert dest.read_text() == "content"
-    
+
     def test_move_file_dry_run(self):
         """Test file move in dry run mode."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -89,7 +91,7 @@ class TestFileOperations:
             assert result is True
             assert source.exists()  # File should still exist
             assert not dest.exists()
-    
+
     def test_move_file_cross_filesystem(self):
         """Test file move across filesystems (simulated)."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -99,7 +101,7 @@ class TestFileOperations:
             dest = temp_path / "dest.txt"
 
             # Mock Path.rename to fail, forcing copy+delete
-            with patch.object(Path, 'rename', side_effect=OSError):
+            with patch.object(Path, "rename", side_effect=OSError):
                 result = self.file_ops.move_file(source, dest)
 
                 assert result is True
@@ -147,12 +149,13 @@ class TestFileOperations:
 
             # Mock Path.rename to fail (simulating cross-filesystem)
             # AND shutil.copy2 to fail
-            with patch.object(Path, 'rename', side_effect=OSError):
-                with patch('shutil.copy2', side_effect=PermissionError("No permission")):
-                    with pytest.raises(FileOperationError) as exc_info:
-                        self.file_ops.move_file(source, dest)
+            with patch.object(Path, "rename", side_effect=OSError), patch(
+                "shutil.copy2", side_effect=PermissionError("No permission")
+            ):
+                with pytest.raises(FileOperationError) as exc_info:
+                    self.file_ops.move_file(source, dest)
 
-                    assert "Failed to move file" in str(exc_info.value)
+                assert "Failed to move file" in str(exc_info.value)
 
     def test_determine_type_folder_known_types(self):
         """Test folder determination for known file types."""
@@ -160,12 +163,12 @@ class TestFileOperations:
         assert self.file_ops.determine_type_folder("script.py") == "PYTHON"
         assert self.file_ops.determine_type_folder("IMAGE.JPG") == "JPEG"
         assert self.file_ops.determine_type_folder("page.html") == "HTML"
-    
+
     def test_determine_type_folder_unknown_type(self):
         """Test folder determination for unknown file types."""
         assert self.file_ops.determine_type_folder("file.xyz") == "XYZ"
         assert self.file_ops.determine_type_folder("data.custom") == "CUSTOM"
-    
+
     def test_determine_type_folder_no_extension(self):
         """Test folder determination for files without extension."""
         assert self.file_ops.determine_type_folder("README") == "OHNE_ERWEITERUNG"
@@ -221,7 +224,9 @@ class TestFileOperations:
             (hidden_dir / ".hidden").touch()
 
             # Without include_hidden - should remove
-            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
+            removed = self.file_ops.remove_empty_directories(
+                temp_path, include_hidden=False
+            )
             assert removed == 1
             assert not hidden_dir.exists()
 
@@ -230,7 +235,9 @@ class TestFileOperations:
             (hidden_dir / ".hidden").touch()
 
             # With include_hidden - should keep
-            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=True)
+            removed = self.file_ops.remove_empty_directories(
+                temp_path, include_hidden=True
+            )
             assert removed == 0
             assert hidden_dir.exists()
 
@@ -250,7 +257,7 @@ class TestFileOperations:
                     raise PermissionError("Access denied")
                 return original_iterdir(self)
 
-            with patch.object(Path, 'iterdir', mock_iterdir):
+            with patch.object(Path, "iterdir", mock_iterdir):
                 removed = self.file_ops.remove_empty_directories(temp_path)
 
                 # Inaccessible directory is skipped, not deleted
@@ -268,7 +275,9 @@ class TestFileOperations:
             hidden_subdir.mkdir()
 
             # Without include_hidden - should remove hidden subdir and parent
-            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
+            removed = self.file_ops.remove_empty_directories(
+                temp_path, include_hidden=False
+            )
             assert removed == 2  # Both hidden_subdir and parent_dir
             assert not parent_dir.exists()
 
@@ -285,8 +294,12 @@ class TestFileOperations:
             (hidden_subdir / "file.txt").write_text("content")
 
             # Without include_hidden - should remove hidden subdir (with rmtree) and parent
-            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
-            assert removed == 1  # Only parent_dir (hidden subdir is removed via rmtree, not counted)
+            removed = self.file_ops.remove_empty_directories(
+                temp_path, include_hidden=False
+            )
+            assert (
+                removed == 1
+            )  # Only parent_dir (hidden subdir is removed via rmtree, not counted)
             assert not parent_dir.exists()
 
     def test_remove_empty_directories_include_hidden_true_empty_dir(self):
@@ -299,7 +312,9 @@ class TestFileOperations:
 
             # With include_hidden=True, should still remove empty directory
             # This tests the branch 169->177 where we skip hidden file cleanup
-            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=True)
+            removed = self.file_ops.remove_empty_directories(
+                temp_path, include_hidden=True
+            )
             assert removed == 1
             assert not empty_dir.exists()
 
@@ -316,7 +331,9 @@ class TestFileOperations:
 
             # Without include_hidden - should remove all hidden files and the directory
             # This tests the loop continuation branch 171->170
-            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
+            removed = self.file_ops.remove_empty_directories(
+                temp_path, include_hidden=False
+            )
             assert removed == 1
             assert not hidden_dir.exists()
 
@@ -332,7 +349,9 @@ class TestFileOperations:
 
             # Without include_hidden - should remove all hidden subdirs and the parent
             # This tests the loop continuation after shutil.rmtree (branch 174->170)
-            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
+            removed = self.file_ops.remove_empty_directories(
+                temp_path, include_hidden=False
+            )
             # 3 directories: .hidden_dir1, .hidden_dir2, parent_dir
             assert removed == 3
             assert not parent_dir.exists()
@@ -349,7 +368,9 @@ class TestFileOperations:
             (parent_dir / ".hidden_dir" / "nested_file.txt").write_text("content")
 
             # Without include_hidden - should remove everything
-            removed = self.file_ops.remove_empty_directories(temp_path, include_hidden=False)
+            removed = self.file_ops.remove_empty_directories(
+                temp_path, include_hidden=False
+            )
             # Only parent_dir counted (hidden items cleaned via rmtree/unlink)
             assert removed == 1
             assert not parent_dir.exists()
@@ -407,7 +428,7 @@ class TestHistoryManager:
                     "neuer_pfad": "/new/path/file.txt",
                     "original_name": "file.txt",
                     "neuer_name": "file.txt",
-                    "zeitstempel": "2024-01-01T12:00:00"
+                    "zeitstempel": "2024-01-01T12:00:00",
                 }
             ]
 
@@ -584,9 +605,7 @@ class TestFileMover:
             abort_signal.set()
 
             # Move files with Path destination
-            moved, errors, duplicates, history = file_mover.move_files(
-                files, temp_path
-            )
+            moved, errors, duplicates, history = file_mover.move_files(files, temp_path)
 
             # Should have moved very few files
             assert moved < len(files)
@@ -602,12 +621,7 @@ class TestFileMover:
 
             # Create various file types - use Path objects
             files = []
-            test_files = [
-                "document.pdf",
-                "image.jpg",
-                "script.py",
-                "data.json"
-            ]
+            test_files = ["document.pdf", "image.jpg", "script.py", "data.json"]
 
             for filename in test_files:
                 file_path = source_dir / filename
@@ -615,8 +629,9 @@ class TestFileMover:
                 files.append(file_path)
 
             # Move files sorted with Path destination
-            moved, errors, duplicates, history, created_folders = \
+            moved, errors, duplicates, history, created_folders = (
                 self.file_mover.move_files_sorted(files, dest_dir)
+            )
 
             assert moved == 4
             assert errors == 0
@@ -645,8 +660,9 @@ class TestFileMover:
             file_path.touch()
 
             # Move files sorted with string paths
-            moved, errors, duplicates, history, created_folders = \
+            moved, errors, duplicates, history, created_folders = (
                 self.file_mover.move_files_sorted([str(file_path)], str(dest_dir))
+            )
 
             assert moved == 1
             assert "PDF" in created_folders
@@ -656,12 +672,14 @@ class TestFileMover:
         progress_calls = []
 
         def progress_callback(current, total, filepath, error=None):
-            progress_calls.append({
-                'current': current,
-                'total': total,
-                'filepath': filepath,
-                'error': error
-            })
+            progress_calls.append(
+                {
+                    "current": current,
+                    "total": total,
+                    "filepath": filepath,
+                    "error": error,
+                }
+            )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -671,26 +689,27 @@ class TestFileMover:
 
             # Move with callback - use Path objects
             self.file_mover.move_files(
-                [test_file], temp_path,
-                progress_callback=progress_callback
+                [test_file], temp_path, progress_callback=progress_callback
             )
 
             assert len(progress_calls) == 1
-            assert progress_calls[0]['current'] == 1
-            assert progress_calls[0]['total'] == 1
-            assert progress_calls[0]['error'] is None
+            assert progress_calls[0]["current"] == 1
+            assert progress_calls[0]["total"] == 1
+            assert progress_calls[0]["error"] is None
 
     def test_move_files_with_error(self):
         """Test error handling during file move with callback."""
         progress_calls = []
 
         def progress_callback(current, total, filepath, error=None):
-            progress_calls.append({
-                'current': current,
-                'total': total,
-                'filepath': filepath,
-                'error': error
-            })
+            progress_calls.append(
+                {
+                    "current": current,
+                    "total": total,
+                    "filepath": filepath,
+                    "error": error,
+                }
+            )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -702,16 +721,17 @@ class TestFileMover:
             test_file.touch()
 
             # Mock move_file to raise exception
-            with patch.object(self.file_ops, 'move_file', side_effect=Exception("Test error")):
+            with patch.object(
+                self.file_ops, "move_file", side_effect=Exception("Test error")
+            ):
                 moved, errors, duplicates, history = self.file_mover.move_files(
-                    [test_file], dest_dir,
-                    progress_callback=progress_callback
+                    [test_file], dest_dir, progress_callback=progress_callback
                 )
 
             assert moved == 0
             assert errors == 1
             assert len(progress_calls) == 2  # One for progress, one for error
-            assert progress_calls[1]['error'] == "Test error"
+            assert progress_calls[1]["error"] == "Test error"
 
     def test_move_files_sorted_with_abort(self):
         """Test aborting sorted file move operation."""
@@ -736,8 +756,8 @@ class TestFileMover:
             abort_signal.set()
 
             # Move files sorted
-            moved, errors, duplicates, history, created_folders = file_mover.move_files_sorted(
-                files, dest_dir
+            moved, errors, duplicates, history, created_folders = (
+                file_mover.move_files_sorted(files, dest_dir)
             )
 
             # Should have moved very few files
@@ -748,12 +768,14 @@ class TestFileMover:
         progress_calls = []
 
         def progress_callback(current, total, filepath, error=None):
-            progress_calls.append({
-                'current': current,
-                'total': total,
-                'filepath': filepath,
-                'error': error
-            })
+            progress_calls.append(
+                {
+                    "current": current,
+                    "total": total,
+                    "filepath": filepath,
+                    "error": error,
+                }
+            )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -767,15 +789,18 @@ class TestFileMover:
             test_file.touch()
 
             # Mock move_file to raise exception
-            with patch.object(self.file_ops, 'move_file', side_effect=Exception("Test error")):
-                moved, errors, duplicates, history, created_folders = self.file_mover.move_files_sorted(
-                    [test_file], dest_dir,
-                    progress_callback=progress_callback
+            with patch.object(
+                self.file_ops, "move_file", side_effect=Exception("Test error")
+            ):
+                moved, errors, duplicates, history, created_folders = (
+                    self.file_mover.move_files_sorted(
+                        [test_file], dest_dir, progress_callback=progress_callback
+                    )
                 )
 
             assert moved == 0
             assert errors == 1
-            assert progress_calls[-1]['error'] == "Test error"
+            assert progress_calls[-1]["error"] == "Test error"
 
     def test_move_files_sorted_with_duplicates(self):
         """Test sorted move with duplicate filenames."""
@@ -796,13 +821,11 @@ class TestFileMover:
             source_file.write_text("new")
 
             # Move file sorted
-            moved, errors, duplicates, history, created_folders = self.file_mover.move_files_sorted(
-                [source_file], dest_dir
+            moved, errors, duplicates, history, created_folders = (
+                self.file_mover.move_files_sorted([source_file], dest_dir)
             )
 
             assert moved == 1
             assert duplicates == 1
             assert (pdf_folder / "document_1.pdf").exists()
             assert (pdf_folder / "document_1.pdf").read_text() == "new"
-
-

@@ -5,9 +5,7 @@ Provides utilities to ensure settings are properly migrated to the
 new state management system.
 """
 
-from folder_extractor.core.state_manager import (
-    get_state_manager
-)
+from folder_extractor.core.state_manager import get_state_manager
 
 
 class MigrationHelper:

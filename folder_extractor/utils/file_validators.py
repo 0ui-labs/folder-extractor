@@ -4,16 +4,17 @@ File validation utilities.
 Provides functions to validate files, paths, and check
 for temporary or system files.
 """
+
 from pathlib import Path
 from typing import Optional, Union
 
 from folder_extractor.config.constants import (
-    TEMP_EXTENSIONS,
-    SYSTEM_FILES,
     EDITOR_TEMP_FILES,
-    GIT_TEMP_FILES,
     GIT_DIRECTORY,
-    HIDDEN_FILE_PREFIX
+    GIT_TEMP_FILES,
+    HIDDEN_FILE_PREFIX,
+    SYSTEM_FILES,
+    TEMP_EXTENSIONS,
 )
 
 
@@ -32,7 +33,11 @@ def get_temp_files_list() -> list:
     temp_list = list(SYSTEM_FILES) + list(GIT_TEMP_FILES)
     # Add patterns from editor temp files that are exact names (not wildcards)
     for pattern in EDITOR_TEMP_FILES:
-        if not pattern.startswith('*') and not pattern.startswith('.#') and not pattern.startswith('#'):
+        if (
+            not pattern.startswith("*")
+            and not pattern.startswith(".#")
+            and not pattern.startswith("#")
+        ):
             temp_list.append(pattern)
     return temp_list
 
@@ -74,10 +79,10 @@ def is_temp_or_system_file(filename: Union[str, Path]) -> bool:
 
     # Check editor temp files patterns
     for pattern in EDITOR_TEMP_FILES:
-        if pattern.endswith('*'):
+        if pattern.endswith("*"):
             if basename.startswith(pattern[:-1]):
                 return True
-        elif pattern.startswith('*'):  # pragma: no cover
+        elif pattern.startswith("*"):  # pragma: no cover
             # Currently no patterns in EDITOR_TEMP_FILES start with *
             if basename.endswith(pattern[1:]):
                 return True
@@ -85,20 +90,19 @@ def is_temp_or_system_file(filename: Union[str, Path]) -> bool:
             return True
 
     # Check for various temp file patterns
-    if basename.startswith('~$') or basename.startswith('.~'):
+    if basename.startswith(("~$", ".~")):
         return True
 
-    if basename.startswith('.#') or (basename.startswith('#') and basename.endswith('#')):
+    if basename.startswith(".#") or (
+        basename.startswith("#") and basename.endswith("#")
+    ):
         return True
 
-    if basename.endswith('~'):
+    if basename.endswith("~"):
         return True
 
     # Check for hidden macOS resource forks
-    if basename.startswith('._'):
-        return True
-
-    return False
+    return bool(basename.startswith("._"))
 
 
 def is_git_path(path: Union[str, Path]) -> bool:
@@ -144,10 +148,12 @@ def is_hidden_file(path: Union[str, Path]) -> bool:
     path_obj = Path(path)
     basename = path_obj.name
     # Exclude current (.) and parent (..) directories
-    return basename.startswith(HIDDEN_FILE_PREFIX) and basename not in ['.', '..']
+    return basename.startswith(HIDDEN_FILE_PREFIX) and basename not in [".", ".."]
 
 
-def should_include_file(filepath: Union[str, Path], include_hidden: bool = False) -> bool:
+def should_include_file(
+    filepath: Union[str, Path], include_hidden: bool = False
+) -> bool:
     """
     Determine if a file should be included based on various criteria.
 
@@ -177,13 +183,13 @@ def should_include_file(filepath: Union[str, Path], include_hidden: bool = False
         return False
 
     # Skip hidden files if not included
-    if not include_hidden and is_hidden_file(filepath):
-        return False
-
-    return True
+    # Equivalent to: include_hidden OR file is not hidden
+    return include_hidden or not is_hidden_file(filepath)
 
 
-def validate_file_extension(filepath: Union[str, Path], allowed_extensions: Optional[list] = None) -> bool:
+def validate_file_extension(
+    filepath: Union[str, Path], allowed_extensions: Optional[list] = None
+) -> bool:
     """
     Check if a file has an allowed extension.
 

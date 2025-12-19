@@ -1,8 +1,10 @@
 """
 Unit tests for core/state.py module.
 """
+
 import threading
 import time
+
 import pytest
 
 from folder_extractor.core.state import (
@@ -192,9 +194,8 @@ class TestOperationContext:
         """Test context manager handles exceptions."""
         app_state = ApplicationState()
 
-        with pytest.raises(ValueError):
-            with OperationContext(app_state) as ctx:
-                raise ValueError("Test error")
+        with pytest.raises(ValueError), OperationContext(app_state) as ctx:
+            raise ValueError("Test error")
 
         # end_time should still be set
         assert ctx.end_time is not None

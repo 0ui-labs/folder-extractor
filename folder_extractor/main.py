@@ -5,12 +5,12 @@ This module provides the old German function names that wrap the new
 modular implementation. This ensures backwards compatibility with
 existing tests and code that imports from folder_extractor.main.
 """
-from typing import List, Optional, Dict, Tuple
 
-from folder_extractor.utils.path_validators import is_safe_path
-from folder_extractor.core.file_operations import FileOperations, FileMover
+from typing import Dict, List, Optional, Tuple
+
 from folder_extractor.core.file_discovery import FileDiscovery
-
+from folder_extractor.core.file_operations import FileMover, FileOperations
+from folder_extractor.utils.path_validators import is_safe_path
 
 # Module-level instances for compatibility functions
 _file_ops = FileOperations()
@@ -81,9 +81,12 @@ def pruefe_weblink_domain(filepath: str, allowed_domains: List[str]) -> bool:
     return _file_discovery.check_weblink_domain(filepath, allowed_domains)
 
 
-def finde_dateien(directory: str, max_tiefe: int = 0,
-                  dateityp_filter: Optional[List[str]] = None,
-                  include_hidden: bool = False) -> List[str]:
+def finde_dateien(
+    directory: str,
+    max_tiefe: int = 0,
+    dateityp_filter: Optional[List[str]] = None,
+    include_hidden: bool = False,
+) -> List[str]:
     """
     Find all files in directory and subdirectories.
 
@@ -102,13 +105,13 @@ def finde_dateien(directory: str, max_tiefe: int = 0,
         directory,
         max_depth=max_tiefe,
         file_type_filter=dateityp_filter,
-        include_hidden=include_hidden
+        include_hidden=include_hidden,
     )
 
 
-def verschiebe_dateien(files: List[str], destination: str,
-                       dry_run: bool = False,
-                       progress_callback=None) -> Tuple[int, int, int, List[Dict]]:
+def verschiebe_dateien(
+    files: List[str], destination: str, dry_run: bool = False, progress_callback=None
+) -> Tuple[int, int, int, List[Dict]]:
     """
     Move multiple files to destination.
 
@@ -141,6 +144,7 @@ def parse_dateitypen(type_string: Optional[str]) -> Optional[List[str]]:
         or None if input is empty
     """
     from folder_extractor.utils.parsers import parse_file_types
+
     return parse_file_types(type_string)
 
 
@@ -157,6 +161,7 @@ def parse_domains(domain_string: Optional[str]) -> Optional[List[str]]:
         List of domain strings without www prefix, or None if input is empty
     """
     from folder_extractor.utils.parsers import parse_domains as new_parse_domains
+
     return new_parse_domains(domain_string)
 
 
@@ -164,9 +169,11 @@ def parse_domains(domain_string: Optional[str]) -> Optional[List[str]]:
 def main():
     """Main entry point for Folder Extractor."""
     from folder_extractor.cli.app import main as cli_main  # pragma: no cover
+
     return cli_main()  # pragma: no cover
 
 
 if __name__ == "__main__":  # pragma: no cover
     import sys
+
     sys.exit(main())

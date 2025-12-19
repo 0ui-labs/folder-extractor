@@ -81,9 +81,8 @@ test(extractor): add tests for duplicate file handling
 
 4. **Run linting** to maintain code quality:
    ```bash
-   black .
-   flake8 .
-   isort .
+   ruff check .
+   ruff format .
    ```
 
 5. **Push your branch**:
@@ -100,9 +99,8 @@ test(extractor): add tests for duplicate file handling
 ### Python Style
 
 - Follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) guidelines
-- Use **Black** for code formatting (automatically enforced)
-- Use **isort** for import sorting
-- Use **Flake8** for linting
+- Use **Ruff** for code formatting and linting (automatically enforced)
+- Ruff combines formatting (Black-compatible) and linting (Flake8, isort, and more) in one tool
 
 ### Type Hints
 

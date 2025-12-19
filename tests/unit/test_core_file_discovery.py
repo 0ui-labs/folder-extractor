@@ -1,23 +1,21 @@
 """
 Unit tests for the core file discovery module.
 """
-from pathlib import Path
+
 import threading
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
-from folder_extractor.core.file_discovery import (
-    FileDiscovery,
-    FileFilter
-)
+from folder_extractor.core.file_discovery import FileDiscovery, FileFilter
 
 
 class TestFileDiscovery:
     """Test FileDiscovery class."""
-    
+
     def setup_method(self):
         """Set up test fixtures."""
         self.file_discovery = FileDiscovery()
-    
+
     def test_find_files_basic(self, tmp_path):
         """Test basic file discovery."""
         # Create file structure
@@ -37,7 +35,7 @@ class TestFileDiscovery:
         assert "file1.txt" in filenames
         assert "file2.pdf" in filenames
         assert "file3.txt" in filenames
-    
+
     def test_find_files_max_depth(self, tmp_path):
         """Test file discovery with depth limit."""
         # Create nested structure
@@ -58,7 +56,7 @@ class TestFileDiscovery:
 
         files_unlimited = self.file_discovery.find_files(str(tmp_path), max_depth=0)
         assert len(files_unlimited) == 3  # All files
-    
+
     def test_find_files_type_filter(self, tmp_path):
         """Test file discovery with type filtering."""
         subdir = tmp_path / "subdir"
@@ -82,7 +80,7 @@ class TestFileDiscovery:
             str(tmp_path), file_type_filter=[".txt", ".pdf"]
         )
         assert len(doc_files) == 2
-    
+
     def test_find_files_hidden_files(self, tmp_path):
         """Test handling of hidden files."""
         subdir = tmp_path / "subdir"
@@ -103,7 +101,7 @@ class TestFileDiscovery:
         # With include_hidden
         files = self.file_discovery.find_files(str(tmp_path), include_hidden=True)
         assert len(files) == 3
-    
+
     def test_find_files_abort_signal(self, tmp_path):
         """Test abort signal handling."""
         abort_signal = threading.Event()
@@ -121,26 +119,26 @@ class TestFileDiscovery:
         # Should return fewer files due to abort
         files = file_discovery.find_files(str(tmp_path))
         assert len(files) < 10
-    
+
     def test_check_url_file(self, tmp_path):
         """Test checking Windows .url files."""
         # Create .url file
         url_file = tmp_path / "youtube.url"
         url_file.write_text(
-            "[InternetShortcut]\n"
-            "URL=https://www.youtube.com/watch?v=123\n"
-            "IconIndex=0\n"
+            "[InternetShortcut]\nURL=https://www.youtube.com/watch?v=123\nIconIndex=0\n"
         )
 
         # Check domain
-        assert self.file_discovery.check_weblink_domain(
-            str(url_file), ["youtube.com"]
-        ) is True
+        assert (
+            self.file_discovery.check_weblink_domain(str(url_file), ["youtube.com"])
+            is True
+        )
 
-        assert self.file_discovery.check_weblink_domain(
-            str(url_file), ["github.com"]
-        ) is False
-    
+        assert (
+            self.file_discovery.check_weblink_domain(str(url_file), ["github.com"])
+            is False
+        )
+
     def test_check_webloc_file(self, tmp_path):
         """Test checking macOS .webloc files."""
         # Create .webloc file
@@ -157,38 +155,42 @@ class TestFileDiscovery:
         tree.write(str(webloc_file), encoding="UTF-8", xml_declaration=True)
 
         # Check domain
-        assert self.file_discovery.check_weblink_domain(
-            str(webloc_file), ["github.com"]
-        ) is True
+        assert (
+            self.file_discovery.check_weblink_domain(str(webloc_file), ["github.com"])
+            is True
+        )
 
-        assert self.file_discovery.check_weblink_domain(
-            str(webloc_file), ["youtube.com"]
-        ) is False
-    
+        assert (
+            self.file_discovery.check_weblink_domain(str(webloc_file), ["youtube.com"])
+            is False
+        )
+
     def test_check_weblink_nonexistent(self):
         """Test checking non-existent weblink files."""
         result = self.file_discovery.check_weblink_domain(
             "/nonexistent/file.url", ["any.com"]
         )
         assert result is False
-    
+
     def test_check_weblink_invalid_format(self, tmp_path):
         """Test handling of invalid weblink files."""
         # Invalid .url file
         invalid_url = tmp_path / "invalid.url"
         invalid_url.write_text("Not a valid URL file")
 
-        assert self.file_discovery.check_weblink_domain(
-            str(invalid_url), ["any.com"]
-        ) is False
+        assert (
+            self.file_discovery.check_weblink_domain(str(invalid_url), ["any.com"])
+            is False
+        )
 
         # Invalid .webloc file
         invalid_webloc = tmp_path / "invalid.webloc"
         invalid_webloc.write_text("Not valid XML")
 
-        assert self.file_discovery.check_weblink_domain(
-            str(invalid_webloc), ["any.com"]
-        ) is False
+        assert (
+            self.file_discovery.check_weblink_domain(str(invalid_webloc), ["any.com"])
+            is False
+        )
 
     def test_find_files_accepts_string_path(self, tmp_path):
         """Verify backward compatibility with string paths."""
@@ -269,15 +271,10 @@ class TestFileDiscovery:
         """Verify Path objects are accepted for weblink checking."""
         # Create .url file
         url_file = tmp_path / "test.url"
-        url_file.write_text(
-            "[InternetShortcut]\n"
-            "URL=https://www.example.com/page\n"
-        )
+        url_file.write_text("[InternetShortcut]\nURL=https://www.example.com/page\n")
 
         # Test with Path object
-        result = self.file_discovery.check_weblink_domain(
-            url_file, ["example.com"]
-        )
+        result = self.file_discovery.check_weblink_domain(url_file, ["example.com"])
         assert result is True
 
     def test_calculate_depth(self, tmp_path):
@@ -321,16 +318,16 @@ class TestFileDiscovery:
 
 class TestFileFilter:
     """Test FileFilter class."""
-    
+
     def test_extension_filter(self):
         """Test extension filtering."""
         filter = FileFilter()
         filter.add_extension_filter([".txt", ".pdf"])
-        
+
         assert filter.apply("/path/to/file.txt") is True
         assert filter.apply("/path/to/file.pdf") is True
         assert filter.apply("/path/to/file.jpg") is False
-    
+
     def test_size_filter(self, tmp_path):
         """Test size filtering."""
         # Create files of different sizes
@@ -360,17 +357,17 @@ class TestFileFilter:
 
         assert filter.apply(str(small_file)) is False
         assert filter.apply(str(large_file)) is False
-    
+
     def test_name_pattern_filter(self):
         """Test filename pattern filtering."""
         filter = FileFilter()
         filter.add_name_pattern_filter("test_*.txt")
-        
+
         assert filter.apply("/path/to/test_file.txt") is True
         assert filter.apply("/path/to/test_123.txt") is True
         assert filter.apply("/path/to/other.txt") is False
         assert filter.apply("/path/to/test_file.pdf") is False
-    
+
     def test_combined_filters(self, tmp_path):
         """Test combining multiple filters."""
         # Create test file
@@ -457,7 +454,7 @@ class TestFileDiscoveryEdgeCases:
         def mock_os_walk(path, topdown=True):
             raise PermissionError("Access denied")
 
-        with patch('folder_extractor.core.file_discovery.os.walk', mock_os_walk):
+        with patch("folder_extractor.core.file_discovery.os.walk", mock_os_walk):
             # Should handle the error gracefully
             files = file_discovery.find_files(str(tmp_path))
             # Should return empty list when permission denied at root
@@ -470,7 +467,7 @@ class TestFileDiscoveryEdgeCases:
 
         # Create a .url file with problematic content
         url_file = tmp_path / "broken.url"
-        url_file.write_bytes(b'\xff\xfe\x00\x00')  # Invalid encoding
+        url_file.write_bytes(b"\xff\xfe\x00\x00")  # Invalid encoding
 
         # Should return False on exception
         result = file_discovery.check_weblink_domain(str(url_file), ["example.com"])
@@ -485,14 +482,14 @@ class TestFileDiscoveryEdgeCases:
         webloc_file = tmp_path / "alt.webloc"
 
         # Create plist with multiple keys/strings
-        plist_content = '''<?xml version="1.0" encoding="UTF-8"?>
+        plist_content = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>URL</key>
     <string>https://github.com/test</string>
 </dict>
-</plist>'''
+</plist>"""
         webloc_file.write_text(plist_content)
 
         # Should extract domain correctly
@@ -504,7 +501,9 @@ class TestFileDiscoveryEdgeCases:
         file_discovery = FileDiscovery()
 
         # Test with malformed URL that causes urlparse to fail
-        result = file_discovery._check_url_domain("not a valid url :://", ["example.com"])
+        result = file_discovery._check_url_domain(
+            "not a valid url :://", ["example.com"]
+        )
         # urlparse doesn't actually throw, but let's test the flow
         assert result is False
 
@@ -518,13 +517,13 @@ class TestFileDiscoveryEdgeCases:
 
         # Create a .webloc file with valid XML but wrong structure
         webloc_file = tmp_path / "malformed.webloc"
-        webloc_file.write_text('''<?xml version="1.0"?>
+        webloc_file.write_text("""<?xml version="1.0"?>
 <plist version="1.0">
 <dict>
     <key>SomeOtherKey</key>
     <string>not a url</string>
 </dict>
-</plist>''')
+</plist>""")
 
         # Should return False (no URL key found)
         result = file_discovery.check_weblink_domain(str(webloc_file), ["example.com"])
@@ -557,7 +556,7 @@ class TestFileDiscoveryEdgeCases:
         # The <data> element causes string[2] to fail, but strings[1] works
         webloc_file = tmp_path / "alt_structure.webloc"
 
-        plist_content = '''<?xml version="1.0" encoding="UTF-8"?>
+        plist_content = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -567,7 +566,7 @@ class TestFileDiscoveryEdgeCases:
     <data>extra element that breaks XPath</data>
     <string>https://github.com/example/repo</string>
 </dict>
-</plist>'''
+</plist>"""
         webloc_file.write_text(plist_content)
 
         # Should extract domain correctly via alternative path (lines 224-227)
