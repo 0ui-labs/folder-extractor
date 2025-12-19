@@ -174,7 +174,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     files=files,
                     destination=destination_str,
                     dry_run=settings.get("dry_run", False),
-                    progress_callback=lambda c, t, f, e=None: progress_tracker.update(
+                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
                         c, f, e
                     ),
                 )
@@ -192,7 +192,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 files=files,
                 destination=destination_str,
                 dry_run=settings.get("dry_run", False),
-                progress_callback=lambda c, t, f, e=None: progress_tracker.update(
+                progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
                     c, f, e
                 ),
             )

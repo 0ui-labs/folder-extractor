@@ -90,7 +90,7 @@ def is_temp_or_system_file(filename: Union[str, Path]) -> bool:
             return True
 
     # Check for various temp file patterns
-    if basename.startswith("~$") or basename.startswith(".~"):
+    if basename.startswith(("~$", ".~")):
         return True
 
     if basename.startswith(".#") or (
@@ -183,7 +183,8 @@ def should_include_file(
         return False
 
     # Skip hidden files if not included
-    return not (not include_hidden and is_hidden_file(filepath))
+    # Equivalent to: include_hidden OR file is not hidden
+    return include_hidden or not is_hidden_file(filepath)
 
 
 def validate_file_extension(
