@@ -3,10 +3,10 @@
 
 version: 1
 
-language: python
+language: de
 
 reviews:
-  profile: balanced  # lenient, balanced, strict, very_strict
+  profile: assertive  # chill or assertive
   
   auto_review:
     enabled: true
