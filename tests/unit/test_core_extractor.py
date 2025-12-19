@@ -1,16 +1,18 @@
 """
 Unit tests for the core extractor module.
 """
-import pytest
+
 from pathlib import Path
 from unittest.mock import Mock
 
-from folder_extractor.core.extractor import (
-    EnhancedFileExtractor,
-    EnhancedExtractionOrchestrator,
-    SecurityError
-)
+import pytest
+
 from folder_extractor.config.settings import settings
+from folder_extractor.core.extractor import (
+    EnhancedExtractionOrchestrator,
+    EnhancedFileExtractor,
+    SecurityError,
+)
 
 
 class TestEnhancedFileExtractor:
@@ -65,12 +67,11 @@ class TestEnhancedFileExtractor:
         mock_discovery = Mock()
         mock_discovery.find_files.return_value = [
             str(subdir / "file1.txt"),
-            str(subdir / "file2.pdf")
+            str(subdir / "file2.pdf"),
         ]
 
         extractor = EnhancedFileExtractor(
-            file_discovery=mock_discovery,
-            state_manager=self.mock_state_manager
+            file_discovery=mock_discovery, state_manager=self.mock_state_manager
         )
         files = extractor.discover_files(tmp_path)
 
@@ -107,7 +108,7 @@ class TestEnhancedFileExtractor:
         files = [
             str((source_dir / "doc.pdf").touch() or source_dir / "doc.pdf"),
             str((source_dir / "img.jpg").touch() or source_dir / "img.jpg"),
-            str((source_dir / "script.py").touch() or source_dir / "script.py")
+            str((source_dir / "script.py").touch() or source_dir / "script.py"),
         ]
 
         # Extract files
@@ -143,13 +144,15 @@ class TestEnhancedFileExtractor:
         new_dir.mkdir()
 
         # Create history
-        operations = [{
-            "original_pfad": str(original_dir / "file.txt"),
-            "neuer_pfad": str(new_dir / "file.txt"),
-            "original_name": "file.txt",
-            "neuer_name": "file.txt",
-            "zeitstempel": "2024-01-01T12:00:00"
-        }]
+        operations = [
+            {
+                "original_pfad": str(original_dir / "file.txt"),
+                "neuer_pfad": str(new_dir / "file.txt"),
+                "original_name": "file.txt",
+                "neuer_name": "file.txt",
+                "zeitstempel": "2024-01-01T12:00:00",
+            }
+        ]
 
         # Create the "moved" file (simulating the file was moved from original to new)
         (new_dir / "file.txt").write_text("content")
@@ -204,29 +207,28 @@ class TestEnhancedExtractionOrchestrator:
         settings.reset_to_defaults()
         self.mock_extractor = Mock()
         self.mock_state_manager = Mock()
-        self.mock_state_manager.get_abort_signal.return_value = Mock(is_set=Mock(return_value=False))
+        self.mock_state_manager.get_abort_signal.return_value = Mock(
+            is_set=Mock(return_value=False)
+        )
         self.mock_state_manager.get_operation_stats = Mock(return_value=None)
         self.mock_state_manager.start_operation = Mock(return_value="op-123")
         self.mock_state_manager.end_operation = Mock()
 
         self.orchestrator = EnhancedExtractionOrchestrator(
-            self.mock_extractor,
-            self.mock_state_manager
+            self.mock_extractor, self.mock_state_manager
         )
 
     def test_execute_extraction_success(self):
         """Test successful extraction workflow."""
         # Set up mocks
-        self.mock_extractor.discover_files.return_value = [
-            "/file1.txt", "/file2.txt"
-        ]
+        self.mock_extractor.discover_files.return_value = ["/file1.txt", "/file2.txt"]
         self.mock_extractor.extract_files.return_value = {
             "moved": 2,
             "errors": 0,
             "duplicates": 0,
             "history": [],
             "created_folders": [],
-            "removed_directories": 0
+            "removed_directories": 0,
         }
 
         # Execute
@@ -257,8 +259,7 @@ class TestEnhancedExtractionOrchestrator:
         confirmation = Mock(return_value=False)
 
         result = self.orchestrator.execute_extraction(
-            "/safe/path",
-            confirmation_callback=confirmation
+            "/safe/path", confirmation_callback=confirmation
         )
 
         assert result["status"] == "cancelled"
@@ -271,15 +272,14 @@ class TestEnhancedExtractionOrchestrator:
             "status": "success",
             "moved": 1,
             "errors": 0,
-            "duplicates": 0
+            "duplicates": 0,
         }
 
         # Confirmation callback returns True - user confirms
         confirmation = Mock(return_value=True)
 
         result = self.orchestrator.execute_extraction(
-            "/safe/path",
-            confirmation_callback=confirmation
+            "/safe/path", confirmation_callback=confirmation
         )
 
         # Should proceed to extraction
@@ -302,7 +302,7 @@ class TestEnhancedExtractionOrchestrator:
         self.mock_extractor.undo_last_operation.return_value = {
             "status": "success",
             "restored": 5,
-            "message": "5 Dateien zurück verschoben"
+            "message": "5 Dateien zurück verschoben",
         }
 
         result = self.orchestrator.execute_undo("/safe/path")
@@ -315,7 +315,7 @@ class TestEnhancedExtractionOrchestrator:
         self.mock_extractor.undo_last_operation.return_value = {
             "status": "no_history",
             "restored": 0,
-            "message": "Keine History gefunden"
+            "message": "Keine History gefunden",
         }
 
         result = self.orchestrator.execute_undo("/safe/path")
@@ -372,5 +372,6 @@ class TestIntegration:
         finally:
             # Cleanup
             import shutil
+
             if test_dir.exists():
                 shutil.rmtree(test_dir)

@@ -3,6 +3,7 @@ Path validation and security utilities.
 
 Ensures operations only occur in safe directories.
 """
+
 from pathlib import Path
 from typing import Tuple, Union
 
@@ -32,9 +33,7 @@ def is_safe_path(path: Union[str, Path]) -> bool:
         home = Path.home()
         try:
             rel_path = path.relative_to(home)
-            if rel_path.parts and rel_path.parts[0] in SAFE_FOLDER_NAMES:
-                return True
-            return False
+            return bool(rel_path.parts and rel_path.parts[0] in SAFE_FOLDER_NAMES)
         except ValueError:
             return False
     except Exception:

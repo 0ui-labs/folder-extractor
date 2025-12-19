@@ -41,3 +41,61 @@ addopts = "-v --tb=short"
 filterwarnings = [
     "error::DeprecationWarning",
 ]
+
+[tool.ruff]
+# Line length matching Black's default
+line-length = 88
+
+# Target Python 3.8 for compatibility
+target-version = "py38"
+
+# Exclude common directories
+exclude = [
+    ".git",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+    "build",
+    "dist",
+    "venv",
+    ".venv",
+]
+
+[tool.ruff.lint]
+# Enable rule sets as requested
+select = [
+    "E",    # pycodestyle errors
+    "F",    # Pyflakes
+    "I",    # isort (import sorting)
+    "B",    # flake8-bugbear (subtle bugs)
+    "UP",   # pyupgrade (modernize syntax)
+    "SIM",  # flake8-simplify (code simplification)
+]
+
+# Ignored rules with justification
+ignore = [
+    "UP045",   # Optional[X] -> X | None requires Python 3.10+, we target 3.8
+    "SIM117",  # Parenthesized with statements require Python 3.9+, we target 3.8
+]
+
+# Allow auto-fixing for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+# Per-file ignores for common patterns
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"tests/**/*.py" = ["E501"]  # Relaxed line length for test files with long mock paths
+
+[tool.ruff.format]
+# Use double quotes (Black-compatible)
+quote-style = "double"
+
+# Use spaces for indentation
+indent-style = "space"
+
+# Respect magic trailing commas
+skip-magic-trailing-comma = false
+
+# Auto-detect line endings
+line-ending = "auto"

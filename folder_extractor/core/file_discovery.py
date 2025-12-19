@@ -3,51 +3,62 @@ File discovery module.
 
 Handles finding files in directories with various filtering options.
 """
+
+import os
+import xml.etree.ElementTree as ET
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Optional, Union
-from abc import ABC, abstractmethod
 from urllib.parse import urlparse
-import xml.etree.ElementTree as ET
-import os
 
+from folder_extractor.config.constants import HIDDEN_FILE_PREFIX
 from folder_extractor.utils.file_validators import (
     should_include_file,
-    validate_file_extension
+    validate_file_extension,
 )
-from folder_extractor.config.constants import HIDDEN_FILE_PREFIX
 
 
 class IFileDiscovery(ABC):
     """Interface for file discovery operations."""
 
     @abstractmethod
-    def find_files(self, directory: Union[str, Path], max_depth: int = 0,
-                  file_type_filter: Optional[List[str]] = None,
-                  include_hidden: bool = False) -> List[str]:
+    def find_files(
+        self,
+        directory: Union[str, Path],
+        max_depth: int = 0,
+        file_type_filter: Optional[List[str]] = None,
+        include_hidden: bool = False,
+    ) -> List[str]:
         """Find files in directory with given criteria."""
         pass
-    
+
     @abstractmethod
-    def check_weblink_domain(self, filepath: Union[str, Path], allowed_domains: List[str]) -> bool:
+    def check_weblink_domain(
+        self, filepath: Union[str, Path], allowed_domains: List[str]
+    ) -> bool:
         """Check if a weblink file matches allowed domains."""
         pass
 
 
 class FileDiscovery(IFileDiscovery):
     """Implementation of file discovery operations."""
-    
+
     def __init__(self, abort_signal=None):
         """
         Initialize file discovery.
-        
+
         Args:
             abort_signal: Threading event to signal operation abort
         """
         self.abort_signal = abort_signal
-    
-    def find_files(self, directory: Union[str, Path], max_depth: int = 0,
-                  file_type_filter: Optional[List[str]] = None,
-                  include_hidden: bool = False) -> List[str]:
+
+    def find_files(
+        self,
+        directory: Union[str, Path],
+        max_depth: int = 0,
+        file_type_filter: Optional[List[str]] = None,
+        include_hidden: bool = False,
+    ) -> List[str]:
         """
         Find all files in directory and subdirectories.
 
@@ -106,8 +117,10 @@ class FileDiscovery(IFileDiscovery):
             pass
 
         return found_files
-    
-    def check_weblink_domain(self, filepath: Union[str, Path], allowed_domains: List[str]) -> bool:
+
+    def check_weblink_domain(
+        self, filepath: Union[str, Path], allowed_domains: List[str]
+    ) -> bool:
         """
         Check if a weblink file (.url or .webloc) is from an allowed domain.
 
@@ -124,17 +137,19 @@ class FileDiscovery(IFileDiscovery):
 
         try:
             # Determine file type using Path.suffix
-            if file_path.suffix == '.url':
+            if file_path.suffix == ".url":
                 return self._check_url_file(str(file_path), allowed_domains)
-            elif file_path.suffix == '.webloc':
+            elif file_path.suffix == ".webloc":
                 return self._check_webloc_file(str(file_path), allowed_domains)
             else:
                 return False
         except Exception:  # pragma: no cover
             # Inner methods have their own exception handling
             return False
-    
-    def _calculate_depth(self, base_dir: Union[str, Path], current_dir: Union[str, Path]) -> int:
+
+    def _calculate_depth(
+        self, base_dir: Union[str, Path], current_dir: Union[str, Path]
+    ) -> int:
         """
         Calculate the depth of current directory relative to base.
 
@@ -151,43 +166,43 @@ class FileDiscovery(IFileDiscovery):
         # Get relative path
         try:
             rel_path = current_path.relative_to(base_path)
-            if rel_path == Path('.'):
+            if rel_path == Path("."):
                 return 0
             return len(rel_path.parts)
         except ValueError:
             # Paths are on different drives or not relative
             return 0
-    
+
     def _check_url_file(self, filepath: str, allowed_domains: List[str]) -> bool:
         """
         Check Windows .url file for allowed domains.
-        
+
         Args:
             filepath: Path to .url file
             allowed_domains: List of allowed domains
-        
+
         Returns:
             True if URL is from allowed domain
         """
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             content = f.read()
-        
+
         # Extract URL from .url file
         for line in content.splitlines():
-            if line.startswith('URL='):
+            if line.startswith("URL="):
                 url = line[4:].strip()
                 return self._check_url_domain(url, allowed_domains)
-        
+
         return False
-    
+
     def _check_webloc_file(self, filepath: str, allowed_domains: List[str]) -> bool:
         """
         Check macOS .webloc file for allowed domains.
-        
+
         Args:
             filepath: Path to .webloc file
             allowed_domains: List of allowed domains
-        
+
         Returns:
             True if URL is from allowed domain
         """
@@ -195,20 +210,20 @@ class FileDiscovery(IFileDiscovery):
             # Parse XML plist
             tree = ET.parse(filepath)
             root = tree.getroot()
-            
+
             # Find URL in plist
-            for dict_elem in root.findall('.//dict'):
-                keys = dict_elem.findall('key')
+            for dict_elem in root.findall(".//dict"):
+                keys = dict_elem.findall("key")
                 for i, key in enumerate(keys):
-                    if key.text == 'URL':
+                    if key.text == "URL":
                         # Next element should be the string with URL
-                        string_elem = dict_elem.find(f'string[{i+1}]')
+                        string_elem = dict_elem.find(f"string[{i + 1}]")
                         if string_elem is None:  # pragma: no cover
-                            # Try alternative structure - defensive code for malformed plists
+                            # Alternative structure for malformed plists
                             # Note: This path is logically unreachable because:
                             # - If string[i+1] is None, there are < (i+1) strings
                             # - Thus i < len(strings) will always be False
-                            strings = dict_elem.findall('string')
+                            strings = dict_elem.findall("string")
                             if i < len(strings):
                                 url = strings[i].text
                                 return self._check_url_domain(url, allowed_domains)
@@ -217,28 +232,28 @@ class FileDiscovery(IFileDiscovery):
                             return self._check_url_domain(url, allowed_domains)
         except Exception:
             pass
-        
+
         return False
-    
+
     def _check_url_domain(self, url: str, allowed_domains: List[str]) -> bool:
         """
         Check if URL domain is in allowed list.
-        
+
         Args:
             url: URL to check
             allowed_domains: List of allowed domains
-        
+
         Returns:
             True if domain is allowed
         """
         try:
             parsed = urlparse(url)
             domain = parsed.netloc.lower()
-            
+
             # Remove www prefix
-            if domain.startswith('www.'):
+            if domain.startswith("www."):
                 domain = domain[4:]
-            
+
             return domain in allowed_domains
         except Exception:
             return False
@@ -246,40 +261,45 @@ class FileDiscovery(IFileDiscovery):
 
 class FileFilter:
     """Advanced file filtering capabilities."""
-    
+
     def __init__(self):
         """Initialize file filter."""
         self._filters = []
-    
+
     def add_extension_filter(self, extensions: List[str]):
         """Add file extension filter."""
+
         def filter_func(filepath: str) -> bool:
             return validate_file_extension(filepath, extensions)
+
         self._filters.append(filter_func)
-    
-    def add_size_filter(self, min_size: Optional[int] = None,
-                       max_size: Optional[int] = None):
+
+    def add_size_filter(
+        self, min_size: Optional[int] = None, max_size: Optional[int] = None
+    ):
         """Add file size filter."""
+
         def filter_func(filepath: str) -> bool:
             try:
                 size = Path(filepath).stat().st_size
                 if min_size is not None and size < min_size:
                     return False
-                if max_size is not None and size > max_size:
-                    return False
-                return True
+                return not (max_size is not None and size > max_size)
             except OSError:
                 return False
+
         self._filters.append(filter_func)
-    
+
     def add_name_pattern_filter(self, pattern: str):
         """Add filename pattern filter (simple wildcard)."""
         import fnmatch
+
         def filter_func(filepath: str) -> bool:
             filename = Path(filepath).name
             return fnmatch.fnmatch(filename, pattern)
+
         self._filters.append(filter_func)
-    
+
     def apply(self, filepath: str) -> bool:
         """Apply all filters to a file."""
         return all(f(filepath) for f in self._filters)

@@ -1,14 +1,16 @@
 """
 Integration tests for the complete extraction workflow.
 """
+
 import os
 import shutil
 from pathlib import Path
+
 import pytest
 
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI
-from folder_extractor.core.state_manager import reset_state_manager
 from folder_extractor.config.settings import settings
+from folder_extractor.core.state_manager import reset_state_manager
 
 
 @pytest.fixture
@@ -29,11 +31,7 @@ def workflow_test_env(tmp_path):
 
     original_cwd = Path.cwd()
 
-    yield {
-        "test_dir": test_dir,
-        "original_cwd": original_cwd,
-        "tmp_path": tmp_path
-    }
+    yield {"test_dir": test_dir, "original_cwd": original_cwd, "tmp_path": tmp_path}
 
     # Cleanup
     os.chdir(original_cwd)
@@ -99,6 +97,7 @@ class TestExtractionWorkflow:
         except Exception as e:
             print(f"Error during extraction: {e}")
             import traceback
+
             traceback.print_exc()
             raise
 
@@ -250,6 +249,7 @@ class TestUndoWorkflow:
 
         # Create fake history file
         import json
+
         history_file = test_dir / ".folder_extractor_history.json"
         history_data = {
             "zeitstempel": "2024-01-01T12:00:00",
@@ -257,9 +257,9 @@ class TestUndoWorkflow:
             "operationen": [
                 {
                     "original_pfad": str(test_dir / "subdir" / "file.txt"),
-                    "neuer_pfad": str(test_dir / "file.txt")
+                    "neuer_pfad": str(test_dir / "file.txt"),
                 }
-            ]
+            ],
         }
 
         # Create the moved file and subdirectory

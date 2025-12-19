@@ -3,6 +3,7 @@ Command line interface module.
 
 Handles user interaction, progress display, and terminal operations.
 """
+
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -20,34 +21,39 @@ from rich.progress import (
 from rich.style import Style
 from rich.table import Table
 
-from folder_extractor.config.constants import MESSAGES, VERSION, AUTHOR
+from folder_extractor.config.constants import AUTHOR, MESSAGES, VERSION
 from folder_extractor.config.settings import settings
 
 
 class IUserInterface(ABC):
     """Interface for user interaction."""
-    
+
     @abstractmethod
     def show_welcome(self) -> None:
         """Show welcome message."""
         pass
-    
+
     @abstractmethod
     def show_message(self, message: str, message_type: str = "info") -> None:
         """Show a message to the user."""
         pass
-    
+
     @abstractmethod
     def confirm_operation(self, file_count: int) -> bool:
         """Get user confirmation for operation."""
         pass
-    
+
     @abstractmethod
-    def show_progress(self, current: int, total: int,
-                     filepath: Union[str, Path], error: Optional[str] = None) -> None:
+    def show_progress(
+        self,
+        current: int,
+        total: int,
+        filepath: Union[str, Path],
+        error: Optional[str] = None,
+    ) -> None:
         """Show operation progress."""
         pass
-    
+
     @abstractmethod
     def show_summary(self, results: dict) -> None:
         """Show operation summary."""
@@ -72,21 +78,15 @@ class ConsoleInterface(IUserInterface):
         self.error_style = Style(color="red", bold=True)
         self.warning_style = Style(color="yellow")
         self.info_style = Style(color="cyan")
-    
+
     def show_welcome(self) -> None:
         """Show welcome message."""
-        message = MESSAGES["WELCOME"].format(
-            version=VERSION,
-            author=AUTHOR
-        )
+        message = MESSAGES["WELCOME"].format(version=VERSION, author=AUTHOR)
         panel = Panel(
-            message,
-            title="Folder Extractor",
-            border_style="cyan",
-            padding=(1, 2)
+            message, title="Folder Extractor", border_style="cyan", padding=(1, 2)
         )
         self.console.print(panel)
-    
+
     def show_message(self, message: str, message_type: str = "info") -> None:
         """Show a message to the user.
 
@@ -109,7 +109,7 @@ class ConsoleInterface(IUserInterface):
         else:
             # Unknown message types - print without styling
             self.console.print(message)
-    
+
     def confirm_operation(self, file_count: int) -> bool:
         """Get user confirmation for operation.
 
@@ -131,12 +131,17 @@ class ConsoleInterface(IUserInterface):
         # Get confirmation - accept both German and English responses
         try:
             response = self.console.input(MESSAGES["CONFIRM_MOVE"]).lower().strip()
-            return response in ['j', 'ja', 'y', 'yes']
+            return response in ["j", "ja", "y", "yes"]
         except (KeyboardInterrupt, EOFError):
             return False
-    
-    def show_progress(self, current: int, total: int,
-                     filepath: Union[str, Path], error: Optional[str] = None) -> None:
+
+    def show_progress(
+        self,
+        current: int,
+        total: int,
+        filepath: Union[str, Path],
+        error: Optional[str] = None,
+    ) -> None:
         """Show operation progress.
 
         Args:
@@ -157,7 +162,7 @@ class ConsoleInterface(IUserInterface):
                 TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                 TimeRemainingColumn(),
                 console=self.console,
-                transient=True
+                transient=True,
             )
             self.progress.start()
             self.task_id = self.progress.add_task("Verschiebe Dateien...", total=total)
@@ -165,8 +170,7 @@ class ConsoleInterface(IUserInterface):
         # Handle errors immediately - no rate limiting for error messages
         if error:
             message = MESSAGES["MOVE_ERROR"].format(
-                file=Path(filepath).name,
-                error=error
+                file=Path(filepath).name, error=error
             )
             # Still advance progress for error files
             self.progress.update(self.task_id, completed=current)
@@ -185,14 +189,11 @@ class ConsoleInterface(IUserInterface):
         # Truncate filename if too long
         max_length = 40
         if len(filename) > max_length:
-            filename = filename[:max_length-3] + "..."
+            filename = filename[: max_length - 3] + "..."
 
         # Update progress
-        self.progress.update(
-            self.task_id,
-            completed=current,
-            description=f"Verschiebe: {filename}"
-        )
+        desc = f"Verschiebe: {filename}"
+        self.progress.update(self.task_id, completed=current, description=desc)
 
     def finish_progress(self) -> None:
         """Stop the progress display."""
@@ -200,7 +201,7 @@ class ConsoleInterface(IUserInterface):
             self.progress.stop()
             self.progress = None
             self.task_id = None
-    
+
     def show_summary(self, results: dict) -> None:
         """Show operation summary.
 
@@ -224,12 +225,16 @@ class ConsoleInterface(IUserInterface):
         elif results.get("status") == "success":
             # Show move summary using rich Table
             if "moved" in results:
-                table = Table(title="Zusammenfassung", border_style="cyan", show_header=True)
+                table = Table(
+                    title="Zusammenfassung", border_style="cyan", show_header=True
+                )
                 table.add_column("Kategorie", style="bold")
                 table.add_column("Anzahl", justify="right")
 
-                table.add_row("✓ Verschoben", str(results.get("moved", 0)), style="green")
-                table.add_row("⚠️ Duplikate", str(results.get("duplicates", 0)), style="yellow")
+                moved = str(results.get("moved", 0))
+                dupes = str(results.get("duplicates", 0))
+                table.add_row("✓ Verschoben", moved, style="green")
+                table.add_row("⚠️ Duplikate", dupes, style="yellow")
                 table.add_row("✗ Fehler", str(results.get("errors", 0)), style="red")
 
                 self.console.print(table)
@@ -242,9 +247,11 @@ class ConsoleInterface(IUserInterface):
 
             # Show removed directories
             if results.get("removed_directories", 0) > 0:
-                self.console.print(MESSAGES["EMPTY_FOLDERS_REMOVED"].format(
-                    count=results["removed_directories"]
-                ))
+                self.console.print(
+                    MESSAGES["EMPTY_FOLDERS_REMOVED"].format(
+                        count=results["removed_directories"]
+                    )
+                )
 
             # Show undo hint
             if not settings.get("dry_run", False) and results.get("moved", 0) > 0:

@@ -4,18 +4,16 @@ Unit tests for CLI interface module with rich integration.
 Tests use mocked rich components (Console, Panel, Table, Progress) to isolate
 from rich implementation details and verify behavior through call assertions.
 """
-import pytest
+
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, ANY
+from unittest.mock import MagicMock, patch
 
-from folder_extractor.cli.interface import (
-    ConsoleInterface, create_console_interface
-)
+from folder_extractor.cli.interface import ConsoleInterface, create_console_interface
 from folder_extractor.config.settings import settings
 
 
-@patch('folder_extractor.cli.interface.Console')
+@patch("folder_extractor.cli.interface.Console")
 class TestConsoleInterface:
     """Test ConsoleInterface class with mocked Console."""
 
@@ -28,7 +26,7 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Panel') as mock_panel_class:
+        with patch("folder_extractor.cli.interface.Panel") as mock_panel_class:
             mock_panel = MagicMock()
             mock_panel_class.return_value = mock_panel
 
@@ -39,8 +37,8 @@ class TestConsoleInterface:
             mock_panel_class.assert_called_once()
             call_args = mock_panel_class.call_args
             # Check title parameter
-            assert call_args.kwargs.get('title') == "Folder Extractor"
-            assert call_args.kwargs.get('border_style') == "cyan"
+            assert call_args.kwargs.get("title") == "Folder Extractor"
+            assert call_args.kwargs.get("border_style") == "cyan"
 
             # Verify console.print was called with the panel
             mock_console.print.assert_called_once_with(mock_panel)
@@ -50,7 +48,7 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Panel') as mock_panel_class:
+        with patch("folder_extractor.cli.interface.Panel") as mock_panel_class:
             interface = ConsoleInterface()
             interface.show_welcome()
 
@@ -71,7 +69,7 @@ class TestConsoleInterface:
         mock_console.print.assert_called_once()
         call_args = mock_console.print.call_args
         assert call_args[0][0] == "Success!"
-        assert call_args.kwargs.get('style') == interface.success_style
+        assert call_args.kwargs.get("style") == interface.success_style
 
     def test_show_message_error(self, mock_console_class):
         """Test showing error message with red bold style."""
@@ -84,7 +82,7 @@ class TestConsoleInterface:
         mock_console.print.assert_called_once()
         call_args = mock_console.print.call_args
         assert call_args[0][0] == "Error!"
-        assert call_args.kwargs.get('style') == interface.error_style
+        assert call_args.kwargs.get("style") == interface.error_style
 
     def test_show_message_warning(self, mock_console_class):
         """Test showing warning message with yellow style."""
@@ -97,7 +95,7 @@ class TestConsoleInterface:
         mock_console.print.assert_called_once()
         call_args = mock_console.print.call_args
         assert call_args[0][0] == "Warning!"
-        assert call_args.kwargs.get('style') == interface.warning_style
+        assert call_args.kwargs.get("style") == interface.warning_style
 
     def test_show_message_info(self, mock_console_class):
         """Test showing info message with cyan style."""
@@ -110,7 +108,7 @@ class TestConsoleInterface:
         mock_console.print.assert_called_once()
         call_args = mock_console.print.call_args
         assert call_args[0][0] == "Info!"
-        assert call_args.kwargs.get('style') == interface.info_style
+        assert call_args.kwargs.get("style") == interface.info_style
 
     def test_show_message_quiet_mode(self, mock_console_class):
         """Test message suppression in quiet mode."""
@@ -169,7 +167,7 @@ class TestConsoleInterface:
         """Test German 'ja' is accepted as confirmation."""
         settings.set("confirm_operations", True)
         mock_console = MagicMock()
-        mock_console.input.return_value = 'ja'
+        mock_console.input.return_value = "ja"
         mock_console_class.return_value = mock_console
 
         interface = ConsoleInterface()
@@ -181,7 +179,7 @@ class TestConsoleInterface:
         """Test German 'j' is accepted as confirmation."""
         settings.set("confirm_operations", True)
         mock_console = MagicMock()
-        mock_console.input.return_value = 'j'
+        mock_console.input.return_value = "j"
         mock_console_class.return_value = mock_console
 
         interface = ConsoleInterface()
@@ -193,7 +191,7 @@ class TestConsoleInterface:
         """Test English 'yes' is accepted as confirmation."""
         settings.set("confirm_operations", True)
         mock_console = MagicMock()
-        mock_console.input.return_value = 'yes'
+        mock_console.input.return_value = "yes"
         mock_console_class.return_value = mock_console
 
         interface = ConsoleInterface()
@@ -205,7 +203,7 @@ class TestConsoleInterface:
         """Test English 'y' is accepted as confirmation."""
         settings.set("confirm_operations", True)
         mock_console = MagicMock()
-        mock_console.input.return_value = 'y'
+        mock_console.input.return_value = "y"
         mock_console_class.return_value = mock_console
 
         interface = ConsoleInterface()
@@ -217,7 +215,7 @@ class TestConsoleInterface:
         """Test user declining returns False."""
         settings.set("confirm_operations", True)
         mock_console = MagicMock()
-        mock_console.input.return_value = 'n'
+        mock_console.input.return_value = "n"
         mock_console_class.return_value = mock_console
 
         interface = ConsoleInterface()
@@ -256,7 +254,7 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
             mock_progress = MagicMock()
             mock_progress.add_task.return_value = "task_id_123"
             mock_progress_class.return_value = mock_progress
@@ -267,8 +265,8 @@ class TestConsoleInterface:
             # Verify Progress was created with console and transient=True
             mock_progress_class.assert_called_once()
             call_kwargs = mock_progress_class.call_args.kwargs
-            assert call_kwargs['console'] == mock_console
-            assert call_kwargs['transient'] is True
+            assert call_kwargs["console"] == mock_console
+            assert call_kwargs["transient"] is True
 
             # Verify progress was started and task added
             mock_progress.start.assert_called_once()
@@ -283,7 +281,7 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
             mock_progress = MagicMock()
             mock_progress.add_task.return_value = "task_id"
             mock_progress_class.return_value = mock_progress
@@ -293,14 +291,14 @@ class TestConsoleInterface:
 
             mock_progress.update.assert_called()
             update_call = mock_progress.update.call_args
-            assert "file.txt" in update_call.kwargs['description']
+            assert "file.txt" in update_call.kwargs["description"]
 
     def test_show_progress_with_error(self, mock_console_class):
         """Test error messages are printed immediately with error style."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Progress'):
+        with patch("folder_extractor.cli.interface.Progress"):
             interface = ConsoleInterface()
             interface.show_progress(
                 5, 10, "/path/to/file.txt", error="Permission denied"
@@ -312,14 +310,14 @@ class TestConsoleInterface:
             error_message = call_args[0][0]
             assert "file.txt" in error_message
             assert "Permission denied" in error_message
-            assert call_args.kwargs['style'] == interface.error_style
+            assert call_args.kwargs["style"] == interface.error_style
 
     def test_show_progress_with_error_path_object(self, mock_console_class):
         """Test error messages work with Path objects."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Progress'):
+        with patch("folder_extractor.cli.interface.Progress"):
             interface = ConsoleInterface()
             interface.show_progress(
                 5, 10, Path("/path/to/file.txt"), error="Permission denied"
@@ -336,7 +334,7 @@ class TestConsoleInterface:
         settings.set("quiet", True)
         mock_console_class.return_value = MagicMock()
 
-        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
             interface = ConsoleInterface()
             interface.show_progress(1, 10, "/path/to/file.txt")
 
@@ -347,7 +345,7 @@ class TestConsoleInterface:
         """Test rate limiting of progress updates."""
         mock_console_class.return_value = MagicMock()
 
-        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
             mock_progress = MagicMock()
             mock_progress.add_task.return_value = "task_id"
             mock_progress_class.return_value = mock_progress
@@ -378,7 +376,7 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
             mock_progress = MagicMock()
             mock_progress.add_task.return_value = "task_id"
             mock_progress_class.return_value = mock_progress
@@ -402,7 +400,7 @@ class TestConsoleInterface:
         """Test subsequent calls reuse the same Progress instance."""
         mock_console_class.return_value = MagicMock()
 
-        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
             mock_progress = MagicMock()
             mock_progress.add_task.return_value = "task_id"
             mock_progress_class.return_value = mock_progress
@@ -426,7 +424,7 @@ class TestConsoleInterface:
         """Test long filenames are truncated to 40 characters."""
         mock_console_class.return_value = MagicMock()
 
-        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
             mock_progress = MagicMock()
             mock_progress.add_task.return_value = "task_id"
             mock_progress_class.return_value = mock_progress
@@ -439,7 +437,7 @@ class TestConsoleInterface:
 
             mock_progress.update.assert_called()
             update_call = mock_progress.update.call_args
-            description = update_call.kwargs['description']
+            description = update_call.kwargs["description"]
 
             # Should be truncated with "..."
             assert "..." in description
@@ -450,7 +448,7 @@ class TestConsoleInterface:
         """Test finish_progress stops Progress and cleans up."""
         mock_console_class.return_value = MagicMock()
 
-        with patch('folder_extractor.cli.interface.Progress') as mock_progress_class:
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
             mock_progress = MagicMock()
             mock_progress.add_task.return_value = "task_id"
             mock_progress_class.return_value = mock_progress
@@ -503,10 +501,7 @@ class TestConsoleInterface:
         mock_console_class.return_value = mock_console
 
         interface = ConsoleInterface()
-        results = {
-            "status": "no_files",
-            "message": "Keine Dateien gefunden"
-        }
+        results = {"status": "no_files", "message": "Keine Dateien gefunden"}
         interface.show_summary(results)
 
         mock_console.print.assert_called()
@@ -519,10 +514,7 @@ class TestConsoleInterface:
         mock_console_class.return_value = mock_console
 
         interface = ConsoleInterface()
-        results = {
-            "status": "cancelled",
-            "message": "Operation abgebrochen"
-        }
+        results = {"status": "cancelled", "message": "Operation abgebrochen"}
         interface.show_summary(results)
 
         mock_console.print.assert_called()
@@ -534,7 +526,7 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Table') as mock_table_class:
+        with patch("folder_extractor.cli.interface.Table") as mock_table_class:
             mock_table = MagicMock()
             mock_table_class.return_value = mock_table
 
@@ -545,15 +537,15 @@ class TestConsoleInterface:
                 "duplicates": 3,
                 "errors": 1,
                 "created_folders": ["PDF", "BILDER"],
-                "removed_directories": 5
+                "removed_directories": 5,
             }
             interface.show_summary(results)
 
             # Verify Table was created with correct parameters
             mock_table_class.assert_called_once()
             call_kwargs = mock_table_class.call_args.kwargs
-            assert call_kwargs.get('title') == "Zusammenfassung"
-            assert call_kwargs.get('border_style') == "cyan"
+            assert call_kwargs.get("title") == "Zusammenfassung"
+            assert call_kwargs.get("border_style") == "cyan"
 
             # Verify columns were added
             assert mock_table.add_column.call_count == 2
@@ -574,7 +566,7 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Table'):
+        with patch("folder_extractor.cli.interface.Table"):
             interface = ConsoleInterface()
             results = {
                 "status": "success",
@@ -592,13 +584,9 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Table'):
+        with patch("folder_extractor.cli.interface.Table"):
             interface = ConsoleInterface()
-            results = {
-                "status": "success",
-                "moved": 10,
-                "removed_directories": 5
-            }
+            results = {"status": "success", "moved": 10, "removed_directories": 5}
             interface.show_summary(results)
 
             call_args_str = str(mock_console.print.call_args_list)
@@ -610,7 +598,7 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Table'):
+        with patch("folder_extractor.cli.interface.Table"):
             interface = ConsoleInterface()
             results = {
                 "status": "success",
@@ -627,7 +615,7 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Table'):
+        with patch("folder_extractor.cli.interface.Table"):
             interface = ConsoleInterface()
             results = {
                 "status": "success",
@@ -643,12 +631,12 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch('folder_extractor.cli.interface.Table') as mock_table_class:
+        with patch("folder_extractor.cli.interface.Table") as mock_table_class:
             interface = ConsoleInterface()
             results = {
                 "status": "success",
                 "created_folders": ["PDF"],
-                "removed_directories": 2
+                "removed_directories": 2,
             }
             interface.show_summary(results)
 
@@ -661,7 +649,7 @@ class TestConsoleInterface:
             assert "2" in call_args_str
 
 
-@patch('folder_extractor.cli.interface.Console')
+@patch("folder_extractor.cli.interface.Console")
 def test_create_console_interface(mock_console_class):
     """Test interface factory function creates ConsoleInterface."""
     mock_console_class.return_value = MagicMock()
@@ -671,7 +659,7 @@ def test_create_console_interface(mock_console_class):
     assert isinstance(interface, ConsoleInterface)
 
 
-@patch('folder_extractor.cli.interface.Console')
+@patch("folder_extractor.cli.interface.Console")
 class TestConsoleInterfaceStyles:
     """Test style attributes are correctly initialized."""
 
@@ -681,10 +669,10 @@ class TestConsoleInterfaceStyles:
 
         interface = ConsoleInterface()
 
-        assert hasattr(interface, 'success_style')
-        assert hasattr(interface, 'error_style')
-        assert hasattr(interface, 'warning_style')
-        assert hasattr(interface, 'info_style')
+        assert hasattr(interface, "success_style")
+        assert hasattr(interface, "error_style")
+        assert hasattr(interface, "warning_style")
+        assert hasattr(interface, "info_style")
 
     def test_styles_are_configured(self, mock_console_class):
         """Test styles are non-None Style objects."""
@@ -699,7 +687,7 @@ class TestConsoleInterfaceStyles:
         assert interface.info_style is not None
 
 
-@patch('folder_extractor.cli.interface.Console')
+@patch("folder_extractor.cli.interface.Console")
 class TestConsoleInterfaceAttributes:
     """Test ConsoleInterface initialization and attributes."""
 
@@ -710,7 +698,7 @@ class TestConsoleInterfaceAttributes:
 
         interface = ConsoleInterface()
 
-        assert hasattr(interface, 'console')
+        assert hasattr(interface, "console")
         assert interface.console == mock_console
 
     def test_progress_initialized_to_none(self, mock_console_class):
@@ -719,7 +707,7 @@ class TestConsoleInterfaceAttributes:
 
         interface = ConsoleInterface()
 
-        assert hasattr(interface, 'progress')
+        assert hasattr(interface, "progress")
         assert interface.progress is None
 
     def test_task_id_initialized_to_none(self, mock_console_class):
@@ -728,7 +716,7 @@ class TestConsoleInterfaceAttributes:
 
         interface = ConsoleInterface()
 
-        assert hasattr(interface, 'task_id')
+        assert hasattr(interface, "task_id")
         assert interface.task_id is None
 
     def test_last_progress_update_initialized(self, mock_console_class):
@@ -737,7 +725,7 @@ class TestConsoleInterfaceAttributes:
 
         interface = ConsoleInterface()
 
-        assert hasattr(interface, 'last_progress_update')
+        assert hasattr(interface, "last_progress_update")
         assert interface.last_progress_update == 0
 
     def test_progress_update_interval_configured(self, mock_console_class):
@@ -746,5 +734,5 @@ class TestConsoleInterfaceAttributes:
 
         interface = ConsoleInterface()
 
-        assert hasattr(interface, 'progress_update_interval')
+        assert hasattr(interface, "progress_update_interval")
         assert interface.progress_update_interval > 0

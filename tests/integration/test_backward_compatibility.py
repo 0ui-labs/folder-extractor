@@ -1,12 +1,14 @@
 """
 Test backward compatibility with legacy architecture.
 """
+
+import json
 import os
 import sys
 from pathlib import Path
 from unittest.mock import patch
+
 import pytest
-import json
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -43,13 +45,10 @@ def compat_test_env(tmp_path):
         except Exception:
             return False
 
-    with patch('folder_extractor.utils.path_validators.is_safe_path', mock_is_safe_path), \
-         patch('folder_extractor.core.extractor.is_safe_path', mock_is_safe_path):
-        yield {
-            "test_dir": test_dir,
-            "original_cwd": original_cwd,
-            "tmp_path": tmp_path
-        }
+    with patch(
+        "folder_extractor.utils.path_validators.is_safe_path", mock_is_safe_path
+    ), patch("folder_extractor.core.extractor.is_safe_path", mock_is_safe_path):
+        yield {"test_dir": test_dir, "original_cwd": original_cwd, "tmp_path": tmp_path}
 
     # Cleanup: restore cwd (tmp_path is automatically cleaned up by pytest)
     os.chdir(original_cwd)
@@ -75,9 +74,9 @@ class TestBackwardCompatibility:
                     "neuer_pfad": "/new/path/file.txt",
                     "original_name": "file.txt",
                     "neuer_name": "file.txt",
-                    "zeitstempel": "2024-01-01T12:00:00"
+                    "zeitstempel": "2024-01-01T12:00:00",
                 }
-            ]
+            ],
         }
 
         history_file.write_text(json.dumps(legacy_history, ensure_ascii=False))
@@ -159,7 +158,7 @@ class TestBackwardCompatibility:
             cwd=str(test_dir),
             env=env,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # Check it ran without errors
@@ -181,14 +180,14 @@ class TestBackwardCompatibility:
                 {
                     # German format
                     "original_pfad": str(test_dir / "subdir" / "file1.txt"),
-                    "neuer_pfad": str(test_dir / "file1.txt")
+                    "neuer_pfad": str(test_dir / "file1.txt"),
                 },
                 {
                     # English format (hypothetical future version)
                     "original_path": str(test_dir / "subdir" / "file2.txt"),
-                    "new_path": str(test_dir / "file2.txt")
-                }
-            ]
+                    "new_path": str(test_dir / "file2.txt"),
+                },
+            ],
         }
 
         # Create moved files
@@ -287,8 +286,8 @@ class TestBackwardCompatibility:
         zu Path konvertiert wird. Vergleicht String- und Path-Aufrufe auf Äquivalenz.
         """
         from folder_extractor.core.extractor import (
+            EnhancedExtractionOrchestrator,
             EnhancedFileExtractor,
-            EnhancedExtractionOrchestrator
         )
         from folder_extractor.core.state_manager import reset_state_manager
 
@@ -311,8 +310,7 @@ class TestBackwardCompatibility:
         orchestrator_str = EnhancedExtractionOrchestrator(extractor_str)
 
         result_from_string = orchestrator_str.execute_extraction(
-            str(test_dir),
-            confirmation_callback=lambda x: True
+            str(test_dir), confirmation_callback=lambda x: True
         )
 
         # Test 2: Path object (new style)
@@ -321,8 +319,7 @@ class TestBackwardCompatibility:
         orchestrator_path = EnhancedExtractionOrchestrator(extractor_path)
 
         result_from_path = orchestrator_path.execute_extraction(
-            test_dir,
-            confirmation_callback=lambda x: True
+            test_dir, confirmation_callback=lambda x: True
         )
 
         # Verify: Both calls return valid results

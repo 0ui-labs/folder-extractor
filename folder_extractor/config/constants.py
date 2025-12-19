@@ -5,7 +5,6 @@ This module centralizes all constants, making them easy to modify
 and test. All values that were previously hardcoded are now here.
 """
 
-
 # Version Information
 VERSION = "1.3.3"
 AUTHOR = "Philipp Briese"
@@ -23,25 +22,47 @@ HISTORY_FILE_NAME = ".folder_extractor_history.json"
 
 # Temporary and System Files
 TEMP_EXTENSIONS = {
-    ".tmp", ".temp", ".part", ".partial", ".crdownload", 
-    ".download", ".downloading", ".lock", ".lck"
+    ".tmp",
+    ".temp",
+    ".part",
+    ".partial",
+    ".crdownload",
+    ".download",
+    ".downloading",
+    ".lock",
+    ".lck",
 }
 
 SYSTEM_FILES = {
-    ".DS_Store", "Thumbs.db", "desktop.ini", ".localized",
-    "._*", "~$*", ".~*"
+    ".DS_Store",
+    "Thumbs.db",
+    "desktop.ini",
+    ".localized",
+    "._*",
+    "~$*",
+    ".~*",
 }
 
 EDITOR_TEMP_FILES = {
-    ".swp", ".swo", ".swn", ".swm",  # Vim
-    ".#*", "#*#",  # Emacs
+    ".swp",
+    ".swo",
+    ".swn",
+    ".swm",  # Vim
+    ".#*",
+    "#*#",  # Emacs
     "~*",  # General backup
-    ".bak", ".backup", ".old"
+    ".bak",
+    ".backup",
+    ".old",
 }
 
 GIT_TEMP_FILES = {
-    "COMMIT_EDITMSG", "HEAD", "FETCH_HEAD", "ORIG_HEAD", 
-    "MERGE_HEAD", "REBASE_HEAD"
+    "COMMIT_EDITMSG",
+    "HEAD",
+    "FETCH_HEAD",
+    "ORIG_HEAD",
+    "MERGE_HEAD",
+    "REBASE_HEAD",
 }
 
 
@@ -54,18 +75,15 @@ FILE_TYPE_FOLDERS = {
     ".odt": "ODT",
     ".rtf": "RTF",
     ".tex": "TEX",
-    
     # Spreadsheets
     ".xls": "EXCEL",
     ".xlsx": "EXCEL",
     ".ods": "ODS",
     ".csv": "CSV",
-    
     # Presentations
     ".ppt": "POWERPOINT",
     ".pptx": "POWERPOINT",
     ".odp": "ODP",
-    
     # Images
     ".jpg": "JPEG",
     ".jpeg": "JPEG",
@@ -79,7 +97,6 @@ FILE_TYPE_FOLDERS = {
     ".webp": "WEBP",
     ".heic": "HEIC",
     ".heif": "HEIC",
-    
     # Videos
     ".mp4": "VIDEO",
     ".avi": "VIDEO",
@@ -91,7 +108,6 @@ FILE_TYPE_FOLDERS = {
     ".m4v": "VIDEO",
     ".mpg": "VIDEO",
     ".mpeg": "VIDEO",
-    
     # Audio
     ".mp3": "AUDIO",
     ".wav": "AUDIO",
@@ -101,7 +117,6 @@ FILE_TYPE_FOLDERS = {
     ".wma": "AUDIO",
     ".m4a": "AUDIO",
     ".opus": "AUDIO",
-    
     # Archives
     ".zip": "ZIP",
     ".rar": "RAR",
@@ -110,7 +125,6 @@ FILE_TYPE_FOLDERS = {
     ".gz": "GZ",
     ".bz2": "BZ2",
     ".xz": "XZ",
-    
     # Code
     ".py": "PYTHON",
     ".js": "JAVASCRIPT",
@@ -128,7 +142,6 @@ FILE_TYPE_FOLDERS = {
     ".kt": "KOTLIN",
     ".r": "R",
     ".m": "MATLAB",
-    
     # Web
     ".html": "HTML",
     ".htm": "HTML",
@@ -136,7 +149,6 @@ FILE_TYPE_FOLDERS = {
     ".scss": "SCSS",
     ".sass": "SASS",
     ".less": "LESS",
-    
     # Data
     ".json": "JSON",
     ".xml": "XML",
@@ -146,24 +158,20 @@ FILE_TYPE_FOLDERS = {
     ".ini": "INI",
     ".cfg": "CONFIG",
     ".conf": "CONFIG",
-    
     # Text
     ".txt": "TEXT",
     ".md": "MARKDOWN",
     ".rst": "RST",
     ".log": "LOG",
-    
     # Database
     ".sql": "SQL",
     ".db": "DATABASE",
     ".sqlite": "SQLITE",
-    
     # Fonts
     ".ttf": "FONT",
     ".otf": "FONT",
     ".woff": "FONT",
     ".woff2": "FONT",
-    
     # Other
     ".iso": "ISO",
     ".dmg": "DMG",
@@ -190,7 +198,6 @@ Von {author}
 
 Dieses Tool extrahiert alle Dateien aus Unterordnern in das aktuelle Verzeichnis.
 """,
-    
     "SECURITY_ERROR": """
 ⚠️  SICHERHEITSWARNUNG: Dieses Tool darf nur in folgenden Ordnern ausgeführt werden:
    - Desktop
@@ -201,27 +208,16 @@ Aktueller Pfad: {path}
 
 Bitte navigieren Sie zu einem der erlaubten Ordner.
 """,
-    
     "NO_FILES_FOUND": "Keine Dateien in Unterordnern gefunden.",
-    
     "FILES_FOUND": "\n{count} Dateien in Unterordnern gefunden.",
-    
     "CONFIRM_MOVE": "\nMöchten Sie diese Dateien hierher verschieben? (j/n): ",
-    
     "OPERATION_CANCELLED": "\nOperation abgebrochen.",
-    
     "MOVING_FILES": "\nVerschiebe Dateien...",
-    
     "DRY_RUN_PREFIX": "[TEST] ",
-    
     "MOVE_SUCCESS": "✓ {file}",
-    
     "MOVE_ERROR": "✗ Fehler bei {file}: {error}",
-    
     "DUPLICATE_RENAMED": "⚠️  {old} → {new} (umbenannt)",
-    
     "OPERATION_ABORTED": "\n\n⚠️  Operation wurde abgebrochen!",
-    
     "MOVE_SUMMARY": """
 
 ==================================================
@@ -231,23 +227,14 @@ Zusammenfassung:
 ✗ {errors} Fehler
 ==================================================
 """,
-    
     "EMPTY_FOLDERS_REMOVED": "\n✓ {count} leere Ordner entfernt.",
-    
     "UNDO_AVAILABLE": "\nRückgängig machen mit: folder-extractor --undo",
-    
     "UNDO_NO_HISTORY": "Keine Verlaufsdatei gefunden. Nichts zum Rückgängigmachen.",
-    
     "UNDO_SUCCESS": "✓ {file} wiederhergestellt",
-    
     "UNDO_ERROR": "✗ Fehler beim Wiederherstellen von {file}: {error}",
-    
     "UNDO_SUMMARY": "\n✓ {count} Dateien erfolgreich wiederhergestellt.",
-    
     "SORT_BY_TYPE_CREATING": "\nErstelle Ordnerstruktur nach Dateityp...",
-    
     "SORT_BY_TYPE_CREATED": "✓ Ordner '{folder}' erstellt",
-    
     "ABORT_HINT": "\nDrücke Ctrl+C zum Abbrechen...",
 }
 

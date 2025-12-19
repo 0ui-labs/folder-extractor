@@ -1,10 +1,12 @@
 """
 Pytest configuration and shared fixtures
 """
-import sys
-import pytest
+
 import shutil
+import sys
 from pathlib import Path
+
+import pytest
 
 # Add parent directory to path so we can import folder_extractor
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -45,7 +47,7 @@ def test_file_structure(temp_dir):
     created_files = []
     for file_path, content in files.items():
         full_path = str(base_path / file_path)
-        with open(full_path, 'w') as f:
+        with open(full_path, "w") as f:
             f.write(content)
         created_files.append(full_path)
 
@@ -66,7 +68,9 @@ def safe_test_dir():
 @pytest.fixture
 def mock_user_input(monkeypatch):
     """Helper to mock user input."""
+
     def _mock_input(inputs):
         input_iterator = iter(inputs)
-        monkeypatch.setattr('builtins.input', lambda _: next(input_iterator))
+        monkeypatch.setattr("builtins.input", lambda _: next(input_iterator))
+
     return _mock_input

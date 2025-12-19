@@ -4,7 +4,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.7%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](tests/)
-[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Code Style](https://img.shields.io/badge/code%20style-ruff-D7FF64.svg)](https://github.com/astral-sh/ruff)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-none-success)](requirements.txt)
 
 > **Aufräumen ohne Angst.** Das sichere Tool zum Extrahieren, Sortieren und Organisieren von Dateien aus tief verschachtelten Ordnerstrukturen.

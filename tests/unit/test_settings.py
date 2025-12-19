@@ -1,10 +1,11 @@
 """
 Unit tests for config/settings.py module.
 """
+
 import json
 from unittest.mock import MagicMock
 
-from folder_extractor.config.settings import Settings, settings, configure_from_args
+from folder_extractor.config.settings import Settings, configure_from_args, settings
 
 
 class TestSettings:
@@ -87,7 +88,7 @@ class TestSettings:
         """Test load_from_file method."""
         filepath = tmp_path / "settings.json"
         test_settings = {"dry_run": True, "max_depth": 10}
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(test_settings, f)
 
         s = Settings()
@@ -165,6 +166,7 @@ class TestGlobalSettings:
         """Test global instance persists changes."""
         settings.set("dry_run", True)
         from folder_extractor.config.settings import settings as settings2
+
         assert settings2.get("dry_run") is True
 
 

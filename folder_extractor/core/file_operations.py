@@ -4,22 +4,24 @@ File operations module.
 Handles all file system operations including moving files,
 generating unique names, and managing directories.
 """
-import shutil
+
 import json
-from pathlib import Path
-from datetime import datetime
-from typing import List, Tuple, Dict, Optional, Any, Union
+import shutil
 from abc import ABC, abstractmethod
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from folder_extractor.config.constants import (
-    NO_EXTENSION_FOLDER,
     FILE_TYPE_FOLDERS,
-    HISTORY_FILE_NAME
+    HISTORY_FILE_NAME,
+    NO_EXTENSION_FOLDER,
 )
 
 
 class FileOperationError(Exception):
     """Base exception for file operation errors."""
+
     pass
 
 
@@ -27,8 +29,12 @@ class IFileOperations(ABC):  # pragma: no cover
     """Interface for file operations."""
 
     @abstractmethod
-    def move_file(self, source: Union[str, Path], destination: Union[str, Path],
-                  dry_run: bool = False) -> bool:
+    def move_file(
+        self,
+        source: Union[str, Path],
+        destination: Union[str, Path],
+        dry_run: bool = False,
+    ) -> bool:
         """Move a single file."""
         pass
 
@@ -38,8 +44,9 @@ class IFileOperations(ABC):  # pragma: no cover
         pass
 
     @abstractmethod
-    def remove_empty_directories(self, path: Union[str, Path],
-                                 include_hidden: bool = False) -> int:
+    def remove_empty_directories(
+        self, path: Union[str, Path], include_hidden: bool = False
+    ) -> int:
         """Remove empty directories recursively."""
         pass
 
@@ -51,17 +58,21 @@ class IFileOperations(ABC):  # pragma: no cover
 
 class FileOperations(IFileOperations):
     """Implementation of file operations."""
-    
+
     def __init__(self, abort_signal=None):
         """Initialize file operations.
-        
+
         Args:
             abort_signal: Threading event to signal operation abort
         """
         self.abort_signal = abort_signal
-    
-    def move_file(self, source: Union[str, Path], destination: Union[str, Path],
-                  dry_run: bool = False) -> bool:
+
+    def move_file(
+        self,
+        source: Union[str, Path],
+        destination: Union[str, Path],
+        dry_run: bool = False,
+    ) -> bool:
         """
         Move a single file from source to destination.
 
@@ -94,8 +105,8 @@ class FileOperations(IFileOperations):
                 source_path.unlink()
                 return True
             except Exception as e:
-                raise FileOperationError(f"Failed to move file: {str(e)}")
-    
+                raise FileOperationError(f"Failed to move file: {str(e)}") from e
+
     def generate_unique_name(self, directory: Union[str, Path], filename: str) -> str:
         """
         Generate a unique filename in the given directory.
@@ -127,9 +138,10 @@ class FileOperations(IFileOperations):
             if not (dir_path / new_name).exists():
                 return new_name
             counter += 1
-    
-    def remove_empty_directories(self, path: Union[str, Path],
-                                 include_hidden: bool = False) -> int:
+
+    def remove_empty_directories(
+        self, path: Union[str, Path], include_hidden: bool = False
+    ) -> int:
         """
         Remove empty directories recursively.
 
@@ -145,7 +157,9 @@ class FileOperations(IFileOperations):
         removed_count = 0
 
         # Walk directory tree bottom-up using sorted list of all subdirectories
-        all_dirs = sorted(root_path.rglob('*'), key=lambda p: len(p.parts), reverse=True)
+        all_dirs = sorted(
+            root_path.rglob("*"), key=lambda p: len(p.parts), reverse=True
+        )
 
         for dir_path in all_dirs:
             # Skip non-directories (rglob returns files too)
@@ -162,8 +176,9 @@ class FileOperations(IFileOperations):
 
                 # If not including hidden files, filter them out
                 if not include_hidden:
-                    visible_content = [item for item in dir_content
-                                      if not item.name.startswith('.')]
+                    visible_content = [
+                        item for item in dir_content if not item.name.startswith(".")
+                    ]
                 else:
                     visible_content = dir_content
 
@@ -172,9 +187,8 @@ class FileOperations(IFileOperations):
                     # Remove hidden files if not including them
                     if not include_hidden:
                         for item in dir_content:  # pragma: no branch
-                            # Note: All items here are hidden (startswith('.') is always True)
-                            # because we only enter this block when visible_content is empty
-                            if item.name.startswith('.'):  # pragma: no branch
+                            # All items here are hidden (visible_content is empty)
+                            if item.name.startswith("."):  # pragma: no branch
                                 if item.is_file():
                                     item.unlink()
                                 elif item.is_dir():  # pragma: no branch
@@ -187,7 +201,7 @@ class FileOperations(IFileOperations):
                 pass
 
         return removed_count
-    
+
     def determine_type_folder(self, filename: Union[str, Path]) -> str:
         """
         Determine the folder name for a file based on its type.
@@ -217,8 +231,9 @@ class HistoryManager:
     """Manages operation history for undo functionality."""
 
     @staticmethod
-    def save_history(operations: List[Dict[str, Any]],
-                     directory: Union[str, Path]) -> str:
+    def save_history(
+        operations: List[Dict[str, Any]], directory: Union[str, Path]
+    ) -> str:
         """
         Save operation history to file.
 
@@ -235,10 +250,10 @@ class HistoryManager:
         history_data = {
             "zeitstempel": datetime.now().isoformat(),
             "version": "1.0",
-            "operationen": operations
+            "operationen": operations,
         }
 
-        with history_file.open('w', encoding='utf-8') as f:
+        with history_file.open("w", encoding="utf-8") as f:
             json.dump(history_data, f, indent=2, ensure_ascii=False)
 
         return str(history_file)
@@ -261,9 +276,9 @@ class HistoryManager:
             return None
 
         try:
-            with history_file.open('r', encoding='utf-8') as f:
+            with history_file.open("r", encoding="utf-8") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return None
 
     @staticmethod
@@ -301,9 +316,13 @@ class FileMover:
         self.file_ops = file_ops
         self.abort_signal = abort_signal
 
-    def move_files(self, files: List[Union[str, Path]], destination: Union[str, Path],
-                   dry_run: bool = False,
-                   progress_callback=None) -> Tuple[int, int, int, List[Dict]]:
+    def move_files(
+        self,
+        files: List[Union[str, Path]],
+        destination: Union[str, Path],
+        dry_run: bool = False,
+        progress_callback=None,
+    ) -> Tuple[int, int, int, List[Dict]]:
         """
         Move multiple files to destination.
 
@@ -347,18 +366,22 @@ class FileMover:
                 final_dest = dest_path / unique_name
 
                 # Move file
-                if self.file_ops.move_file(source_path, final_dest, dry_run):  # pragma: no branch
+                if self.file_ops.move_file(
+                    source_path, final_dest, dry_run
+                ):  # pragma: no branch
                     moved += 1
 
                     # Record in history (use strings for JSON serialization)
                     if not dry_run:
-                        history.append({
-                            "original_pfad": str(source_path),
-                            "neuer_pfad": str(final_dest),
-                            "original_name": filename,
-                            "neuer_name": unique_name,
-                            "zeitstempel": datetime.now().isoformat()
-                        })
+                        history.append(
+                            {
+                                "original_pfad": str(source_path),
+                                "neuer_pfad": str(final_dest),
+                                "original_name": filename,
+                                "neuer_name": unique_name,
+                                "zeitstempel": datetime.now().isoformat(),
+                            }
+                        )
 
             except Exception as e:  # pragma: no branch
                 errors += 1
@@ -367,10 +390,13 @@ class FileMover:
 
         return moved, errors, duplicates, history
 
-    def move_files_sorted(self, files: List[Union[str, Path]],
-                          destination: Union[str, Path],
-                          dry_run: bool = False,
-                          progress_callback=None) -> Tuple[int, int, int, List[Dict], List[str]]:
+    def move_files_sorted(
+        self,
+        files: List[Union[str, Path]],
+        destination: Union[str, Path],
+        dry_run: bool = False,
+        progress_callback=None,
+    ) -> Tuple[int, int, int, List[Dict], List[str]]:
         """
         Move files sorted by type into subdirectories.
 
@@ -381,7 +407,7 @@ class FileMover:
             progress_callback: Optional callback for progress updates
 
         Returns:
-            Tuple of (moved_count, error_count, duplicate_count, history, created_folders)
+            Tuple of (moved, errors, duplicates, history, created_folders)
         """
         # Convert destination to Path
         dest_path = Path(destination)
@@ -424,18 +450,22 @@ class FileMover:
                 final_dest = type_path / unique_name
 
                 # Move file
-                if self.file_ops.move_file(source_path, final_dest, dry_run):  # pragma: no branch
+                if self.file_ops.move_file(
+                    source_path, final_dest, dry_run
+                ):  # pragma: no branch
                     moved += 1
 
                     # Record in history (use strings for JSON serialization)
                     if not dry_run:
-                        history.append({
-                            "original_pfad": str(source_path),
-                            "neuer_pfad": str(final_dest),
-                            "original_name": filename,
-                            "neuer_name": unique_name,
-                            "zeitstempel": datetime.now().isoformat()
-                        })
+                        history.append(
+                            {
+                                "original_pfad": str(source_path),
+                                "neuer_pfad": str(final_dest),
+                                "original_name": filename,
+                                "neuer_name": unique_name,
+                                "zeitstempel": datetime.now().isoformat(),
+                            }
+                        )
 
             except Exception as e:  # pragma: no branch
                 errors += 1

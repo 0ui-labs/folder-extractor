@@ -39,24 +39,23 @@ jobs:
         flags: unittests
         name: codecov-umbrella
 
-  # TODO: Replace with Ruff linting
-  # lint:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - name: Set up Python
-  #     uses: actions/setup-python@v4
-  #     with:
-  #       python-version: "3.12"
-  #   - name: Install and run Ruff
-  #     run: |
-  #       pip install ruff
-  #       ruff check .
-  #       ruff format --check .
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+    - name: Install and run Ruff
+      run: |
+        pip install ruff
+        ruff check .
+        ruff format --check .
 
   build:
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [test, lint]
     
     steps:
     - uses: actions/checkout@v4
