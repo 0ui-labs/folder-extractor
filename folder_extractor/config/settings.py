@@ -113,6 +113,8 @@ def configure_from_args(args) -> None:
         from folder_extractor.utils.parsers import parse_file_types
 
         settings.set("file_type_filter", parse_file_types(args.type))
+        # Type filter implies sort-by-type (files go into type folders)
+        settings.set("sort_by_type", True)
 
     if args.domain:
         from folder_extractor.utils.parsers import parse_domains

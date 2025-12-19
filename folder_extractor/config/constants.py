@@ -41,6 +41,7 @@ SYSTEM_FILES = {
     "._*",
     "~$*",
     ".~*",
+    HISTORY_FILE_NAME,  # Protect history file from being moved
 }
 
 EDITOR_TEMP_FILES = {
@@ -199,7 +200,7 @@ Von {author}
 Dieses Tool extrahiert alle Dateien aus Unterordnern in das aktuelle Verzeichnis.
 """,
     "SECURITY_ERROR": """
-⚠️  SICHERHEITSWARNUNG: Dieses Tool darf nur in folgenden Ordnern ausgeführt werden:
+⚠  SICHERHEITSWARNUNG: Dieses Tool darf nur in folgenden Ordnern ausgeführt werden:
    - Desktop
    - Downloads  
    - Documents
@@ -216,18 +217,20 @@ Bitte navigieren Sie zu einem der erlaubten Ordner.
     "DRY_RUN_PREFIX": "[TEST] ",
     "MOVE_SUCCESS": "✓ {file}",
     "MOVE_ERROR": "✗ Fehler bei {file}: {error}",
-    "DUPLICATE_RENAMED": "⚠️  {old} → {new} (umbenannt)",
-    "OPERATION_ABORTED": "\n\n⚠️  Operation wurde abgebrochen!",
+    "DUPLICATE_RENAMED": "⚠  {old} → {new} (umbenannt)",
+    "OPERATION_ABORTED": "\n\n⚠  Operation wurde abgebrochen!",
     "MOVE_SUMMARY": """
 
 ==================================================
 Zusammenfassung:
 ✓ {moved} Dateien verschoben
-⚠️  {duplicates} Dateien umbenannt (Duplikate)
+⚠  {duplicates} Dateien umbenannt (Duplikate)
 ✗ {errors} Fehler
 ==================================================
 """,
     "EMPTY_FOLDERS_REMOVED": "\n✓ {count} leere Ordner entfernt.",
+    "FOLDERS_NOT_REMOVED": "⚠  {count} Ordner nicht gelöscht:",
+    "FOLDER_SKIP_REASON": "   • {name}: {reason}",
     "UNDO_AVAILABLE": "\nRückgängig machen mit: folder-extractor --undo",
     "UNDO_NO_HISTORY": "Keine Verlaufsdatei gefunden. Nichts zum Rückgängigmachen.",
     "UNDO_SUCCESS": "✓ {file} wiederhergestellt",

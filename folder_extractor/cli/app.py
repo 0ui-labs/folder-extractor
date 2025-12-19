@@ -173,6 +173,11 @@ class EnhancedFolderExtractorCLI:
                 self.interface.show_message(
                     f"✗ {result['errors']} Fehler aufgetreten", message_type="error"
                 )
+            if result.get("removed_directories", 0) > 0:
+                self.interface.show_message(
+                    f"✓ {result['removed_directories']} leere Ordner entfernt",
+                    message_type="success",
+                )
 
         return 0 if result["status"] == "success" else 1
 

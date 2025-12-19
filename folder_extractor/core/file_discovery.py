@@ -258,6 +258,76 @@ class FileDiscovery(IFileDiscovery):
         except Exception:
             return False
 
+    def extract_weblink_domain(self, filepath: Union[str, Path]) -> Optional[str]:
+        """
+        Extract the domain from a weblink file (.url or .webloc).
+
+        Args:
+            filepath: Path to the weblink file
+
+        Returns:
+            Domain string (e.g., 'youtube.com') or None if extraction fails
+        """
+        file_path = Path(filepath)
+        if not file_path.exists():
+            return None
+
+        try:
+            if file_path.suffix == ".url":
+                return self._extract_domain_from_url_file(str(file_path))
+            elif file_path.suffix == ".webloc":
+                return self._extract_domain_from_webloc_file(str(file_path))
+            else:
+                return None
+        except Exception:
+            return None
+
+    def _extract_domain_from_url_file(self, filepath: str) -> Optional[str]:
+        """Extract domain from Windows .url file."""
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
+            content = f.read()
+
+        for line in content.splitlines():
+            if line.startswith("URL="):
+                url = line[4:].strip()
+                return self._extract_domain_from_url(url)
+        return None
+
+    def _extract_domain_from_webloc_file(self, filepath: str) -> Optional[str]:
+        """Extract domain from macOS .webloc file."""
+        try:
+            tree = ET.parse(filepath)
+            root = tree.getroot()
+
+            for dict_elem in root.findall(".//dict"):
+                keys = dict_elem.findall("key")
+                for i, key in enumerate(keys):
+                    if key.text == "URL":
+                        string_elem = dict_elem.find(f"string[{i + 1}]")
+                        if string_elem is None:
+                            strings = dict_elem.findall("string")
+                            if i < len(strings):
+                                return self._extract_domain_from_url(strings[i].text)
+                        else:
+                            return self._extract_domain_from_url(string_elem.text)
+        except Exception:
+            pass
+        return None
+
+    def _extract_domain_from_url(self, url: str) -> Optional[str]:
+        """Extract domain from URL string."""
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc.lower()
+
+            # Remove www prefix
+            if domain.startswith("www."):
+                domain = domain[4:]
+
+            return domain if domain else None
+        except Exception:
+            return None
+
 
 class FileFilter:
     """Advanced file filtering capabilities."""

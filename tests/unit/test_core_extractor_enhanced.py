@@ -173,7 +173,9 @@ class TestEnhancedFileExtractor:
                 ):
                     # Mock _remove_empty_directories to verify it's called
                     with patch.object(
-                        self.extractor, "_remove_empty_directories", return_value=1
+                        self.extractor,
+                        "_remove_empty_directories",
+                        return_value={"removed": 1, "skipped": []},
                     ) as mock_remove:
                         # Execute extraction (not dry run, not sort by type, no file type filter, moved > 0)
                         settings.set("dry_run", False)
@@ -219,11 +221,11 @@ class TestEnhancedFileExtractor:
         temp_files = [".DS_Store"]
 
         # Execute removal
-        removed_count = self.extractor._remove_empty_directories(tmp_path, temp_files)
+        result = self.extractor._remove_empty_directories(tmp_path, temp_files)
 
         # Verify empty directories were removed (deepest first)
         # nested_empty, empty_subdir2 (becomes empty after nested_empty removed), and empty_subdir1
-        assert removed_count == 3
+        assert result["removed"] == 3
         assert not nested_empty.exists()
         assert not empty1.exists()
         assert not empty2.exists()
@@ -241,13 +243,15 @@ class TestEnhancedFileExtractor:
         hidden_file.write_text("hidden content")
 
         # Test with include_hidden=False (default)
+        # Hidden files are ignored, so directory is considered empty
+        # Hidden files should be deleted, then the directory
         settings.set("include_hidden", False)
-        removed_count = self.extractor._remove_empty_directories(tmp_path, [])
+        result = self.extractor._remove_empty_directories(tmp_path, [])
 
-        # Directory should NOT be removed because rmdir() fails when hidden file exists
-        # Even though we filter it out logically, the OS sees the directory as non-empty
-        assert removed_count == 0
-        assert subdir.exists()
+        # Directory SHOULD be removed because hidden files are cleaned up first
+        assert result["removed"] == 1
+        assert not subdir.exists()
+        assert not hidden_file.exists()
 
     def test_remove_empty_directories_with_include_hidden(self, tmp_path):
         """Test that hidden files prevent directory removal when include_hidden=True."""
@@ -259,10 +263,10 @@ class TestEnhancedFileExtractor:
 
         # Test with include_hidden=True
         settings.set("include_hidden", True)
-        removed_count = self.extractor._remove_empty_directories(tmp_path, [])
+        result = self.extractor._remove_empty_directories(tmp_path, [])
 
         # Directory should NOT be removed since hidden file counts
-        assert removed_count == 0
+        assert result["removed"] == 0
         assert subdir.exists()
 
     def test_remove_empty_directories_with_temp_files(self, tmp_path):
@@ -276,12 +280,12 @@ class TestEnhancedFileExtractor:
         temp_files = [".DS_Store"]
 
         # Execute removal
-        removed_count = self.extractor._remove_empty_directories(tmp_path, temp_files)
+        result = self.extractor._remove_empty_directories(tmp_path, temp_files)
 
-        # Directory should NOT be removed because rmdir() fails when temp file exists
-        # Even though we filter it out logically, the OS sees the directory as non-empty
-        assert removed_count == 0
-        assert subdir.exists()
+        # Directory SHOULD be removed because temp files are cleaned up first
+        assert result["removed"] == 1
+        assert not subdir.exists()
+        assert not temp_file.exists()
 
     def test_remove_empty_directories_skips_inaccessible_directories(self, tmp_path):
         """Directories that raise OSError on iterdir are skipped, not crashed on."""
@@ -289,9 +293,11 @@ class TestEnhancedFileExtractor:
         subdir.mkdir()
 
         with patch.object(Path, "iterdir", side_effect=OSError("Permission denied")):
-            removed_count = self.extractor._remove_empty_directories(tmp_path, [])
+            result = self.extractor._remove_empty_directories(tmp_path, [])
 
-            assert removed_count == 0
+            assert result["removed"] == 0
+            # Verify the error was logged in skipped
+            assert len(result["skipped"]) > 0
 
     def test_remove_empty_directories_skips_undeletable_directories(self, tmp_path):
         """Directories that raise OSError on rmdir are skipped and preserved."""
@@ -299,10 +305,12 @@ class TestEnhancedFileExtractor:
         subdir.mkdir()
 
         with patch.object(Path, "rmdir", side_effect=OSError("Cannot remove")):
-            removed_count = self.extractor._remove_empty_directories(tmp_path, [])
+            result = self.extractor._remove_empty_directories(tmp_path, [])
 
-            assert removed_count == 0
+            assert result["removed"] == 0
             assert subdir.exists()  # Directory preserved despite removal attempt
+            # Verify the error was logged in skipped
+            assert len(result["skipped"]) > 0
 
     def test_undo_with_abort_signal(self, tmp_path):
         """Test undo operation being interrupted by abort signal (line 306)."""
@@ -550,12 +558,12 @@ class TestEnhancedFileExtractorIntegration:
 
         # Remove empty directories
         temp_files = [".DS_Store", ".gitkeep"]
-        removed = extractor._remove_empty_directories(tmp_path, temp_files)
+        result = extractor._remove_empty_directories(tmp_path, temp_files)
 
         # Verify correct directories were removed
         # level3, level2, level1 (eventually), empty_at_root should be removed
         # level2_with_file and its parent should remain
-        assert removed >= 2  # At least level3 and empty_at_root
+        assert result["removed"] >= 2  # At least level3 and empty_at_root
         assert not (tmp_path / "empty_at_root").exists()
         assert (tmp_path / "level1" / "level2_with_file").exists()
         assert (tmp_path / "level1" / "level2_with_file" / "file.txt").exists()

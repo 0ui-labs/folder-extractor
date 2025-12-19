@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from folder_extractor.config.constants import MESSAGES
+from folder_extractor.config.constants import HISTORY_FILE_NAME, MESSAGES
 from folder_extractor.config.settings import settings
 from folder_extractor.core.file_discovery import FileDiscovery, IFileDiscovery
 from folder_extractor.core.file_operations import (
@@ -103,12 +103,30 @@ class EnhancedFileExtractor(IEnhancedExtractor):
     def discover_files(self, path: Union[str, Path]) -> List[str]:
         """Discover files based on current settings."""
         path = Path(path)
-        return self.file_discovery.find_files(
+        files = self.file_discovery.find_files(
             directory=str(path),
             max_depth=settings.get("max_depth", 0),
             file_type_filter=settings.get("file_type_filter"),
             include_hidden=settings.get("include_hidden", False),
         )
+
+        # Apply domain filter if set
+        domain_filter = settings.get("domain_filter")
+        if domain_filter:
+            filtered_files = []
+            for filepath in files:
+                # Check if it's a weblink file
+                file_path = Path(filepath)
+                if file_path.suffix.lower() in [".url", ".webloc"]:
+                    # Only include if domain matches
+                    if self.file_discovery.check_weblink_domain(filepath, domain_filter):
+                        filtered_files.append(filepath)
+                else:
+                    # Non-weblink files pass through
+                    filtered_files.append(filepath)
+            files = filtered_files
+
+        return files
 
     def extract_files(
         self,
@@ -168,6 +186,19 @@ class EnhancedFileExtractor(IEnhancedExtractor):
 
         # Process files
         if settings.get("sort_by_type", False):
+            # Create folder override callback for domain filter
+            domain_filter = settings.get("domain_filter")
+            folder_override = None
+            if domain_filter:
+                # When domain filter is active, use domain as folder name for weblinks
+                def folder_override(filepath):
+                    file_path = Path(filepath)
+                    if file_path.suffix.lower() in [".url", ".webloc"]:
+                        domain = self.file_discovery.extract_weblink_domain(filepath)
+                        if domain:
+                            return domain
+                    return None  # Use default folder determination
+
             # Move files sorted by type
             moved, errors, duplicates, history, created_folders = (
                 file_mover.move_files_sorted(
@@ -177,6 +208,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
                         c, f, e
                     ),
+                    folder_override_callback=folder_override,
                 )
             )
             move_results = {
@@ -218,10 +250,10 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         if abort_signal.is_set():
             results["aborted"] = True
 
-        # Clean up empty directories if not dry run and not filtering by type
+        # Clean up empty directories if not dry run and not filtering by file type
+        # Note: sort_by_type should still clean up empty source directories
         if (
             not settings.get("dry_run", False)
-            and not settings.get("sort_by_type", False)
             and not settings.get("file_type_filter")
             and results["moved"] > 0
         ):
@@ -229,16 +261,24 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             from folder_extractor.utils.file_validators import get_temp_files_list
 
             # Remove empty directories
-            removed_count = self._remove_empty_directories(
+            removal_result = self._remove_empty_directories(
                 destination, get_temp_files_list()
             )
-            results["removed_directories"] = removed_count
+            results["removed_directories"] = removal_result["removed"]
+
+            # Filter out created type folders from skipped list (they're expected to have content)
+            created_folder_names = set(results.get("created_folders", []))
+            results["skipped_directories"] = [
+                (name, reason)
+                for name, reason in removal_result["skipped"]
+                if name not in created_folder_names
+            ]
 
         return results
 
     def _remove_empty_directories(
         self, path: Union[str, Path], temp_files: list
-    ) -> int:
+    ) -> Dict[str, Any]:
         """Remove empty directories after extraction.
 
         Args:
@@ -246,10 +286,11 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             temp_files: List of temporary files to ignore
 
         Returns:
-            Number of directories removed
+            Dictionary with 'removed' count and 'skipped' list of (path, reason)
         """
         path = Path(path)
         removed_count = 0
+        skipped_dirs = []
 
         # Collect all subdirectories, sorted by depth (deepest first)
         directories = sorted(
@@ -266,7 +307,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             # Get directory contents
             try:
                 dir_contents = list(directory.iterdir())
-            except OSError:
+            except OSError as e:
+                skipped_dirs.append((str(directory.name), f"Zugriffsfehler: {e}"))
                 continue
 
             # Filter out temp files and hidden files if not included
@@ -287,12 +329,34 @@ class EnhancedFileExtractor(IEnhancedExtractor):
 
             if not has_files and not has_dirs:
                 try:
+                    # Delete hidden/temp files that were filtered out before rmdir
+                    # But protect the history file!
+                    for item in dir_contents:
+                        if item not in filtered_contents and item.is_file():
+                            # Never delete the history file
+                            if item.name == HISTORY_FILE_NAME:
+                                continue
+                            try:
+                                item.unlink()
+                            except OSError:
+                                pass  # If we can't delete it, rmdir will fail anyway
+
                     directory.rmdir()
                     removed_count += 1
-                except OSError:
-                    pass
+                except OSError as e:
+                    skipped_dirs.append((str(directory.name), f"Löschfehler: {e}"))
+            else:
+                # Directory is not empty - collect reason
+                file_count = sum(1 for item in filtered_contents if item.is_file())
+                dir_count = sum(1 for item in filtered_contents if item.is_dir())
+                reasons = []
+                if file_count > 0:
+                    reasons.append(f"{file_count} Datei(en)")
+                if dir_count > 0:
+                    reasons.append(f"{dir_count} Unterordner")
+                skipped_dirs.append((str(directory.name), f"enthält {', '.join(reasons)}"))
 
-        return removed_count
+        return {"removed": removed_count, "skipped": skipped_dirs}
 
     def undo_last_operation(self, path: Union[str, Path]) -> Dict[str, Any]:
         """Undo the last operation.
@@ -334,10 +398,16 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     break
 
                 try:
+                    # Get original path and ensure parent directory exists
+                    original_path = Path(
+                        entry.get("original_pfad", entry.get("original_path"))
+                    )
+                    original_path.parent.mkdir(parents=True, exist_ok=True)
+
                     # Undo the move
                     self.file_operations.move_file(
                         entry.get("neuer_pfad", entry.get("new_path")),
-                        entry.get("original_pfad", entry.get("original_path")),
+                        str(original_path),
                     )
                     restored += 1
 
@@ -363,12 +433,23 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             if restored > 0 and not op.abort_signal.is_set():
                 self.history_manager.delete_history(path_str)
 
+            # Clean up empty directories after undo (e.g., empty type folders)
+            removed_dirs = 0
+            if restored > 0 and not op.abort_signal.is_set():
+                from folder_extractor.utils.file_validators import get_temp_files_list
+
+                removal_result = self._remove_empty_directories(
+                    path, get_temp_files_list()
+                )
+                removed_dirs = removal_result["removed"]
+
             return {
                 "status": "success" if restored > 0 else "failed",
                 "message": MESSAGES["UNDO_SUMMARY"].format(count=restored),
                 "restored": restored,
                 "errors": errors,
                 "aborted": op.abort_signal.is_set(),
+                "removed_directories": removed_dirs,
             }
 
 
