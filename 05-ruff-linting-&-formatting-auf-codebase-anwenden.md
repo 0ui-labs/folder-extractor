@@ -1,4 +1,6 @@
-I have created the following plan after thorough exploration and analysis of the codebase. Follow the below plan verbatim. Trust the files and references. Do not re-verify what's written in the plan. Explore only when absolutely necessary. First implement all the proposed file changes and then I'll review all the changes together at the end.
+# Ruff Linting & Formatting auf Codebase anwenden
+
+Diese Dokumentation beschreibt den Prozess der Anwendung von Ruff Linting und Formatting auf die bestehende Codebase.
 
 ## Beobachtungen zur Codebasis
 

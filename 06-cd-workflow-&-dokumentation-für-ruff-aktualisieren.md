@@ -1,4 +1,6 @@
-I have created the following plan after thorough exploration and analysis of the codebase. Follow the below plan verbatim. Trust the files and references. Do not re-verify what's written in the plan. Explore only when absolutely necessary. First implement all the proposed file changes and then I'll review all the changes together at the end.
+# CD-Workflow & Dokumentation für Ruff aktualisieren
+
+Diese Dokumentation beschreibt die Aktualisierung der CI/CD-Pipeline und Entwicklerdokumentation zur Integration von Ruff.
 
 ## 🔍 Beobachtungen
 

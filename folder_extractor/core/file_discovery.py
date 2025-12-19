@@ -101,8 +101,8 @@ class FileDiscovery(IFileDiscovery):
                         continue
 
                     found_files.append(filepath)
-        except (OSError, PermissionError):
-            # Skip directories we can't read
+        except OSError:
+            # Skip directories we can't read (includes PermissionError)
             pass
 
         return found_files

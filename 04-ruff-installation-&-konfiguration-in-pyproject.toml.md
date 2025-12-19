@@ -1,4 +1,6 @@
-I have created the following plan after thorough exploration and analysis of the codebase. Follow the below plan verbatim. Trust the files and references. Do not re-verify what's written in the plan. Explore only when absolutely necessary. First implement all the proposed file changes and then I'll review all the changes together at the end.
+# Ruff Installation & Konfiguration
+
+Diese Dokumentation beschreibt die Integration von Ruff als Linter und Formatter für das Folder Extractor Projekt.
 
 ## Beobachtungen
 
