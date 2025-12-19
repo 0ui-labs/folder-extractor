@@ -8,6 +8,7 @@ from typing import List, Optional, Union
 from abc import ABC, abstractmethod
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
+import os
 
 from folder_extractor.utils.file_validators import (
     should_include_file,
@@ -62,63 +63,47 @@ class FileDiscovery(IFileDiscovery):
         base_path = Path(directory)
         found_files = []
 
-        # Helper function to check if directory should be traversed
-        def should_traverse_dir(path: Path) -> bool:
-            """Check if directory should be traversed."""
-            if not include_hidden and path.name.startswith(HIDDEN_FILE_PREFIX):
-                return False
-            return True
+        # Pre-calculate base path parts count for fast depth calculation
+        base_parts_count = len(base_path.parts)
 
-        # Walk through directory tree
-        def walk_directory(current_path: Path, current_depth: int):
-            """Recursively walk directory tree."""
-            # Check abort signal
-            if self.abort_signal and self.abort_signal.is_set():
-                return
+        # Walk through directory tree using os.walk()
+        try:
+            for root, dirs, files in os.walk(str(base_path), topdown=True):
+                # Check abort signal
+                if self.abort_signal and self.abort_signal.is_set():
+                    return found_files
 
-            # Single iteration: process files and collect subdirectories
-            subdirs = []
-            try:
-                for item in current_path.iterdir():
-                    # Check abort signal (race condition - hard to test reliably)
-                    if self.abort_signal and self.abort_signal.is_set():  # pragma: no cover
-                        return
+                # Convert root to Path object
+                current_path = Path(root)
 
-                    if item.is_file():
-                        # Process files at all depths including root (depth 0)
-                        filepath = str(item)
+                # Calculate current depth efficiently (avoid resolve() overhead)
+                current_depth = len(current_path.parts) - base_parts_count
 
-                        # Check if file should be included
-                        if not should_include_file(filepath, include_hidden):
-                            continue
+                # Handle max_depth: prevent further descent if limit reached
+                if max_depth > 0 and current_depth >= max_depth:
+                    dirs[:] = []  # Clear in-place to stop os.walk from descending
 
-                        # Check file type filter
-                        if not validate_file_extension(filepath, file_type_filter):
-                            continue
+                # Prune hidden directories if not included
+                if not include_hidden:
+                    dirs[:] = [d for d in dirs if not d.startswith(HIDDEN_FILE_PREFIX)]
 
-                        found_files.append(filepath)
+                # Process files in current directory
+                for filename in files:
+                    # Construct full path
+                    filepath = str(current_path / filename)
 
-                    elif item.is_dir() and should_traverse_dir(item):
-                        # Collect subdirectories for later traversal
-                        subdirs.append(item)
+                    # Check if file should be included
+                    if not should_include_file(filepath, include_hidden):
+                        continue
 
-            except (OSError, PermissionError):
-                # Skip directories we can't read
-                return
+                    # Check file type filter
+                    if not validate_file_extension(filepath, file_type_filter):
+                        continue
 
-            # Check depth limit before traversing subdirectories
-            if max_depth > 0 and current_depth >= max_depth:
-                return  # Don't go deeper
-
-            # Traverse collected subdirectories
-            for subdir in subdirs:
-                # Check abort signal (race condition - hard to test reliably)
-                if self.abort_signal and self.abort_signal.is_set():  # pragma: no cover
-                    return
-                walk_directory(subdir, current_depth + 1)
-
-        # Start walking from base path
-        walk_directory(base_path, 0)
+                    found_files.append(filepath)
+        except (OSError, PermissionError):
+            # Skip directories we can't read
+            pass
 
         return found_files
     

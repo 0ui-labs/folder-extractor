@@ -443,7 +443,7 @@ class TestFileDiscoveryEdgeCases:
         assert len(files) < 5
 
     def test_permission_error_handling(self, tmp_path):
-        """Test handling of PermissionError (lines 106-108)."""
+        """Test handling of PermissionError during directory traversal."""
         from unittest.mock import patch
 
         file_discovery = FileDiscovery()
@@ -453,19 +453,16 @@ class TestFileDiscoveryEdgeCases:
         subdir.mkdir()
         (subdir / "file.txt").touch()
 
-        # Mock Path.iterdir to raise PermissionError
-        original_iterdir = Path.iterdir
+        # Mock os.walk to raise PermissionError
+        def mock_os_walk(path, topdown=True):
+            raise PermissionError("Access denied")
 
-        def mock_iterdir(self):
-            if "subdir" in str(self):
-                raise PermissionError("Access denied")
-            return original_iterdir(self)
-
-        with patch.object(Path, 'iterdir', mock_iterdir):
+        with patch('folder_extractor.core.file_discovery.os.walk', mock_os_walk):
             # Should handle the error gracefully
             files = file_discovery.find_files(str(tmp_path))
-            # Should still complete without error, just skip inaccessible dirs
+            # Should return empty list when permission denied at root
             assert isinstance(files, list)
+            assert files == []
 
     def test_check_weblink_exception_handling(self, tmp_path):
         """Test exception handling in check_weblink_domain (lines 149-150)."""
