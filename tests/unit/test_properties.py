@@ -3,9 +3,6 @@ Property-Based Tests für die generate_unique_name Funktion.
 
 Diese Tests verwenden Hypothesis, um automatisch eine Vielzahl von Testfällen
 zu generieren und die Invarianten der Funktion zu verifizieren.
-
-Die Tests sind mit der faker_seed Fixture integriert, um reproduzierbare
-Ergebnisse in Kombination mit einem fixen Hypothesis-Seed zu gewährleisten.
 """
 
 import re
@@ -19,20 +16,9 @@ from hypothesis import strategies as st
 
 from folder_extractor.main import generiere_eindeutigen_namen
 
-# Optionaler Faker-Import (nicht in CI installiert)
-try:
-    from faker import Faker
-
-    FAKER_AVAILABLE = True
-except ImportError:
-    FAKER_AVAILABLE = False
-
 # =============================================================================
 # Hypothesis-Strategien für Dateinamen
 # =============================================================================
-
-# Fixer Seed für Reproduzierbarkeit (konsistent mit faker_seed Fixture)
-REPRODUCIBILITY_SEED = 42
 
 # Strategien für realistische Dateinamen
 SAFE_FILENAME_CHARS = string.ascii_letters + string.digits + "_-"
@@ -49,44 +35,6 @@ safe_basename = st.text(
 extension = st.sampled_from(COMMON_EXTENSIONS)
 
 
-if FAKER_AVAILABLE:
-
-    @st.composite
-    def faker_word_strategy(draw):
-        """
-        Generiert realistische Wörter mit Faker für natürlichere Dateinamen.
-
-        Diese Strategie kombiniert Hypothesis mit Faker, um Wörter zu generieren,
-        die realistischer sind als reine Zufallsstrings.
-        """
-        # Verwende geseedeten Faker für Reproduzierbarkeit
-        fake = Faker()
-        Faker.seed(
-            REPRODUCIBILITY_SEED + draw(st.integers(min_value=0, max_value=1000))
-        )
-        word = fake.word()
-        # Stelle sicher, dass das Wort dateisystem-sicher ist
-        return "".join(c for c in word if c in SAFE_FILENAME_CHARS) or "file"
-
-    # Kombinierte Strategie: Faker-Wörter oder sichere Zufallsstrings
-    realistic_basename = st.one_of(
-        faker_word_strategy(),
-        safe_basename,
-    )
-else:
-    # Fallback ohne Faker
-    realistic_basename = safe_basename
-
-
-# Bedingte Fixture-Markierung - nur wenn Faker verfügbar ist
-# Ohne Faker laufen Tests trotzdem, nur ohne die faker_seed Fixture
-if FAKER_AVAILABLE:
-    _apply_faker_fixture = pytest.mark.usefixtures("faker_seed")
-else:
-    _apply_faker_fixture = lambda cls: cls  # No-op Decorator
-
-
-@_apply_faker_fixture
 class TestGenerateUniqueNameProperties:
     """Property-Based Tests für generiere_eindeutigen_namen."""
 
@@ -374,7 +322,7 @@ class TestGenerateUniqueNameProperties:
         filename = f"{basename}{ext}"
 
         # Ungültige Zeichen, die niemals in einem Dateinamen erscheinen dürfen
-        FORBIDDEN_CHARS = set("/\\") | set(chr(i) for i in range(32)) | {"\x00"}
+        FORBIDDEN_CHARS = set("/\\") | {chr(i) for i in range(32)} | {"\x00"}
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # Test ohne Konflikt
@@ -398,7 +346,6 @@ class TestGenerateUniqueNameProperties:
             )
 
 
-@_apply_faker_fixture
 class TestGenerateUniqueNameEdgeCases:
     """Edge-Case-Tests für spezielle Dateinamen-Szenarien."""
 
