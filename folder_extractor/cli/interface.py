@@ -9,9 +9,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, Union
 
-from rich import box
 from rich.console import Console
-from rich.padding import Padding
 from rich.progress import (
     BarColumn,
     Progress,
@@ -19,9 +17,8 @@ from rich.progress import (
     TextColumn,
 )
 from rich.style import Style
-from rich.table import Table
 
-from folder_extractor.config.constants import AUTHOR, MESSAGES, VERSION
+from folder_extractor.config.constants import MESSAGES, VERSION
 from folder_extractor.config.settings import settings
 
 
@@ -73,32 +70,24 @@ class ConsoleInterface(IUserInterface):
         self.progress = None
         self.task_id = None
 
-        # Theme styles
+        # Theme styles (minimalist - no bold/dim modifiers)
         self.success_style = Style(color="green")
         self.error_style = Style(color="red")
         self.warning_style = Style(color="yellow")
-        self.info_style = Style(color="white", dim=True)
-        self.highlight_style = Style(color="blue", bold=True)
+        self.info_style = Style(color="white")
+        self.highlight_style = Style(color="blue")
 
     def _print(self, renderable, style=None) -> None:
-        """Print with consistent left padding."""
-        padded = Padding(renderable, (0, 2))
+        """Print directly to console."""
         if style:
-            self.console.print(padded, style=style)
+            self.console.print(renderable, style=style)
         else:
-            self.console.print(padded)
+            self.console.print(renderable)
 
     def show_welcome(self) -> None:
-        """Show welcome message."""
-        # Leerzeile vor Header
-        self.console.print()
-
-        # Minimalistischer Header ohne Panel
-        header = f"Folder Extractor v{VERSION}  ➜  Aufräumen von: {Path.cwd()}"
-        self._print(header, style="bold blue")
-
-        # Leerzeile nach Header
-        self.console.print()
+        """Show welcome message in minimalist Unix style."""
+        header = f"Folder Extractor v{VERSION}\n-----------------------"
+        self.console.print(header, style="blue")
 
     def show_message(self, message: str, message_type: str = "info") -> None:
         """Show a message to the user.
@@ -166,13 +155,12 @@ class ConsoleInterface(IUserInterface):
         if settings.get("quiet", False):
             return
 
-        # Initialize Progress on first call
+        # Initialize Progress on first call (minimalist - no padding column)
         if self.progress is None:
             self.progress = Progress(
-                TextColumn(" "),  # Padding-Spalte
                 SpinnerColumn("dots", style="blue"),
-                TextColumn("[bold]{task.description}"),
-                BarColumn(bar_width=40, style="dim white", complete_style="blue"),
+                TextColumn("{task.description}"),
+                BarColumn(bar_width=40, complete_style="blue"),
                 console=self.console,
                 transient=True,
             )
@@ -236,41 +224,38 @@ class ConsoleInterface(IUserInterface):
 
         elif results.get("status") == "security_error":
             # Show security error with prominent styling
-            self._print(results.get("message", "Sicherheitsfehler"), style=self.error_style)
+            msg = results.get("message", "Sicherheitsfehler")
+            self._print(msg, style=self.error_style)
 
         elif results.get("status") == "error":
             # Show general error
-            self._print(results.get("message", "Ein Fehler ist aufgetreten"), style=self.error_style)
+            msg = results.get("message", "Ein Fehler ist aufgetreten")
+            self._print(msg, style=self.error_style)
 
         elif results.get("status") == "success":
-            # Show move summary using rich Table
+            # Show move summary as plain text (minimalist Unix style)
             if "moved" in results:
-                # Überschrift als separate Zeile
-                self._print("Zusammenfassung", style="bold blue")
-                self.console.print()  # Leerzeile
-
-                # Minimalistische Tabelle
-                table = Table(box=box.SIMPLE, show_header=True, border_style="dim white")
-                table.add_column("Kategorie", style="dim white")
-                table.add_column("Anzahl", justify="right", style="bold")
-
-                moved = str(results.get("moved", 0))
-                dupes = str(results.get("duplicates", 0))
-                table.add_row("✓ Verschoben", moved, style="green")
-                table.add_row("⚠ Duplikate", dupes, style="yellow")
-                table.add_row("✗ Fehler", str(results.get("errors", 0)), style="red")
-
-                self._print(table)
+                self.console.print("Zusammenfassung:")
+                moved = results.get("moved", 0)
+                dupes = results.get("duplicates", 0)
+                errors = results.get("errors", 0)
+                self.console.print(
+                    f"[green][+][/green] Verschoben: [green]{moved}[/green]"
+                )
+                self.console.print(
+                    f"[yellow][!][/yellow] Duplikate: [yellow]{dupes}[/yellow]"
+                )
+                self.console.print(f"[red][x][/red] Fehler:     [red]{errors}[/red]")
 
             # Show created folders if sort by type
             if results.get("created_folders"):
-                self._print("\nErstellte Ordner:")
+                self.console.print("\nErstellte Ordner:")
                 for folder in results["created_folders"]:
-                    self._print(f"  ✓ {folder}", style="green")
+                    self.console.print(f"  [green]✓[/green] {folder}")
 
             # Show removed directories
             if results.get("removed_directories", 0) > 0:
-                self._print(
+                self.console.print(
                     MESSAGES["EMPTY_FOLDERS_REMOVED"].format(
                         count=results["removed_directories"]
                     )
@@ -279,19 +264,19 @@ class ConsoleInterface(IUserInterface):
             # Show skipped directories (not removed)
             skipped = results.get("skipped_directories", [])
             if skipped:
-                self._print(
+                self.console.print(
                     MESSAGES["FOLDERS_NOT_REMOVED"].format(count=len(skipped)),
-                    style="yellow",
+                    style=self.warning_style,
                 )
                 for name, reason in skipped:
-                    self._print(
+                    self.console.print(
                         MESSAGES["FOLDER_SKIP_REASON"].format(name=name, reason=reason),
-                        style="dim white",
+                        style=self.info_style,
                     )
 
             # Show undo hint
             if not settings.get("dry_run", False) and results.get("moved", 0) > 0:
-                self._print(MESSAGES["UNDO_AVAILABLE"])
+                self.console.print(MESSAGES["UNDO_AVAILABLE"])
 
 
 def create_console_interface() -> ConsoleInterface:

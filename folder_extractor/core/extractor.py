@@ -6,6 +6,7 @@ with integrated progress tracking and state management.
 """
 
 from abc import ABC, abstractmethod
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -119,7 +120,10 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 file_path = Path(filepath)
                 if file_path.suffix.lower() in [".url", ".webloc"]:
                     # Only include if domain matches
-                    if self.file_discovery.check_weblink_domain(filepath, domain_filter):
+                    domain_matches = self.file_discovery.check_weblink_domain(
+                        filepath, domain_filter
+                    )
+                    if domain_matches:
                         filtered_files.append(filepath)
                 else:
                     # Non-weblink files pass through
@@ -266,7 +270,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             )
             results["removed_directories"] = removal_result["removed"]
 
-            # Filter out created type folders from skipped list (they're expected to have content)
+            # Filter out created type folders from skipped list
+            # (they're expected to have content)
             created_folder_names = set(results.get("created_folders", []))
             results["skipped_directories"] = [
                 (name, reason)
@@ -336,10 +341,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                             # Never delete the history file
                             if item.name == HISTORY_FILE_NAME:
                                 continue
-                            try:
+                            with suppress(OSError):
                                 item.unlink()
-                            except OSError:
-                                pass  # If we can't delete it, rmdir will fail anyway
 
                     directory.rmdir()
                     removed_count += 1
@@ -354,7 +357,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     reasons.append(f"{file_count} Datei(en)")
                 if dir_count > 0:
                     reasons.append(f"{dir_count} Unterordner")
-                skipped_dirs.append((str(directory.name), f"enthält {', '.join(reasons)}"))
+                reason_str = f"enthält {', '.join(reasons)}"
+                skipped_dirs.append((str(directory.name), reason_str))
 
         return {"removed": removed_count, "skipped": skipped_dirs}
 
@@ -515,6 +519,9 @@ class EnhancedExtractionOrchestrator:
                         "message": MESSAGES["OPERATION_CANCELLED"],
                         "files_found": len(files),
                     }
+
+                # Reset timer after user confirmation - measure only actual work
+                op.reset_start_time()
 
                 # Note: Progress tracking is handled directly in extract_files
                 # via the progress tracker callback, not through state manager listeners

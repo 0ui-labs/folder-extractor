@@ -5,7 +5,6 @@ Handles all file system operations including moving files,
 generating unique names, and managing directories.
 """
 
-import base64
 import hashlib
 import json
 import os
