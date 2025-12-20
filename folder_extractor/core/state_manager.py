@@ -87,6 +87,11 @@ class IStateManager(ABC):
         """Clear abort request."""
         pass
 
+    @abstractmethod
+    def reset_start_time(self, operation_id: str) -> None:
+        """Reset start time for an operation."""
+        pass
+
 
 class StateManager(IStateManager):
     """Enhanced state manager with operation tracking."""
@@ -162,6 +167,16 @@ class StateManager(IStateManager):
                             setattr(stats, key, current + value)
                         else:
                             setattr(stats, key, value)
+
+    def reset_start_time(self, operation_id: str) -> None:
+        """Reset the start time for an operation.
+
+        Useful when user confirmation happens after operation start,
+        to measure only the actual work time.
+        """
+        with self._lock:
+            if operation_id in self._operations:
+                self._operations[operation_id].start_time = time.time()
 
     def get_operation_stats(self, operation_id: str) -> Optional[OperationStats]:
         """Get statistics for an operation."""
@@ -304,6 +319,11 @@ class ManagedOperation:
         """Update operation statistics."""
         if self.operation_id:
             self.state_manager.update_operation_stats(self.operation_id, **kwargs)
+
+    def reset_start_time(self) -> None:
+        """Reset start time to now. Call after user confirmation."""
+        if self.operation_id:
+            self.state_manager.reset_start_time(self.operation_id)
 
     @property
     def abort_signal(self) -> threading.Event:

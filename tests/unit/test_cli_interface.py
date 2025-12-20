@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from folder_extractor.cli.interface import ConsoleInterface, create_console_interface
+from folder_extractor.config.constants import VERSION
 from folder_extractor.config.settings import settings
 
 
@@ -21,45 +22,103 @@ class TestConsoleInterface:
         """Set up test fixtures."""
         settings.reset_to_defaults()
 
-    def test_show_welcome(self, mock_console_class):
-        """Test showing welcome message creates Panel and prints it."""
+    def test_show_welcome_prints_version_header(self, mock_console_class):
+        """Test welcome message prints version header in minimalist Unix style."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch("folder_extractor.cli.interface.Panel") as mock_panel_class:
-            mock_panel = MagicMock()
-            mock_panel_class.return_value = mock_panel
+        interface = ConsoleInterface()
+        interface.show_welcome()
 
-            interface = ConsoleInterface()
-            interface.show_welcome()
+        # Should print directly without Panel
+        mock_console.print.assert_called_once()
 
-            # Verify Panel was created with correct parameters
-            mock_panel_class.assert_called_once()
-            call_args = mock_panel_class.call_args
-            # Check title parameter
-            assert call_args.kwargs.get("title") == "Folder Extractor"
-            assert call_args.kwargs.get("border_style") == "cyan"
+        # Find the version header in print call
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "Folder Extractor v" in output, f"Version header not found in: {output}"
 
-            # Verify console.print was called with the panel
-            mock_console.print.assert_called_once_with(mock_panel)
-
-    def test_show_welcome_includes_version_and_author(self, mock_console_class):
-        """Test that welcome Panel content includes version and author info."""
+    def test_show_welcome_prints_separator_line(self, mock_console_class):
+        """Test welcome message prints separator line after header."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch("folder_extractor.cli.interface.Panel") as mock_panel_class:
-            interface = ConsoleInterface()
-            interface.show_welcome()
+        interface = ConsoleInterface()
+        interface.show_welcome()
 
-            # Check that Panel was called with message containing version info
-            call_args = mock_panel_class.call_args
-            message = call_args[0][0]  # First positional argument
-            assert "v" in message  # Version marker
-            assert "Von" in message  # Author marker (German)
+        # Should have a separator line with dashes in single print call
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "---" in output, f"Separator line not found in: {output}"
+
+    def test_show_welcome_no_panel_used(self, mock_console_class):
+        """Test welcome message does not use Panel component (minimalist style)."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        # Panel should not be imported/used anymore
+        interface = ConsoleInterface()
+        interface.show_welcome()
+
+        # Verify no Panel-like rich components were passed to print
+        for call in mock_console.print.call_args_list:
+            if call.args:
+                arg = call.args[0]
+                # Should be string or simple renderable, not Panel
+                assert not hasattr(arg, 'renderable'), "Panel-like object detected"
+
+    def test_show_welcome_contains_exact_version(self, mock_console_class):
+        """Test welcome message contains exact version from constants."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_welcome()
+
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        expected_version = f"v{VERSION}"
+        assert expected_version in output, (
+            f"Expected version '{expected_version}' not found in: {output}"
+        )
+
+    def test_show_welcome_separator_has_minimum_length(self, mock_console_class):
+        """Test welcome separator line has at least 20 dashes for visual separation."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_welcome()
+
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        # Count consecutive dashes - should have at least 20
+        dash_count = output.count('-')
+        assert dash_count >= 20, (
+            f"Separator should have at least 20 dashes, found {dash_count}"
+        )
+
+    def test_show_welcome_no_padding_wrapper(self, mock_console_class):
+        """Test welcome message is printed directly without Padding wrapper."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_welcome()
+
+        # Verify no Padding-like objects were passed to print
+        for call in mock_console.print.call_args_list:
+            if call.args:
+                arg = call.args[0]
+                # Should not have padding attribute (Padding objects have this)
+                assert not hasattr(arg, 'pad'), "Padding object detected"
+                # Argument should be a string, not a rich Padding wrapper
+                assert isinstance(arg, str), (
+                    f"Expected string output, got {type(arg).__name__}"
+                )
 
     def test_show_message_success(self, mock_console_class):
-        """Test showing success message with green bold style."""
+        """Test showing success message with green style directly (no padding)."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
@@ -68,11 +127,27 @@ class TestConsoleInterface:
 
         mock_console.print.assert_called_once()
         call_args = mock_console.print.call_args
+        # Should print message directly, not wrapped in Padding
         assert call_args[0][0] == "Success!"
         assert call_args.kwargs.get("style") == interface.success_style
 
+    def test_show_message_success_uses_basic_green_style(self, mock_console_class):
+        """Test success style uses only green color without bold or dim modifiers."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        style = interface.success_style
+
+        # Style should have green color
+        assert style.color is not None
+        assert style.color.name == "green"
+        # Style should NOT have bold or dim modifiers (minimalist)
+        assert style.bold is not True, "Success style should not be bold"
+        assert style.dim is not True, "Success style should not be dim"
+
     def test_show_message_error(self, mock_console_class):
-        """Test showing error message with red bold style."""
+        """Test showing error message with red style directly (no padding)."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
@@ -81,11 +156,27 @@ class TestConsoleInterface:
 
         mock_console.print.assert_called_once()
         call_args = mock_console.print.call_args
+        # Should print message directly, not wrapped in Padding
         assert call_args[0][0] == "Error!"
         assert call_args.kwargs.get("style") == interface.error_style
 
+    def test_show_message_error_uses_basic_red_style(self, mock_console_class):
+        """Test error style uses only red color without bold or dim modifiers."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        style = interface.error_style
+
+        # Style should have red color
+        assert style.color is not None
+        assert style.color.name == "red"
+        # Style should NOT have bold or dim modifiers (minimalist)
+        assert style.bold is not True, "Error style should not be bold"
+        assert style.dim is not True, "Error style should not be dim"
+
     def test_show_message_warning(self, mock_console_class):
-        """Test showing warning message with yellow style."""
+        """Test showing warning message with yellow style directly (no padding)."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
@@ -94,11 +185,27 @@ class TestConsoleInterface:
 
         mock_console.print.assert_called_once()
         call_args = mock_console.print.call_args
+        # Should print message directly, not wrapped in Padding
         assert call_args[0][0] == "Warning!"
         assert call_args.kwargs.get("style") == interface.warning_style
 
+    def test_show_message_warning_uses_basic_yellow_style(self, mock_console_class):
+        """Test warning style uses only yellow color without bold or dim modifiers."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        style = interface.warning_style
+
+        # Style should have yellow color
+        assert style.color is not None
+        assert style.color.name == "yellow"
+        # Style should NOT have bold or dim modifiers (minimalist)
+        assert style.bold is not True, "Warning style should not be bold"
+        assert style.dim is not True, "Warning style should not be dim"
+
     def test_show_message_info(self, mock_console_class):
-        """Test showing info message with cyan style."""
+        """Test showing info message with white style directly (no padding)."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
@@ -107,8 +214,24 @@ class TestConsoleInterface:
 
         mock_console.print.assert_called_once()
         call_args = mock_console.print.call_args
+        # Should print message directly, not wrapped in Padding
         assert call_args[0][0] == "Info!"
         assert call_args.kwargs.get("style") == interface.info_style
+
+    def test_show_message_info_uses_basic_white_style(self, mock_console_class):
+        """Test info style uses only white color without bold or dim modifiers."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        style = interface.info_style
+
+        # Style should have white color
+        assert style.color is not None
+        assert style.color.name == "white"
+        # Style should NOT have bold or dim modifiers (minimalist)
+        assert style.bold is not True, "Info style should not be bold"
+        assert style.dim is not True, "Info style should not be dim"
 
     def test_show_message_quiet_mode(self, mock_console_class):
         """Test message suppression in quiet mode."""
@@ -275,6 +398,58 @@ class TestConsoleInterface:
 
             # Verify update was called
             mock_progress.update.assert_called()
+
+    def test_show_progress_no_padding_column(self, mock_console_class):
+        """Test Progress is created without padding TextColumn (minimalist style)."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            with patch("folder_extractor.cli.interface.TextColumn") as mock_text_col:
+                mock_progress = MagicMock()
+                mock_progress.add_task.return_value = "task_id"
+                mock_progress_class.return_value = mock_progress
+
+                interface = ConsoleInterface()
+                interface.show_progress(1, 10, "/path/to/file.txt")
+
+                # Check TextColumn calls - should NOT have a " " (space-only) column
+                text_col_calls = [str(call) for call in mock_text_col.call_args_list]
+                padding_column_used = any(
+                    "(' ',)" in call or '(" ",)' in call
+                    for call in text_col_calls
+                )
+                assert not padding_column_used, (
+                    f"Padding TextColumn detected in: {text_col_calls}"
+                )
+
+    def test_show_progress_has_minimal_columns(self, mock_console_class):
+        """Test Progress uses only essential columns: Spinner, Text, and Bar."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            with patch("folder_extractor.cli.interface.SpinnerColumn") as mock_spinner:
+                with patch("folder_extractor.cli.interface.TextColumn") as mock_text:
+                    with patch("folder_extractor.cli.interface.BarColumn") as mock_bar:
+                        mock_progress = MagicMock()
+                        mock_progress.add_task.return_value = "task_id"
+                        mock_progress_class.return_value = mock_progress
+
+                        interface = ConsoleInterface()
+                        interface.show_progress(1, 10, "/path/to/file.txt")
+
+                        # All three minimal columns should be used
+                        mock_spinner.assert_called_once()
+                        mock_text.assert_called_once()
+                        mock_bar.assert_called_once()
+
+                        # TextColumn should have meaningful content (task description)
+                        text_call = mock_text.call_args
+                        text_arg = text_call[0][0] if text_call[0] else ""
+                        assert "{task.description}" in text_arg, (
+                            f"TextColumn should contain task description, got: {text_arg}"
+                        )
 
     def test_show_progress_with_path_object(self, mock_console_class):
         """Test progress display handles Path objects."""
@@ -521,93 +696,147 @@ class TestConsoleInterface:
         call_args_str = str(mock_console.print.call_args_list)
         assert "abgebrochen" in call_args_str.lower()
 
-    def test_show_summary_success_creates_table(self, mock_console_class):
-        """Test successful summary creates Table with move statistics."""
+    def test_show_summary_success_prints_statistics_directly(self, mock_console_class):
+        """Test successful summary prints statistics in exact format with colors."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch("folder_extractor.cli.interface.Table") as mock_table_class:
-            mock_table = MagicMock()
-            mock_table_class.return_value = mock_table
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 15,
+            "duplicates": 3,
+            "errors": 1,
+            "created_folders": ["PDF", "BILDER"],
+            "removed_directories": 5,
+        }
+        interface.show_summary(results)
 
-            interface = ConsoleInterface()
-            results = {
-                "status": "success",
-                "moved": 15,
-                "duplicates": 3,
-                "errors": 1,
-                "created_folders": ["PDF", "BILDER"],
-                "removed_directories": 5,
-            }
-            interface.show_summary(results)
+        # Get all print calls in order
+        print_calls = mock_console.print.call_args_list
 
-            # Verify Table was created with correct parameters
-            mock_table_class.assert_called_once()
-            call_kwargs = mock_table_class.call_args.kwargs
-            assert call_kwargs.get("title") == "Zusammenfassung"
-            assert call_kwargs.get("border_style") == "cyan"
+        # Extract first argument of each call (the printed string)
+        printed_strings = []
+        for call in print_calls:
+            if call.args:
+                printed_strings.append(call.args[0])
 
-            # Verify columns were added
-            assert mock_table.add_column.call_count == 2
+        # First 4 calls should be the summary statistics in exact order
+        assert len(printed_strings) >= 4, (
+            f"Expected at least 4 print calls for summary, got {len(printed_strings)}"
+        )
 
-            # Verify rows were added (moved, duplicates, errors)
-            assert mock_table.add_row.call_count == 3
+        # Line 1: Header
+        assert printed_strings[0] == "Zusammenfassung:", (
+            f"Expected 'Zusammenfassung:', got '{printed_strings[0]}'"
+        )
 
-            # Verify table was printed
-            table_printed = any(
-                call[0][0] == mock_table
-                for call in mock_console.print.call_args_list
-                if call[0]
-            )
-            assert table_printed
+        # Line 2: Moved count with exact format including color codes
+        moved_line = printed_strings[1]
+        assert "[green][+][/green]" in moved_line, (
+            f"Missing green color codes for [+] symbol in: {moved_line}"
+        )
+        assert "Verschoben:" in moved_line, (
+            f"Missing 'Verschoben:' in: {moved_line}"
+        )
+        assert "[green]15[/green]" in moved_line, (
+            f"Missing green color codes for count in: {moved_line}"
+        )
+
+        # Line 3: Duplicates count with exact format
+        dupes_line = printed_strings[2]
+        assert "[yellow][!][/yellow]" in dupes_line, (
+            f"Missing yellow color codes for [!] symbol in: {dupes_line}"
+        )
+        assert "Duplikate:" in dupes_line, (
+            f"Missing 'Duplikate:' in: {dupes_line}"
+        )
+        assert "[yellow]3[/yellow]" in dupes_line, (
+            f"Missing yellow color codes for count in: {dupes_line}"
+        )
+
+        # Line 4: Errors count with exact format and spacing
+        errors_line = printed_strings[3]
+        assert "[red][x][/red]" in errors_line, (
+            f"Missing red color codes for [x] symbol in: {errors_line}"
+        )
+        assert "Fehler:" in errors_line, (
+            f"Missing 'Fehler:' in: {errors_line}"
+        )
+        assert "[red]1[/red]" in errors_line, (
+            f"Missing red color codes for count in: {errors_line}"
+        )
+        # Check alignment spacing (5 spaces before error count for alignment)
+        assert "Fehler:     " in errors_line, (
+            f"Missing alignment spacing in errors line: {errors_line}"
+        )
+
+    def test_show_summary_success_no_table_used(self, mock_console_class):
+        """Test summary does not use Table component (minimalist style)."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 0,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        # Verify no Table-like objects were passed to print
+        for call in mock_console.print.call_args_list:
+            if call.args:
+                arg = call.args[0]
+                # Should be string, not Table
+                assert not hasattr(arg, 'add_row'), "Table-like object detected"
+                assert not hasattr(arg, 'add_column'), "Table-like object detected"
 
     def test_show_summary_success_shows_created_folders(self, mock_console_class):
         """Test successful summary shows created folders."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch("folder_extractor.cli.interface.Table"):
-            interface = ConsoleInterface()
-            results = {
-                "status": "success",
-                "moved": 10,
-                "created_folders": ["PDF", "BILDER"],
-            }
-            interface.show_summary(results)
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "created_folders": ["PDF", "BILDER"],
+        }
+        interface.show_summary(results)
 
-            call_args_str = str(mock_console.print.call_args_list)
-            assert "PDF" in call_args_str
-            assert "BILDER" in call_args_str
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "PDF" in call_args_str
+        assert "BILDER" in call_args_str
 
     def test_show_summary_success_shows_removed_directories(self, mock_console_class):
         """Test successful summary shows removed directories count."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch("folder_extractor.cli.interface.Table"):
-            interface = ConsoleInterface()
-            results = {"status": "success", "moved": 10, "removed_directories": 5}
-            interface.show_summary(results)
+        interface = ConsoleInterface()
+        results = {"status": "success", "moved": 10, "removed_directories": 5}
+        interface.show_summary(results)
 
-            call_args_str = str(mock_console.print.call_args_list)
-            assert "5" in call_args_str
-            assert "leere" in call_args_str.lower()
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "5" in call_args_str
+        assert "leere" in call_args_str.lower()
 
     def test_show_summary_success_shows_undo_hint(self, mock_console_class):
         """Test successful summary shows undo hint."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch("folder_extractor.cli.interface.Table"):
-            interface = ConsoleInterface()
-            results = {
-                "status": "success",
-                "moved": 10,
-            }
-            interface.show_summary(results)
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+        }
+        interface.show_summary(results)
 
-            call_args_str = str(mock_console.print.call_args_list)
-            assert "rückgängig" in call_args_str.lower()
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "rückgängig" in call_args_str.lower()
 
     def test_show_summary_dry_run_no_undo_hint(self, mock_console_class):
         """Test undo hint is not shown in dry run mode."""
@@ -615,38 +844,36 @@ class TestConsoleInterface:
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch("folder_extractor.cli.interface.Table"):
-            interface = ConsoleInterface()
-            results = {
-                "status": "success",
-                "moved": 10,
-            }
-            interface.show_summary(results)
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+        }
+        interface.show_summary(results)
 
-            call_args_str = str(mock_console.print.call_args_list)
-            assert "rückgängig" not in call_args_str.lower()
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "rückgängig" not in call_args_str.lower()
 
     def test_show_summary_success_without_moved(self, mock_console_class):
-        """Test summary without 'moved' key skips table but shows other info."""
+        """Test summary without 'moved' key skips statistics but shows other info."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
 
-        with patch("folder_extractor.cli.interface.Table") as mock_table_class:
-            interface = ConsoleInterface()
-            results = {
-                "status": "success",
-                "created_folders": ["PDF"],
-                "removed_directories": 2,
-            }
-            interface.show_summary(results)
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "created_folders": ["PDF"],
+            "removed_directories": 2,
+        }
+        interface.show_summary(results)
 
-            # Table should NOT be created (no moved key)
-            mock_table_class.assert_not_called()
+        # Statistics should NOT be printed (no moved key)
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "[+]" not in call_args_str  # No moved statistics
 
-            # But folders and directories should still be shown
-            call_args_str = str(mock_console.print.call_args_list)
-            assert "PDF" in call_args_str
-            assert "2" in call_args_str
+        # But folders and directories should still be shown
+        assert "PDF" in call_args_str
+        assert "2" in call_args_str
 
 
 @patch("folder_extractor.cli.interface.Console")

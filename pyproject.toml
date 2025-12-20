@@ -37,7 +37,8 @@ show_missing = true
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+# -n auto enables parallel test execution via pytest-xdist (uses all CPU cores)
+addopts = "-v --tb=short -n auto"
 filterwarnings = [
     "error::DeprecationWarning",
 ]
