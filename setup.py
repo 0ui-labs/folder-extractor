@@ -55,6 +55,8 @@ setup(
             "pytest>=7.0",
             "pytest-cov>=4.0",
             "pytest-benchmark>=4.0",
+            "pytest-xdist>=3.0",
+            "hypothesis>=6.0",
         ],
     },
     keywords="folder, extractor, organize, files, directory, cleanup",

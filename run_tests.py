@@ -35,10 +35,14 @@ def main():
     # Determine what to run
     test_type = sys.argv[1].lower() if len(sys.argv) > 1 else "all"
 
-    # Install test dependencies if needed
-    if not Path("pytest").exists():
-        print("Installing test dependencies...")
-        subprocess.run([sys.executable, "-m", "pip", "install", "-e", ".[test]"])
+    # Install test dependencies
+    # Always run pip install to ensure all test dependencies are available
+    # pip is smart enough to skip already-installed packages
+    print("Installing test dependencies...")
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-e", ".[test]"],
+        capture_output=True,  # Suppress verbose pip output
+    )
 
     exit_code = 0
 
