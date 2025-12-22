@@ -875,6 +875,110 @@ class TestConsoleInterface:
         assert "PDF" in call_args_str
         assert "2" in call_args_str
 
+    def test_show_summary_success_shows_content_duplicates(self, mock_console_class):
+        """Test successful summary shows content duplicates when present."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 2,
+            "content_duplicates": 5,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show cyan symbol and label
+        assert "[cyan][~][/cyan]" in call_args_str
+        assert "Identisch:" in call_args_str
+        assert "[cyan]5[/cyan]" in call_args_str
+
+    def test_show_summary_success_no_content_duplicates_when_zero(self, mock_console_class):
+        """Test summary hides content duplicates line when count is zero."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 2,
+            "content_duplicates": 0,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show content duplicates symbol when count is 0
+        assert "[~]" not in call_args_str
+
+    def test_show_summary_success_no_content_duplicates_key_missing(self, mock_console_class):
+        """Test summary handles missing content_duplicates key gracefully."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 2,
+            "errors": 0,
+            # No content_duplicates key
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show content duplicates symbol when key missing
+        assert "[~]" not in call_args_str
+
+    def test_show_summary_content_duplicates_appears_between_duplicates_and_errors(
+        self, mock_console_class
+    ):
+        """Test content duplicates line appears in correct position in summary."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 2,
+            "content_duplicates": 5,
+            "errors": 1,
+        }
+        interface.show_summary(results)
+
+        # Get all print calls in order
+        print_calls = mock_console.print.call_args_list
+        printed_strings = [
+            str(call.args[0]) for call in print_calls if call.args
+        ]
+
+        # Find positions of key lines
+        duplicates_idx = None
+        identisch_idx = None
+        fehler_idx = None
+
+        for idx, line in enumerate(printed_strings):
+            if "Duplikate:" in line:
+                duplicates_idx = idx
+            if "Identisch:" in line:
+                identisch_idx = idx
+            if "Fehler:" in line:
+                fehler_idx = idx
+
+        # Verify order: Duplikate < Identisch < Fehler
+        assert duplicates_idx is not None, "Duplikate line not found"
+        assert identisch_idx is not None, "Identisch line not found"
+        assert fehler_idx is not None, "Fehler line not found"
+        assert duplicates_idx < identisch_idx < fehler_idx, (
+            f"Wrong order: Duplikate@{duplicates_idx}, "
+            f"Identisch@{identisch_idx}, Fehler@{fehler_idx}"
+        )
+
 
 @patch("folder_extractor.cli.interface.Console")
 def test_create_console_interface(mock_console_class):
@@ -912,6 +1016,25 @@ class TestConsoleInterfaceStyles:
         assert interface.error_style is not None
         assert interface.warning_style is not None
         assert interface.info_style is not None
+
+    def test_dedupe_style_exists_and_is_cyan(self, mock_console_class):
+        """Test dedupe_style exists with cyan color and no modifiers."""
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+
+        # dedupe_style should exist
+        assert hasattr(interface, "dedupe_style")
+        assert interface.dedupe_style is not None
+
+        # Style should have cyan color
+        style = interface.dedupe_style
+        assert style.color is not None
+        assert style.color.name == "cyan"
+
+        # Style should NOT have bold or dim modifiers (minimalist)
+        assert style.bold is not True, "dedupe_style should not be bold"
+        assert style.dim is not True, "dedupe_style should not be dim"
 
 
 @patch("folder_extractor.cli.interface.Console")

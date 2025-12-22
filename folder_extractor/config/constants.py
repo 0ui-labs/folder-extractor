@@ -218,6 +218,7 @@ Bitte navigieren Sie zu einem der erlaubten Ordner.
     "MOVE_SUCCESS": "✓ {file}",
     "MOVE_ERROR": "✗ Fehler bei {file}: {error}",
     "DUPLICATE_RENAMED": "⚠  {old} → {new} (umbenannt)",
+    "CONTENT_DUPLICATES_SKIPPED": "Identische Inhalte übersprungen (nicht dupliziert)",
     "OPERATION_ABORTED": "\n\n⚠  Operation wurde abgebrochen!",
     "MOVE_SUMMARY": """
 
@@ -282,6 +283,7 @@ Beispiele:
 
     # Duplikate vermeiden (nur eindeutige Inhalte behalten)
     folder-extractor --deduplicate
+    # Zeigt in der Zusammenfassung: "Identisch: X" für übersprungene Dateien
 
     # Letzte Operation rückgängig machen
     folder-extractor --undo

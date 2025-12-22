@@ -76,6 +76,7 @@ class ConsoleInterface(IUserInterface):
         self.warning_style = Style(color="yellow")
         self.info_style = Style(color="white")
         self.highlight_style = Style(color="blue")
+        self.dedupe_style = Style(color="cyan")
 
     def _print(self, renderable, style=None) -> None:
         """Print directly to console."""
@@ -245,6 +246,11 @@ class ConsoleInterface(IUserInterface):
                 self.console.print(
                     f"[yellow][!][/yellow] Duplikate: [yellow]{dupes}[/yellow]"
                 )
+                content_dupes = results.get("content_duplicates", 0)
+                if content_dupes > 0:
+                    self.console.print(
+                        f"[cyan][~][/cyan] Identisch:  [cyan]{content_dupes}[/cyan]"
+                    )
                 self.console.print(f"[red][x][/red] Fehler:     [red]{errors}[/red]")
 
             # Show created folders if sort by type
