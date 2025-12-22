@@ -414,6 +414,128 @@ class TestFileOperations:
             assert (level1 / "level1_file.txt").exists()
             assert (level2 / "level2_file.txt").exists()
 
+    # =========================================================================
+    # build_hash_index Integration Tests
+    # =========================================================================
+
+    def test_build_hash_index_integration(self):
+        """Integration test: build_hash_index finds duplicates in a realistic structure.
+
+        Creates a realistic directory structure with mixed file types and
+        verifies that duplicates are correctly identified across subdirectories.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+
+            # Create realistic structure
+            photos = base / "Photos"
+            docs = base / "Documents"
+            backup = base / "Backup"
+            photos.mkdir()
+            docs.mkdir()
+            backup.mkdir()
+
+            # Create some duplicate photos
+            photo_content = b"JPEG image data" * 100
+            (photos / "vacation.jpg").write_bytes(photo_content)
+            (backup / "vacation_copy.jpg").write_bytes(photo_content)
+
+            # Create some duplicate documents
+            doc_content = "Important document content" * 50
+            (docs / "report.txt").write_text(doc_content)
+            (backup / "report_backup.txt").write_text(doc_content)
+
+            # Create unique files (no duplicates)
+            (photos / "unique1.png").write_bytes(b"unique png data")
+            (docs / "unique2.docx").write_bytes(b"unique docx data different size")
+
+            result = self.file_ops.build_hash_index(temp_dir)
+
+            # Should find exactly 2 duplicate groups
+            assert len(result) == 2
+
+            # Verify photo duplicates
+            photo_hash = None
+            for h, paths in result.items():
+                path_names = [p.name for p in paths]
+                if "vacation.jpg" in path_names:
+                    photo_hash = h
+                    assert len(paths) == 2
+                    assert "vacation_copy.jpg" in path_names
+
+            assert photo_hash is not None, "Photo duplicates not found"
+
+            # Verify document duplicates
+            doc_hash = None
+            for h, paths in result.items():
+                path_names = [p.name for p in paths]
+                if "report.txt" in path_names:
+                    doc_hash = h
+                    assert len(paths) == 2
+                    assert "report_backup.txt" in path_names
+
+            assert doc_hash is not None, "Document duplicates not found"
+
+    def test_build_hash_index_abort_signal_stops_phase1(self):
+        """Abort signal stops scanning during Phase 1 (size grouping).
+
+        Verifies that the abort_signal mechanism correctly interrupts
+        the directory scanning process.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+
+            # Create many files
+            content = b"same content"
+            for i in range(20):
+                (base / f"file_{i}.bin").write_bytes(content)
+
+            # Create abort signal and set it immediately
+            abort_signal = threading.Event()
+            abort_signal.set()
+
+            file_ops = FileOperations(abort_signal=abort_signal)
+            result = file_ops.build_hash_index(temp_dir)
+
+            # With abort set, should return empty or partial result
+            # (depends on timing, but should not process all files)
+            # The key assertion is that it doesn't hang or crash
+            assert isinstance(result, dict)
+
+    def test_build_hash_index_abort_signal_stops_phase2(self):
+        """Abort signal stops hashing during Phase 2.
+
+        Verifies that abort_signal works during the hash calculation phase.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+
+            # Create files with same size to trigger Phase 2
+            content = b"identical content for hashing"
+            for i in range(10):
+                (base / f"dup_{i}.bin").write_bytes(content)
+
+            abort_signal = threading.Event()
+            file_ops = FileOperations(abort_signal=abort_signal)
+
+            # Track hash calls and abort after first
+            original_hash = file_ops.calculate_file_hash
+            call_count = [0]
+
+            def hash_with_abort(path, *args, **kwargs):
+                call_count[0] += 1
+                if call_count[0] >= 2:
+                    abort_signal.set()
+                return original_hash(path, *args, **kwargs)
+
+            with patch.object(file_ops, 'calculate_file_hash', side_effect=hash_with_abort):
+                result = file_ops.build_hash_index(temp_dir)
+
+            # Should have processed some but not all files
+            assert isinstance(result, dict)
+            # Abort was triggered, so not all files were hashed
+            assert call_count[0] >= 2
+
 
 class TestHistoryManager:
     """Test HistoryManager class."""

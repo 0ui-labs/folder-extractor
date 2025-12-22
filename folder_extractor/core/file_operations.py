@@ -112,6 +112,24 @@ class IFileOperations(ABC):  # pragma: no cover
         """
         pass
 
+    @abstractmethod
+    def build_hash_index(
+        self, directory: Union[str, Path]
+    ) -> Dict[str, List[Path]]:
+        """Build a hash index of all files in a directory tree.
+
+        Scans the directory recursively and groups files by their content hash.
+        Uses size-based pre-filtering to minimize expensive hash calculations.
+
+        Args:
+            directory: Root directory to scan (str or Path)
+
+        Returns:
+            Dictionary mapping hash values to lists of file paths.
+            Only includes hashes with multiple files (duplicates).
+        """
+        pass
+
 
 class FileOperations(IFileOperations):
     """Implementation of file operations."""
@@ -356,6 +374,109 @@ class FileOperations(IFileOperations):
             ) from e
 
         return hash_obj.hexdigest()
+
+    def build_hash_index(
+        self, directory: Union[str, Path]
+    ) -> Dict[str, List[Path]]:
+        """
+        Build a hash index of all files in a directory tree.
+
+        Scans the directory recursively and groups files by their content hash.
+        Uses size-based pre-filtering to minimize expensive hash calculations:
+        only files with identical sizes are hashed.
+
+        Args:
+            directory: Root directory to scan (str or Path)
+
+        Returns:
+            Dictionary mapping hash values to lists of file paths.
+            Only includes hashes with at least one file.
+            Example: {"abc123...": [Path("/path/file1.txt"), Path("/path/file2.txt")]}
+
+        Raises:
+            FileOperationError: If directory doesn't exist, is not readable,
+                               or is not a directory
+
+        Example:
+            >>> ops = FileOperations()
+            >>> index = ops.build_hash_index("/media/photos")
+            >>> # Find all duplicate groups
+            >>> duplicates = {h: paths for h, paths in index.items() if len(paths) > 1}
+            >>> print(f"Found {len(duplicates)} groups of duplicates")
+        """
+        from collections import defaultdict
+
+        # Convert to Path object
+        dir_path = Path(directory)
+
+        # Validate directory exists
+        if not dir_path.exists():
+            raise FileOperationError(
+                f"Verzeichnis existiert nicht: {dir_path}"
+            )
+
+        # Validate it's a directory, not a file
+        if not dir_path.is_dir():
+            raise FileOperationError(
+                f"Pfad ist eine Datei, kein Verzeichnis: {dir_path}"
+            )
+
+        # Check if we can read the directory
+        try:
+            # Try to list the directory to check permissions
+            next(dir_path.iterdir(), None)
+        except PermissionError as e:
+            raise FileOperationError(
+                f"Keine Leseberechtigung für Verzeichnis: {dir_path}"
+            ) from e
+
+        # Phase 1: Group files by size (fast metadata operation)
+        size_groups: Dict[int, List[Path]] = defaultdict(list)
+
+        try:
+            for path in dir_path.rglob("*"):
+                # Check abort signal
+                if self.abort_signal and self.abort_signal.is_set():
+                    break
+
+                # Skip directories
+                if not path.is_file():
+                    continue
+
+                try:
+                    size = path.stat().st_size
+                    size_groups[size].append(path)
+                except OSError:
+                    # Skip files we can't access (permissions, deleted, etc.)
+                    continue
+        except PermissionError as e:
+            raise FileOperationError(
+                f"Keine Leseberechtigung für Verzeichnis: {dir_path}"
+            ) from e
+
+        # Phase 2: Hash only files with matching sizes (potential duplicates)
+        hash_index: Dict[str, List[Path]] = defaultdict(list)
+
+        for size, paths in size_groups.items():
+            # Skip sizes with only one file (no duplicates possible)
+            if len(paths) == 1:
+                continue
+
+            # Check abort signal
+            if self.abort_signal and self.abort_signal.is_set():
+                break
+
+            for path in paths:
+                try:
+                    hash_value = self.calculate_file_hash(path)
+                    hash_index[hash_value].append(path)
+                except FileOperationError:
+                    # Skip files that became unreadable (deleted, permissions changed)
+                    continue
+
+        # Filter to only include hashes with multiple files (actual duplicates)
+        # and return as regular dict (not defaultdict)
+        return {h: paths for h, paths in hash_index.items() if len(paths) > 1}
 
 
 class HistoryManager:
