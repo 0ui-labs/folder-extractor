@@ -149,6 +149,13 @@ class TestSettings:
         s.set("domain_filter", ["example.com"])
         assert s.domain_filter == ["example.com"]
 
+    def test_deduplicate_property(self):
+        """Test deduplicate property."""
+        s = Settings()
+        assert s.deduplicate is False
+        s.set("deduplicate", True)
+        assert s.deduplicate is True
+
 
 class TestGlobalSettings:
     """Tests for global settings instance."""
@@ -232,6 +239,7 @@ class TestConfigureFromArgs:
         args.sort_by_type = True
         args.type = "pdf"
         args.domain = "example.com"
+        args.deduplicate = False
 
         configure_from_args(args)
 
@@ -242,3 +250,18 @@ class TestConfigureFromArgs:
         # Parser returns extensions with dots
         assert settings.get("file_type_filter") == [".pdf"]
         assert settings.get("domain_filter") == ["example.com"]
+
+    def test_with_deduplicate_flag(self):
+        """Test configuration with deduplicate flag enabled."""
+        args = MagicMock()
+        args.dry_run = False
+        args.depth = 0
+        args.include_hidden = False
+        args.sort_by_type = False
+        args.type = None
+        args.domain = None
+        args.deduplicate = True
+
+        configure_from_args(args)
+
+        assert settings.get("deduplicate") is True

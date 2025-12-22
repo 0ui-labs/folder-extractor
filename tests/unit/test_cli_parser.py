@@ -26,6 +26,7 @@ class TestArgumentParser:
         assert args.sort_by_type is False
         assert args.undo is False
         assert args.include_hidden is False
+        assert args.deduplicate is False
         assert args.type is None
         assert args.domain is None
 
@@ -80,6 +81,14 @@ class TestArgumentParser:
         args = self.parser.parse_args(["--include-hidden"])
         assert args.include_hidden is True
 
+        # Deduplicate
+        args = self.parser.parse_args(["--deduplicate"])
+        assert args.deduplicate is True
+
+        # Smart-merge (alias for deduplicate)
+        args = self.parser.parse_args(["--smart-merge"])
+        assert args.deduplicate is True
+
     def test_domain_argument(self):
         """Test domain argument parsing."""
         args = self.parser.parse_args(["--domain", "youtube.com,github.com"])
@@ -118,6 +127,7 @@ class TestArgumentParser:
                 "--dry-run",
                 "--sort-by-type",
                 "--include-hidden",
+                "--deduplicate",
                 "--domain",
                 "example.com",
             ]
@@ -128,6 +138,7 @@ class TestArgumentParser:
         assert args.dry_run is True
         assert args.sort_by_type is True
         assert args.include_hidden is True
+        assert args.deduplicate is True
         assert args.domain == "example.com"
 
     def test_short_and_long_forms(self):

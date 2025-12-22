@@ -82,6 +82,19 @@ class ArgumentParser:
         )
 
         parser.add_argument(
+            "--deduplicate",
+            action="store_true",
+            help="Identische Dateien (gleicher Inhalt) nicht duplizieren",
+        )
+
+        parser.add_argument(
+            "--smart-merge",
+            action="store_true",
+            dest="deduplicate",
+            help="Alias für --deduplicate",
+        )
+
+        parser.add_argument(
             "--domain",
             type=str,
             metavar="DOMAINS",

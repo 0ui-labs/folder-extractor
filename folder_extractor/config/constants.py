@@ -258,6 +258,7 @@ Optionen:
     -s, --sort-by-type      Dateien nach Typ in Unterordner sortieren
     -u, --undo              Letzte Operation rückgängig machen
     --include-hidden        Versteckte Dateien einbeziehen
+    --deduplicate           Identische Dateien (gleicher Inhalt) nicht duplizieren
     --domain DOMAINS        Nur Weblinks von bestimmten Domains (z.B. youtube.com)
 
 Beispiele:
@@ -278,7 +279,10 @@ Beispiele:
     
     # Nur YouTube-Links extrahieren
     folder-extractor --type url,webloc --domain youtube.com
-    
+
+    # Duplikate vermeiden (nur eindeutige Inhalte behalten)
+    folder-extractor --deduplicate
+
     # Letzte Operation rückgängig machen
     folder-extractor --undo
 
