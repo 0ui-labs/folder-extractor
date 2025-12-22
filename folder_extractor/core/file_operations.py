@@ -97,6 +97,21 @@ class IFileOperations(ABC):  # pragma: no cover
         """Determine the folder name for a file type."""
         pass
 
+    @abstractmethod
+    def calculate_file_hash(
+        self, filepath: Union[str, Path], algorithm: str = "sha256"
+    ) -> str:
+        """Calculate the hash of a file.
+
+        Args:
+            filepath: Path to the file to hash
+            algorithm: Hash algorithm to use (default: sha256)
+
+        Returns:
+            Hexadecimal hash string
+        """
+        pass
+
 
 class FileOperations(IFileOperations):
     """Implementation of file operations."""
@@ -271,6 +286,76 @@ class FileOperations(IFileOperations):
         else:
             # No extension
             return NO_EXTENSION_FOLDER
+
+    def calculate_file_hash(
+        self, filepath: Union[str, Path], algorithm: str = "sha256"
+    ) -> str:
+        """
+        Calculate the hash of a file using the specified algorithm.
+
+        Reads the file in chunks to minimize memory usage, making it suitable
+        for large files (e.g., videos).
+
+        Args:
+            filepath: Path to the file to hash (str or Path)
+            algorithm: Hash algorithm to use (default: "sha256")
+                       Supported: "md5", "sha1", "sha256", "sha512", etc.
+
+        Returns:
+            Hexadecimal hash string
+
+        Raises:
+            FileOperationError: If file doesn't exist, is not readable,
+                               or is a directory
+            ValueError: If algorithm is not supported
+
+        Example:
+            >>> ops = FileOperations()
+            >>> hash_value = ops.calculate_file_hash("video.mp4")
+            >>> print(hash_value)
+            'a1b2c3d4...'
+        """
+        # Convert to Path object
+        file_path = Path(filepath)
+
+        # Validate file exists
+        if not file_path.exists():
+            raise FileOperationError(
+                f"Datei existiert nicht: {file_path}"
+            )
+
+        # Validate it's a file, not a directory
+        if file_path.is_dir():
+            raise FileOperationError(
+                f"Pfad ist ein Verzeichnis, keine Datei: {file_path}"
+            )
+
+        # Create hash object - ValueError is raised by hashlib for invalid algorithms
+        try:
+            hash_obj = hashlib.new(algorithm)
+        except ValueError as e:
+            raise ValueError(f"Ungültiger Hash-Algorithmus: {algorithm}") from e
+
+        # Read file in chunks and update hash
+        chunk_size = 8192  # 8KB chunks - optimal for I/O performance
+
+        try:
+            with file_path.open("rb") as f:
+                while True:
+                    chunk = f.read(chunk_size)
+                    if not chunk:
+                        break
+                    hash_obj.update(chunk)
+        except PermissionError as e:
+            raise FileOperationError(
+                f"Keine Berechtigung zum Lesen der Datei: {file_path}"
+            ) from e
+        except OSError as e:
+            raise FileOperationError(
+                f"Fehler beim Lesen der Datei: {file_path} - {e}"
+            ) from e
+
+        return hash_obj.hexdigest()
 
 
 class HistoryManager:
