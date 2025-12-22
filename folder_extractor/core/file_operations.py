@@ -573,7 +573,8 @@ class FileMover:
         destination: Union[str, Path],
         dry_run: bool = False,
         progress_callback=None,
-    ) -> Tuple[int, int, int, List[Dict]]:
+        deduplicate: bool = False,
+    ) -> Union[Tuple[int, int, int, List[Dict]], Tuple[int, int, int, int, List[Dict]]]:
         """
         Move multiple files to destination.
 
@@ -582,9 +583,12 @@ class FileMover:
             destination: Destination directory (str or Path)
             dry_run: If True, simulate the operation
             progress_callback: Optional callback for progress updates
+            deduplicate: If True, skip files with identical content (via hash)
+                        and delete source instead of renaming
 
         Returns:
-            Tuple of (moved_count, error_count, duplicate_count, history)
+            If deduplicate=False: Tuple of (moved, errors, duplicates, history)
+            If deduplicate=True: Tuple of (moved, errors, duplicates, content_duplicates, history)
         """
         # Convert destination to Path
         dest_path = Path(destination)
@@ -592,6 +596,7 @@ class FileMover:
         moved = 0
         errors = 0
         duplicates = 0
+        content_duplicates = 0
         history = []
 
         for i, file_path in enumerate(files):  # pragma: no branch
@@ -608,8 +613,36 @@ class FileMover:
 
             try:
                 filename = source_path.name
+                existing_dest = dest_path / filename
 
-                # Generate unique name if needed
+                # Check if destination file exists
+                if existing_dest.exists() and deduplicate:
+                    # Try hash comparison for deduplication
+                    try:
+                        source_hash = self.file_ops.calculate_file_hash(source_path)
+                        dest_hash = self.file_ops.calculate_file_hash(existing_dest)
+
+                        if source_hash == dest_hash:
+                            # Identical content - skip move, delete source
+                            content_duplicates += 1
+                            if not dry_run:
+                                source_path.unlink()
+                                history.append(
+                                    {
+                                        "original_pfad": str(source_path),
+                                        "neuer_pfad": str(existing_dest),
+                                        "original_name": filename,
+                                        "neuer_name": filename,
+                                        "zeitstempel": datetime.now().isoformat(),
+                                        "content_duplicate": True,
+                                    }
+                                )
+                            continue
+                    except (FileOperationError, OSError):
+                        # Hash calculation failed - fall back to rename behavior
+                        pass
+
+                # Generate unique name if needed (normal duplicate handling)
                 unique_name = self.file_ops.generate_unique_name(dest_path, filename)
                 if unique_name != filename:
                     duplicates += 1
@@ -639,6 +672,9 @@ class FileMover:
                 if progress_callback:  # pragma: no branch
                     progress_callback(i + 1, len(files), file_path, error=str(e))
 
+        # Return appropriate tuple based on deduplicate flag
+        if deduplicate:
+            return moved, errors, duplicates, content_duplicates, history
         return moved, errors, duplicates, history
 
     def move_files_sorted(
@@ -648,7 +684,11 @@ class FileMover:
         dry_run: bool = False,
         progress_callback=None,
         folder_override_callback=None,
-    ) -> Tuple[int, int, int, List[Dict], List[str]]:
+        deduplicate: bool = False,
+    ) -> Union[
+        Tuple[int, int, int, List[Dict], List[str]],
+        Tuple[int, int, int, int, List[Dict], List[str]],
+    ]:
         """
         Move files sorted by type into subdirectories.
 
@@ -659,9 +699,12 @@ class FileMover:
             progress_callback: Optional callback for progress updates
             folder_override_callback: Optional callback(filepath) -> folder_name
                                      If provided, can override the default folder name
+            deduplicate: If True, skip files with identical content (via hash)
+                        and delete source instead of renaming
 
         Returns:
-            Tuple of (moved, errors, duplicates, history, created_folders)
+            If deduplicate=False: Tuple of (moved, errors, duplicates, history, created_folders)
+            If deduplicate=True: Tuple of (moved, errors, duplicates, content_duplicates, history, created_folders)
         """
         # Convert destination to Path
         dest_path = Path(destination)
@@ -669,6 +712,7 @@ class FileMover:
         moved = 0
         errors = 0
         duplicates = 0
+        content_duplicates = 0
         history = []
         created_folders = set()
 
@@ -703,6 +747,35 @@ class FileMover:
                     type_path.mkdir(parents=True, exist_ok=True)
                     created_folders.add(type_folder)
 
+                existing_dest = type_path / filename
+
+                # Check if destination file exists and deduplicate is enabled
+                if existing_dest.exists() and deduplicate:
+                    # Try hash comparison for deduplication
+                    try:
+                        source_hash = self.file_ops.calculate_file_hash(source_path)
+                        dest_hash = self.file_ops.calculate_file_hash(existing_dest)
+
+                        if source_hash == dest_hash:
+                            # Identical content - skip move, delete source
+                            content_duplicates += 1
+                            if not dry_run:
+                                source_path.unlink()
+                                history.append(
+                                    {
+                                        "original_pfad": str(source_path),
+                                        "neuer_pfad": str(existing_dest),
+                                        "original_name": filename,
+                                        "neuer_name": filename,
+                                        "zeitstempel": datetime.now().isoformat(),
+                                        "content_duplicate": True,
+                                    }
+                                )
+                            continue
+                    except (FileOperationError, OSError):
+                        # Hash calculation failed - fall back to rename behavior
+                        pass
+
                 # Generate unique name
                 unique_name = self.file_ops.generate_unique_name(type_path, filename)
                 if unique_name != filename:
@@ -733,4 +806,7 @@ class FileMover:
                 if progress_callback:  # pragma: no branch
                     progress_callback(i + 1, len(files), file_path, error=str(e))
 
+        # Return appropriate tuple based on deduplicate flag
+        if deduplicate:
+            return moved, errors, duplicates, content_duplicates, history, list(created_folders)
         return moved, errors, duplicates, history, list(created_folders)

@@ -829,3 +829,287 @@ class TestFileMover:
             assert duplicates == 1
             assert (pdf_folder / "document_1.pdf").exists()
             assert (pdf_folder / "document_1.pdf").read_text() == "new"
+
+
+class TestFileMoverDeduplication:
+    """Test FileMover deduplication functionality."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.file_ops = FileOperations()
+        self.file_mover = FileMover(self.file_ops)
+
+    def test_move_files_with_deduplicate_identical_content(self):
+        """Files with identical content are skipped and source is deleted."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create identical content in both locations
+            identical_content = "This is identical content for deduplication test"
+            source_file = source_dir / "duplicate.txt"
+            source_file.write_text(identical_content)
+            dest_file = dest_dir / "duplicate.txt"
+            dest_file.write_text(identical_content)
+
+            # Move with deduplication enabled
+            moved, errors, duplicates, content_duplicates, history = (
+                self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
+            )
+
+            # Source should be deleted, not moved (content duplicate)
+            assert moved == 0
+            assert errors == 0
+            assert duplicates == 0
+            assert content_duplicates == 1
+            assert not source_file.exists()
+            # Destination should still have original content
+            assert dest_file.exists()
+            assert dest_file.read_text() == identical_content
+
+    def test_move_files_with_deduplicate_different_content(self):
+        """Files with different content are renamed (normal duplicate handling)."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create files with different content but same name
+            source_file = source_dir / "file.txt"
+            source_file.write_text("source content - different")
+            dest_file = dest_dir / "file.txt"
+            dest_file.write_text("destination content - different")
+
+            # Move with deduplication enabled
+            moved, errors, duplicates, content_duplicates, history = (
+                self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
+            )
+
+            # Should be renamed since content differs
+            assert moved == 1
+            assert errors == 0
+            assert duplicates == 1  # Name duplicate, renamed
+            assert content_duplicates == 0
+            assert not source_file.exists()
+            assert dest_file.exists()  # Original kept
+            assert (dest_dir / "file_1.txt").exists()  # Renamed file
+            assert (dest_dir / "file_1.txt").read_text() == "source content - different"
+
+    def test_move_files_deduplicate_disabled_renames_identical_files(self):
+        """Without deduplicate flag, identical files are renamed (old behavior)."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            identical_content = "identical content"
+            source_file = source_dir / "same.txt"
+            source_file.write_text(identical_content)
+            dest_file = dest_dir / "same.txt"
+            dest_file.write_text(identical_content)
+
+            # Move WITHOUT deduplication - old 4-tuple return
+            moved, errors, duplicates, history = self.file_mover.move_files(
+                [source_file], dest_dir, deduplicate=False
+            )
+
+            # Should rename even though content is identical
+            assert moved == 1
+            assert duplicates == 1
+            assert (dest_dir / "same_1.txt").exists()
+
+    def test_move_files_deduplicate_dry_run_preserves_source(self):
+        """Dry run with deduplicate does not delete source files."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            identical_content = "dry run test content"
+            source_file = source_dir / "dryrun.txt"
+            source_file.write_text(identical_content)
+            dest_file = dest_dir / "dryrun.txt"
+            dest_file.write_text(identical_content)
+
+            # Dry run with deduplication
+            moved, errors, duplicates, content_duplicates, history = (
+                self.file_mover.move_files(
+                    [source_file], dest_dir, dry_run=True, deduplicate=True
+                )
+            )
+
+            # Source should still exist (dry run)
+            assert source_file.exists()
+            assert content_duplicates == 1
+            # No history recorded in dry run
+            assert len(history) == 0
+
+    def test_move_files_deduplicate_history_entry_has_flag(self):
+        """History entries for content duplicates have content_duplicate flag."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            identical_content = "history flag test"
+            source_file = source_dir / "flagtest.txt"
+            source_file.write_text(identical_content)
+            dest_file = dest_dir / "flagtest.txt"
+            dest_file.write_text(identical_content)
+
+            moved, errors, duplicates, content_duplicates, history = (
+                self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
+            )
+
+            # History should record the content duplicate
+            assert len(history) == 1
+            assert history[0].get("content_duplicate") is True
+            assert history[0]["original_pfad"] == str(source_file)
+
+    def test_move_files_sorted_with_deduplicate_identical(self):
+        """Sorted move with deduplicate skips identical content files."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create PDF folder with existing file
+            pdf_folder = dest_dir / "PDF"
+            pdf_folder.mkdir()
+            identical_content = "PDF content for dedup test"
+            (pdf_folder / "document.pdf").write_text(identical_content)
+
+            # Create source file with identical content
+            source_file = source_dir / "document.pdf"
+            source_file.write_text(identical_content)
+
+            # Move sorted with deduplication
+            moved, errors, duplicates, content_duplicates, history, created_folders = (
+                self.file_mover.move_files_sorted(
+                    [source_file], dest_dir, deduplicate=True
+                )
+            )
+
+            assert moved == 0
+            assert content_duplicates == 1
+            assert not source_file.exists()
+            # Original in PDF folder unchanged
+            assert (pdf_folder / "document.pdf").read_text() == identical_content
+
+    def test_move_files_sorted_with_deduplicate_different_content(self):
+        """Sorted move with deduplicate renames files with different content."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create PDF folder with existing file
+            pdf_folder = dest_dir / "PDF"
+            pdf_folder.mkdir()
+            (pdf_folder / "report.pdf").write_text("existing PDF content")
+
+            # Create source file with different content
+            source_file = source_dir / "report.pdf"
+            source_file.write_text("new PDF content - different")
+
+            # Move sorted with deduplication
+            moved, errors, duplicates, content_duplicates, history, created_folders = (
+                self.file_mover.move_files_sorted(
+                    [source_file], dest_dir, deduplicate=True
+                )
+            )
+
+            assert moved == 1
+            assert duplicates == 1  # Name conflict, renamed
+            assert content_duplicates == 0
+            assert (pdf_folder / "report_1.pdf").exists()
+            assert (pdf_folder / "report_1.pdf").read_text() == "new PDF content - different"
+
+    def test_move_files_sorted_deduplicate_disabled_returns_old_signature(self):
+        """Without deduplicate, move_files_sorted returns 5-tuple (backward compat)."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            source_file = source_dir / "test.pdf"
+            source_file.touch()
+
+            # Old signature without deduplicate
+            moved, errors, duplicates, history, created_folders = (
+                self.file_mover.move_files_sorted([source_file], dest_dir)
+            )
+
+            assert moved == 1
+            assert isinstance(created_folders, list)
+
+    def test_move_files_deduplicate_hash_error_falls_back_to_rename(self):
+        """Hash calculation error falls back to normal rename behavior."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            source_file = source_dir / "hashfail.txt"
+            source_file.write_text("content")
+            dest_file = dest_dir / "hashfail.txt"
+            dest_file.write_text("content")
+
+            # Mock hash calculation to fail
+            with patch.object(
+                self.file_ops,
+                "calculate_file_hash",
+                side_effect=FileOperationError("Hash failed"),
+            ):
+                moved, errors, duplicates, content_duplicates, history = (
+                    self.file_mover.move_files(
+                        [source_file], dest_dir, deduplicate=True
+                    )
+                )
+
+            # Should fall back to rename behavior
+            assert moved == 1
+            assert duplicates == 1
+            assert content_duplicates == 0
+            assert (dest_dir / "hashfail_1.txt").exists()
+
+    def test_move_files_no_conflict_with_deduplicate_moves_normally(self):
+        """Files without name conflict move normally even with deduplicate enabled."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            source_file = source_dir / "unique.txt"
+            source_file.write_text("unique content")
+
+            # No existing file at destination
+            moved, errors, duplicates, content_duplicates, history = (
+                self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
+            )
+
+            assert moved == 1
+            assert duplicates == 0
+            assert content_duplicates == 0
+            assert (dest_dir / "unique.txt").exists()

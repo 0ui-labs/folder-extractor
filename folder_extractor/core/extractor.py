@@ -157,6 +157,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             "moved": 0,
             "skipped": 0,
             "duplicates": 0,
+            "content_duplicates": 0,
             "errors": 0,
             "created_folders": [],
             "history": [],
@@ -204,38 +205,69 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     return None  # Use default folder determination
 
             # Move files sorted by type
-            moved, errors, duplicates, history, created_folders = (
-                file_mover.move_files_sorted(
+            deduplicate = settings.get("deduplicate", False)
+            if deduplicate:
+                moved, errors, duplicates, content_duplicates, history, created_folders = (
+                    file_mover.move_files_sorted(
+                        files=files,
+                        destination=destination_str,
+                        dry_run=settings.get("dry_run", False),
+                        progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
+                            c, f, e
+                        ),
+                        folder_override_callback=folder_override,
+                        deduplicate=True,
+                    )
+                )
+            else:
+                moved, errors, duplicates, history, created_folders = (
+                    file_mover.move_files_sorted(
+                        files=files,
+                        destination=destination_str,
+                        dry_run=settings.get("dry_run", False),
+                        progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
+                            c, f, e
+                        ),
+                        folder_override_callback=folder_override,
+                    )
+                )
+                content_duplicates = 0
+            move_results = {
+                "moved": moved,
+                "errors": errors,
+                "duplicates": duplicates,
+                "content_duplicates": content_duplicates,
+                "history": history,
+                "created_folders": created_folders,
+            }
+        else:
+            # Move files flat
+            deduplicate = settings.get("deduplicate", False)
+            if deduplicate:
+                moved, errors, duplicates, content_duplicates, history = file_mover.move_files(
                     files=files,
                     destination=destination_str,
                     dry_run=settings.get("dry_run", False),
                     progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
                         c, f, e
                     ),
-                    folder_override_callback=folder_override,
+                    deduplicate=True,
                 )
-            )
+            else:
+                moved, errors, duplicates, history = file_mover.move_files(
+                    files=files,
+                    destination=destination_str,
+                    dry_run=settings.get("dry_run", False),
+                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
+                        c, f, e
+                    ),
+                )
+                content_duplicates = 0
             move_results = {
                 "moved": moved,
                 "errors": errors,
                 "duplicates": duplicates,
-                "history": history,
-                "created_folders": created_folders,
-            }
-        else:
-            # Move files flat
-            moved, errors, duplicates, history = file_mover.move_files(
-                files=files,
-                destination=destination_str,
-                dry_run=settings.get("dry_run", False),
-                progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
-                    c, f, e
-                ),
-            )
-            move_results = {
-                "moved": moved,
-                "errors": errors,
-                "duplicates": duplicates,
+                "content_duplicates": content_duplicates,
                 "history": history,
                 "created_folders": [],
             }
@@ -246,8 +278,9 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         # Update results
         results.update(move_results)
 
-        # Save history if not dry run and files were moved
-        if not settings.get("dry_run", False) and results["moved"] > 0:
+        # Save history if not dry run and there are history entries
+        # (includes both moved files and content duplicates)
+        if not settings.get("dry_run", False) and move_results["history"]:
             self.history_manager.save_history(move_results["history"], destination_str)
 
         # Check if aborted
