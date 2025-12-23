@@ -137,7 +137,7 @@ class FileDiscovery(IFileDiscovery):
                 # Avoids expensive filesystem operations (symlink resolution, etc.)
                 current_depth = len(current_path.parts) - base_parts_count
 
-                # dirs[:] = [] pattern: In-place clear prevents os.walk() from descending
+                # dirs[:] = [] pattern: In-place clear prevents os.walk() descending
                 # More efficient than post-filtering: stops traversal early
                 if max_depth > 0 and current_depth >= max_depth:
                     dirs[:] = []

@@ -270,25 +270,29 @@ class ConsoleInterface(IUserInterface):
                 global_dupes = results.get("global_duplicates", 0)
 
                 # Check if we have the new granular duplicate types
-                has_new_keys = any(
-                    key in results
-                    for key in ["name_duplicates", "content_duplicates", "global_duplicates"]
-                )
+                dup_keys = [
+                    "name_duplicates",
+                    "content_duplicates",
+                    "global_duplicates",
+                ]
+                has_new_keys = any(key in results for key in dup_keys)
 
                 if has_new_keys:
                     # Show separate duplicate categories (only if > 0)
                     if name_dupes > 0:
+                        msg = MESSAGES["DEDUP_NAME_DUPLICATES"]
                         self.console.print(
-                            f"[yellow][!][/yellow] {MESSAGES['DEDUP_NAME_DUPLICATES']}: [yellow]{name_dupes}[/yellow]"
+                            f"[yellow][!][/yellow] {msg}: [yellow]{name_dupes}[/yellow]"
                         )
                     if content_dupes > 0:
+                        msg = MESSAGES["DEDUP_CONTENT_DUPLICATES"]
                         self.console.print(
-                            f"[cyan][~][/cyan] {MESSAGES['DEDUP_CONTENT_DUPLICATES']}: [cyan]{content_dupes}[/cyan]"
+                            f"[cyan][~][/cyan] {msg}: [cyan]{content_dupes}[/cyan]"
                         )
                     if global_dupes > 0:
-                        self.console.print(
-                            f"[magenta][≡][/magenta] {MESSAGES['DEDUP_GLOBAL_DUPLICATES']}: [magenta]{global_dupes}[/magenta]"
-                        )
+                        msg = MESSAGES["DEDUP_GLOBAL_DUPLICATES"]
+                        val = f"[magenta]{global_dupes}[/magenta]"
+                        self.console.print(f"[magenta][≡][/magenta] {msg}: {val}")
                 else:
                     # Backward compatibility: show old-style duplicates
                     dupes = results.get("duplicates", 0)

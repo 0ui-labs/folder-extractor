@@ -515,7 +515,7 @@ class TestDeduplicationWorkflow:
         test_dir = workflow_test_env["test_dir"]
 
         # Create mixed structure
-        structure = create_mixed_duplicate_structure(test_dir)
+        create_mixed_duplicate_structure(test_dir)
         os.chdir(test_dir)
 
         # Run extraction WITH --deduplicate flag

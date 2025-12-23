@@ -464,7 +464,7 @@ class FileOperations(IFileOperations):
         # Phase 2: Hash files based on include_all flag
         hash_index: Dict[str, List[Path]] = defaultdict(list)
 
-        for size, paths in size_groups.items():
+        for _size, paths in size_groups.items():
             # Skip sizes with only one file if not including all
             # (no duplicates possible for unique sizes)
             if not include_all and len(paths) == 1:
@@ -689,14 +689,19 @@ class HistoryManager:
 class FileMover:
     """High-level file moving operations."""
 
-    def __init__(self, file_ops: IFileOperations, abort_signal=None, indexing_callback=None):
+    def __init__(
+        self,
+        file_ops: IFileOperations,
+        abort_signal=None,
+        indexing_callback=None,
+    ):
         """
         Initialize file mover.
 
         Args:
             file_ops: File operations implementation
             abort_signal: Threading event to signal abort
-            indexing_callback: Optional callback called with "start"/"end" during indexing
+            indexing_callback: Callback for "start"/"end" during indexing
         """
         self.file_ops = file_ops
         self.abort_signal = abort_signal
@@ -729,9 +734,11 @@ class FileMover:
                          ANYWHERE in the destination tree (regardless of filename)
 
         Returns:
-            If global_dedup=True: Tuple of (moved, errors, name_duplicates, content_duplicates, global_duplicates, history)
-            Elif deduplicate=True: Tuple of (moved, errors, duplicates, content_duplicates, history)
-            Else: Tuple of (moved, errors, duplicates, history)
+            Tuple of counts and history. Contents depend on flags:
+            - global_dedup: (moved, errors, name_dups, content_dups,
+                            global_dups, history)
+            - deduplicate: (moved, errors, duplicates, content_dups, history)
+            - default: (moved, errors, duplicates, history)
         """
         # Convert destination to Path
         dest_path = Path(destination)
@@ -750,8 +757,10 @@ class FileMover:
                 # Signal indexing start
                 if self.indexing_callback:
                     self.indexing_callback("start")
-                # Get all existing hashes in destination (include_all=True for global dedup)
-                hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
+                # Get all existing hashes in destination for dedup
+                hash_index = self.file_ops.build_hash_index(
+                    dest_path, include_all=True
+                )
             except FileOperationError:
                 # If we can't build index, continue without global dedup
                 pass
@@ -775,16 +784,17 @@ class FileMover:
             try:
                 filename = source_path.name
 
-                # Skip files already at the destination level - they don't need to be moved
-                source_is_at_destination = source_path.parent.resolve() == dest_path.resolve()
+                # Skip files already at destination level (no move needed)
+                source_parent = source_path.parent.resolve()
+                source_is_at_destination = source_parent == dest_path.resolve()
                 if source_is_at_destination:
                     # File is already where it needs to be, skip processing
                     continue
 
                 existing_dest = dest_path / filename
 
-                # Content duplicate check - BEFORE global dedup when file with same name exists
-                # This ensures files with same name + same content are counted as content duplicates
+                # Content duplicate check - BEFORE global dedup when same name
+                # Same name + same content = content duplicate (not global)
                 if existing_dest.exists() and deduplicate:
                     # Try hash comparison for deduplication
                     try:
@@ -811,20 +821,20 @@ class FileMover:
                         # Hash calculation failed - fall back to rename behavior
                         pass
 
-                # Global deduplication check - AFTER content duplicate check
-                # Only runs when no file with same name exists at destination
-                # This ensures files with different names but matching content are caught
+                # Global dedup check - AFTER content duplicate check
+                # Only runs when no file with same name exists
+                # Catches files with different names but matching content
                 if global_dedup and not existing_dest.exists():
                     try:
                         source_hash = self.file_ops.calculate_file_hash(source_path)
                         if source_hash in hash_index:
-                            # Check if content exists in a DIFFERENT file (not the source itself)
+                            # Check content in DIFFERENT file (not source)
                             matching_files = [
                                 p for p in hash_index[source_hash]
                                 if p.resolve() != source_path.resolve()
                             ]
                             if matching_files:
-                                # Content exists in another file - this is a global duplicate
+                                # Content in another file = global duplicate
                                 global_duplicates += 1
                                 if not dry_run:
                                     source_path.unlink()
@@ -883,7 +893,10 @@ class FileMover:
 
         # Return appropriate tuple based on flags
         if global_dedup:
-            return moved, errors, duplicates, content_duplicates, global_duplicates, history
+            return (
+                moved, errors, duplicates, content_duplicates,
+                global_duplicates, history
+            )
         if deduplicate:
             return moved, errors, duplicates, content_duplicates, history
         return moved, errors, duplicates, history
@@ -918,9 +931,12 @@ class FileMover:
                          ANYWHERE in the destination tree (regardless of filename)
 
         Returns:
-            If global_dedup=True: Tuple of (moved, errors, name_duplicates, content_duplicates, global_duplicates, history, created_folders)
-            Elif deduplicate=True: Tuple of (moved, errors, duplicates, content_duplicates, history, created_folders)
-            Else: Tuple of (moved, errors, duplicates, history, created_folders)
+            Tuple of counts and history. Contents depend on flags:
+            - global_dedup: (moved, errors, name_dups, content_dups,
+                            global_dups, history, created_folders)
+            - deduplicate: (moved, errors, duplicates, content_dups,
+                           history, created_folders)
+            - default: (moved, errors, duplicates, history, created_folders)
         """
         # Convert destination to Path
         dest_path = Path(destination)
@@ -940,8 +956,10 @@ class FileMover:
                 # Signal indexing start
                 if self.indexing_callback:
                     self.indexing_callback("start")
-                # Get all existing hashes in destination (include_all=True for global dedup)
-                hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
+                # Get all existing hashes in destination for dedup
+                hash_index = self.file_ops.build_hash_index(
+                    dest_path, include_all=True
+                )
             except FileOperationError:
                 # If we can't build index, continue without global dedup
                 pass
@@ -966,7 +984,7 @@ class FileMover:
                 filename = source_path.name
 
                 # Skip files already in their correct type folder
-                # (these are considered "already sorted" and should not be moved or deduped)
+                # (already sorted, should not be moved or deduped)
                 source_parent = source_path.parent.resolve()
                 source_is_at_destination = source_parent == dest_path.resolve()
 
@@ -975,18 +993,18 @@ class FileMover:
                 if not source_is_at_destination:
                     parent_folder_name = source_path.parent.name
                     file_extension = source_path.suffix.lower()
-                    expected_type_folder = FILE_TYPE_FOLDERS.get(file_extension, "OTHER")
+                    type_folder = FILE_TYPE_FOLDERS.get(file_extension, "OTHER")
                     source_grandparent = source_parent.parent.resolve()
                     # File is in correct type folder if:
                     # 1. Parent folder name matches expected type folder
-                    # 2. Parent's parent is the destination (direct child folder)
+                    # 2. Parent's parent is destination (direct child folder)
                     source_is_in_correct_type_folder = (
-                        parent_folder_name == expected_type_folder
+                        parent_folder_name == type_folder
                         and source_grandparent == dest_path.resolve()
                     )
 
                 if source_is_at_destination or source_is_in_correct_type_folder:
-                    # File is already at destination or in correct type folder, skip processing
+                    # Already at destination or in correct folder, skip
                     continue
 
                 # Determine type folder first - needed for dedup checks
@@ -1034,20 +1052,20 @@ class FileMover:
                         # Hash calculation failed - fall back to rename behavior
                         pass
 
-                # Global deduplication check - AFTER content duplicate check
-                # Only runs when no file with same name exists at destination
-                # This ensures files with different names but matching content are caught
+                # Global dedup check - AFTER content duplicate check
+                # Only runs when no file with same name exists
+                # Catches files with different names but matching content
                 if global_dedup and not existing_dest.exists():
                     try:
                         source_hash = self.file_ops.calculate_file_hash(source_path)
                         if source_hash in hash_index:
-                            # Check if content exists in a DIFFERENT file (not the source itself)
+                            # Check content in DIFFERENT file (not source)
                             matching_files = [
                                 p for p in hash_index[source_hash]
                                 if p.resolve() != source_path.resolve()
                             ]
                             if matching_files:
-                                # Content exists in another file - this is a global duplicate
+                                # Content in another file = global duplicate
                                 global_duplicates += 1
                                 if not dry_run:
                                     source_path.unlink()
@@ -1105,8 +1123,14 @@ class FileMover:
                     progress_callback(i + 1, len(files), file_path, error=str(e))
 
         # Return appropriate tuple based on flags
+        folders = list(created_folders)
         if global_dedup:
-            return moved, errors, duplicates, content_duplicates, global_duplicates, history, list(created_folders)
+            return (
+                moved, errors, duplicates, content_duplicates,
+                global_duplicates, history, folders
+            )
         if deduplicate:
-            return moved, errors, duplicates, content_duplicates, history, list(created_folders)
-        return moved, errors, duplicates, history, list(created_folders)
+            return (
+                moved, errors, duplicates, content_duplicates, history, folders
+            )
+        return moved, errors, duplicates, history, folders

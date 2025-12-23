@@ -5,20 +5,17 @@ Tests the build_hash_index() method in FileOperations which creates
 a hash index for detecting duplicate files across a directory tree.
 """
 
-import hashlib
 import os
-import stat
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from folder_extractor.core.file_operations import FileOperationError, FileOperations
-
 
 # =============================================================================
 # TestBuildHashIndexBasic - Grundlegende Funktionalität
@@ -339,7 +336,7 @@ class TestBuildHashIndexRecursive:
         result = ops.build_hash_index(temp_dir)
 
         # Only files in the index
-        for hash_value, paths in result.items():
+        for _hash_value, paths in result.items():
             for path in paths:
                 assert path.is_file()
                 assert not path.is_dir()
@@ -476,7 +473,7 @@ class TestBuildHashIndexErrors:
 
         with patch.object(ops, 'calculate_file_hash', side_effect=hash_with_delete):
             # Should not raise, just skip the deleted file
-            result = ops.build_hash_index(temp_dir)
+            ops.build_hash_index(temp_dir)
 
         # At least some files should be processed
         # The exact count depends on order, but no exception should occur
@@ -660,7 +657,6 @@ class TestBuildHashIndexProperties:
         Property: For any N identical files, the hash index should
         contain exactly one entry with exactly N file paths.
         """
-        import shutil
 
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)
@@ -708,7 +704,7 @@ class TestBuildHashIndexProperties:
             result = ops.build_hash_index(temp_dir)
 
             assert len(result) == num_groups
-            for hash_value, paths in result.items():
+            for _hash_value, paths in result.items():
                 assert len(paths) == group_size
 
     @settings(

@@ -213,42 +213,54 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             global_dedup = settings.get("global_dedup", False)
             if global_dedup:
                 # Global deduplication - checks against entire destination tree
-                moved, errors, duplicates, content_duplicates, global_duplicates, history, created_folders = (
-                    file_mover.move_files_sorted(
-                        files=files,
-                        destination=destination_str,
-                        dry_run=settings.get("dry_run", False),
-                        progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
-                            c, f, e
-                        ),
-                        folder_override_callback=folder_override,
-                        deduplicate=deduplicate,
-                        global_dedup=True,
-                    )
+                (
+                    moved,
+                    errors,
+                    duplicates,
+                    content_duplicates,
+                    global_duplicates,
+                    history,
+                    created_folders,
+                ) = file_mover.move_files_sorted(
+                    files=files,
+                    destination=destination_str,
+                    dry_run=settings.get("dry_run", False),
+                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
+                        c, f, e
+                    ),
+                    folder_override_callback=folder_override,
+                    deduplicate=deduplicate,
+                    global_dedup=True,
                 )
             elif deduplicate:
-                moved, errors, duplicates, content_duplicates, history, created_folders = (
-                    file_mover.move_files_sorted(
-                        files=files,
-                        destination=destination_str,
-                        dry_run=settings.get("dry_run", False),
-                        progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
-                            c, f, e
-                        ),
-                        folder_override_callback=folder_override,
-                        deduplicate=True,
-                    )
+                (
+                    moved,
+                    errors,
+                    duplicates,
+                    content_duplicates,
+                    history,
+                    created_folders,
+                ) = file_mover.move_files_sorted(
+                    files=files,
+                    destination=destination_str,
+                    dry_run=settings.get("dry_run", False),
+                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
+                        c, f, e
+                    ),
+                    folder_override_callback=folder_override,
+                    deduplicate=True,
                 )
                 global_duplicates = 0
             else:
+                def progress_cb(c, _t, f, e=None):
+                    progress_tracker.update(c, f, e)
+
                 moved, errors, duplicates, history, created_folders = (
                     file_mover.move_files_sorted(
                         files=files,
                         destination=destination_str,
                         dry_run=settings.get("dry_run", False),
-                        progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
-                            c, f, e
-                        ),
+                        progress_callback=progress_cb,
                         folder_override_callback=folder_override,
                     )
                 )
@@ -258,7 +270,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 "moved": moved,
                 "errors": errors,
                 "duplicates": duplicates,
-                "name_duplicates": duplicates,  # Map duplicates to name_duplicates for UI
+                # Map duplicates to name_duplicates for UI
+                "name_duplicates": duplicates,
                 "content_duplicates": content_duplicates,
                 "global_duplicates": global_duplicates,
                 "history": history,
@@ -270,7 +283,14 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             global_dedup = settings.get("global_dedup", False)
             if global_dedup:
                 # Global deduplication - checks against entire destination tree
-                moved, errors, duplicates, content_duplicates, global_duplicates, history = file_mover.move_files(
+                (
+                    moved,
+                    errors,
+                    duplicates,
+                    content_duplicates,
+                    global_duplicates,
+                    history,
+                ) = file_mover.move_files(
                     files=files,
                     destination=destination_str,
                     dry_run=settings.get("dry_run", False),
@@ -281,7 +301,13 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     global_dedup=True,
                 )
             elif deduplicate:
-                moved, errors, duplicates, content_duplicates, history = file_mover.move_files(
+                (
+                    moved,
+                    errors,
+                    duplicates,
+                    content_duplicates,
+                    history,
+                ) = file_mover.move_files(
                     files=files,
                     destination=destination_str,
                     dry_run=settings.get("dry_run", False),
@@ -292,13 +318,14 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 )
                 global_duplicates = 0
             else:
-                moved, errors, duplicates, history = file_mover.move_files(
+                def progress_cb(c, _t, f, e=None):
+                    progress_tracker.update(c, f, e)
+
+                (moved, errors, duplicates, history) = file_mover.move_files(
                     files=files,
                     destination=destination_str,
                     dry_run=settings.get("dry_run", False),
-                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
-                        c, f, e
-                    ),
+                    progress_callback=progress_cb,
                 )
                 content_duplicates = 0
                 global_duplicates = 0
@@ -306,7 +333,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 "moved": moved,
                 "errors": errors,
                 "duplicates": duplicates,
-                "name_duplicates": duplicates,  # Map duplicates to name_duplicates for UI
+                # Map duplicates to name_duplicates for UI
+                "name_duplicates": duplicates,
                 "content_duplicates": content_duplicates,
                 "global_duplicates": global_duplicates,
                 "history": history,
@@ -604,7 +632,11 @@ class EnhancedExtractionOrchestrator:
 
                 # Extract files
                 results = self.extractor.extract_files(
-                    files, source_path, op.operation_id, progress_callback, indexing_callback
+                    files,
+                    source_path,
+                    op.operation_id,
+                    progress_callback,
+                    indexing_callback,
                 )
 
                 # Add metadata

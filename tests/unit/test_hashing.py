@@ -6,7 +6,6 @@ Uses property-based testing with Hypothesis for comprehensive coverage.
 """
 
 import hashlib
-import os
 import platform
 import stat
 from pathlib import Path
@@ -16,7 +15,6 @@ from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
 from folder_extractor.core.file_operations import FileOperationError, FileOperations
-
 
 # =============================================================================
 # Test-Klasse: Grundlegende Funktionalität

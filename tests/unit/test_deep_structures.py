@@ -23,7 +23,6 @@ from hypothesis import strategies as st
 
 from folder_extractor.core.file_discovery import FileDiscovery
 
-
 # =============================================================================
 # Mock Helper Functions
 # =============================================================================
@@ -60,10 +59,7 @@ def mock_deep_os_walk(
         files = [f"file_{i}.txt" for i in range(files_per_level)]
 
         # Last level has no subdirectories
-        if level == depth - 1:
-            dirs = []
-        else:
-            dirs = [f"level_{level}"]
+        dirs = [] if level == depth - 1 else [f"level_{level}"]
 
         result.append((str(current_path), dirs, files))
 
@@ -106,10 +102,7 @@ def create_simulated_os_walk(base_path: str, depth: int, files_per_level: int = 
             files = [f"file_{i}.txt" for i in range(files_per_level)]
 
             # Subdirectory for next level (if not at max depth)
-            if level < depth - 1:
-                dirs = [f"level_{level}"]
-            else:
-                dirs = []
+            dirs = [f"level_{level}"] if level < depth - 1 else []
 
             # Yield and let consumer modify dirs
             yield str(current), dirs, files
