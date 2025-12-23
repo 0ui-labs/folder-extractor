@@ -22,7 +22,7 @@ build/
 
 # Test outputs
 .coverage
-.htmlcov/
+htmlcov/
 coverage.xml
 
 # Logs
@@ -54,6 +54,9 @@ node_modules/
 
 # Cache directories
 .cache/
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
 
 # Local settings
 settings.local.json
@@ -65,6 +68,16 @@ settings.local.json
 vision/
 tasks/
 
+# AI coding tools
+.zencoder/
+.zenflow/
+
 
 # Hypothesis cache
 .hypothesis/
+
+# Repomix output
+repomix-output.*
+
+.zencoder/ 
+.zenflow/ 

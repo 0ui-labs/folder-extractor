@@ -6,9 +6,41 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ## [1.3.3] - 2025-01-31
 
+### Hinzugefügt
+- **Inhaltsbasierte Deduplizierung** mit `--deduplicate` Option
+  - Erkennt Dateien mit identischem Inhalt anhand SHA256-Hash
+  - Vermeidet echte Duplikate (gleicher Name + gleicher Inhalt)
+  - Dateien mit gleichem Namen aber anderem Inhalt werden weiterhin umbenannt
+- **Globale Deduplizierung** mit `--global-dedup` Option
+  - Prüft gegen ALLE Dateien im Zielordner, nicht nur gleichnamige
+  - Findet Duplikate auch bei unterschiedlichen Dateinamen
+  - Size-based Pre-filtering für optimale Performance
+- `--smart-merge` als Alias für `--deduplicate`
+- SHA256-Hashing mit chunked reading (8KB) für große Dateien
+- Hash-Index für effiziente globale Duplikat-Erkennung
+- Neue Statistik-Kategorien in der Zusammenfassung:
+  - "Namens-Duplikate" (umbenannt)
+  - "Inhalts-Duplikate" (übersprungen)
+  - "Globale Duplikate" (im Zielordner gefunden)
+
+### Geändert
+- History-Dateien werden jetzt zentral gespeichert:
+  - macOS/Linux: `~/.config/folder_extractor/history/`
+  - Windows: `%APPDATA%/folder_extractor/history/`
+- Automatische Migration von lokalen History-Dateien
+- Immutable-Flag für History-Dateien auf macOS (Schutz vor versehentlichem Löschen)
+
 ### Behoben
 - Kritischer Bug behoben: Versteckte Dateien in Unterordnern wurden fälschlicherweise extrahiert, auch wenn `--include-hidden` nicht gesetzt war
 - Die Logik für das Durchsuchen von Unterordnern wurde korrigiert, sodass versteckte Dateien nur mit dem expliziten Flag extrahiert werden
+
+### Intern
+- Modulare Architektur mit klarer Trennung (CLI, Core, Config, Utils)
+- Dependency Injection für bessere Testbarkeit
+- Thread-safe State Management
+- Property-based Tests mit Hypothesis
+- Ruff Linter und Formatter integriert
+- 95%+ Test-Coverage
 
 ## [1.3.2] - 2025-01-31
 

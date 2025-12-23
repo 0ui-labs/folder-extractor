@@ -20,6 +20,7 @@ Die meisten Skripte dieser Art sind "Quick & Dirty" und gefährlich. Folder Extr
 *   🛡️ **Safety First:** Läuft **nur** in sicheren Ordnern (Desktop, Downloads, Documents). Verhindert versehentliches Zerstören von Systemdateien.
 *   ↩️ **Time Machine:** Enthält eine **Undo-Funktion**. Fehler gemacht? Ein Befehl macht alles rückgängig.
 *   🧠 **Intelligent:** Erkennt Duplikate und benennt sie automatisch um, statt sie zu überschreiben.
+*   🔄 **Smart Dedup:** Erkennt identische Dateien anhand des Inhalts (SHA256-Hash) – keine doppelten Kopien mehr.
 *   ⚡ **Zero Config:** Keine Abhängigkeiten. Keine Konfigurationsdateien. Installieren und starten.
 
 ## 🚀 Schnellstart
@@ -76,7 +77,14 @@ Sammeln Sie alle YouTube-Links aus verschiedenen `.url` oder `.webloc` Dateien?
 folder-extractor --type url,webloc --domain youtube.com
 ```
 
-### 5. "Ups, das wollte ich nicht!"
+### 5. Duplikate eliminieren
+Sie haben dieselben Fotos in 10 verschiedenen Ordnern?
+```bash
+folder-extractor --deduplicate --global-dedup
+```
+*Erkennt identische Dateien anhand des Inhalts und behält nur eine Kopie.*
+
+### 6. "Ups, das wollte ich nicht!"
 Haben Sie versehentlich Dateien extrahiert, die dort bleiben sollten?
 ```bash
 folder-extractor --undo
@@ -96,6 +104,8 @@ folder-extractor --undo
 | `--type`, `-t` | Filtert nach Dateiendungen (z.B. `pdf,jpg`). |
 | `--domain` | Filtert Web-Links nach Domain (nur für `.url`/`.webloc`). |
 | `--include-hidden` | Bezieht versteckte Dateien (starten mit `.`) mit ein. |
+| `--deduplicate` | Erkennt identische Dateien (Hash-Vergleich) und vermeidet Duplikate. |
+| `--global-dedup` | Globale Duplikat-Prüfung über gesamten Zielordner. |
 | `--version`, `-v` | Zeigt die installierte Version an. |
 
 ---

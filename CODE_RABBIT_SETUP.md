@@ -2,219 +2,267 @@
 
 ## 🎉 Welcome to CodeRabbit!
 
-This guide helps you set up **CodeRabbit** with the Folder Extractor repository.
+This guide helps you set up and use **CodeRabbit** with the Folder Extractor repository.
+
+**Repository**: https://github.com/0ui-labs/folder-extractor
+
+## ✅ Current Status
+
+CodeRabbit is **already configured** for this repository:
+
+- `.coderabbit.yaml` ✅ (v2 schema)
+- GitHub App installed ✅
+- Auto-review enabled ✅
+- German language support ✅
 
 ## 🔧 Prerequisites
 
-- GitHub repository created and pushed
+- GitHub repository access
 - CodeRabbit account (sign up at [coderabbit.ai](https://coderabbit.ai))
-- Admin access to the GitHub repository
+- Admin access for initial setup (already done)
 
-## 🚀 Setup Instructions
+## 📋 Current Configuration
 
-### 1. Install CodeRabbit GitHub App
-
-1. Go to [CodeRabbit GitHub App](https://github.com/apps/coderabbit)
-2. Click "Install" and select your account
-3. Choose the `folder-extractor` repository
-4. Install with **All repositories** or **Only selected repositories**
-
-### 2. Configure Repository Settings
-
-1. Go to your GitHub repository settings
-2. Navigate to **Branches** → **Branch protection rules**
-3. Add a new rule for the `main` branch:
-   - **Require a pull request before merging** ✅
-   - **Require approvals** (1-2)
-   - **Require status checks to pass before merging** ✅
-   - **Require branches to be up to date before merging** ✅
-   - **Include administrators** ✅
-
-### 3. CodeRabbit Configuration
-
-1. Create a `.coderabbit.yaml` file in the repository root:
+The repository uses this `.coderabbit.yaml`:
 
 ```yaml
-# .coderabbit.yaml
-version: 1
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit Configuration for Folder Extractor
 
-language: python
+language: de  # German language for reviews
 
 reviews:
-  profile: balanced
+  profile: assertive  # Options: chill, assertive
+
   auto_review:
     enabled: true
-    comment: "CodeRabbit AI Review"
-  
-  paths:
-    include:
-      - "folder_extractor/**/*.py"
-      - "tests/**/*.py"
-    exclude:
-      - "**/__pycache__/**"
-      - "**/*.pyc"
-      - "setup.py"
 
-pr_description:
-  auto_generate:
-    enabled: true
-    style: detailed
-
-pr_title:
-  auto_generate:
-    enabled: true
-    prefix: "[AUTO]"
+  path_filters:
+    - "folder_extractor/**/*.py"
+    - "tests/**/*.py"
+    - "setup.py"
+    - "!**/__pycache__/**"
+    - "!**/*.pyc"
+    - "!**/*.pyo"
+    - "!**/*.pyd"
+    - "!tests/fixtures/**"
+    - "!.github/**"
+    - "!.vscode/**"
+    - "!.idea/**"
 
 chat:
   auto_reply: true
-  model: gpt-4
 ```
 
-### 4. Commit and Push Configuration
+### Configuration Explained
+
+| Setting | Value | Description |
+|---------|-------|-------------|
+| `language` | `de` | Reviews in German |
+| `profile` | `assertive` | Thorough, detailed reviews |
+| `auto_review` | `true` | Automatic review on every PR |
+| `path_filters` | `folder_extractor/**` | Focus on source and test files |
+| `auto_reply` | `true` | AI responds to questions in PR comments |
+
+## 🚀 How to Use CodeRabbit
+
+### 1. Create a Pull Request
 
 ```bash
-cd /Users/philippbriese/Documents/dev/dump/Folder\ Extractor
-git add .coderabbit.yaml
-git commit -m "feat: add CodeRabbit configuration"
-git push origin main
+# Create feature branch
+git checkout -b feature/my-new-feature
+
+# Make changes...
+git add .
+git commit -m "feat: add my new feature"
+
+# Push to GitHub
+git push -u origin feature/my-new-feature
 ```
+
+Then create a Pull Request on GitHub.
+
+### 2. CodeRabbit Automatically Reviews
+
+Within minutes, CodeRabbit will:
+- 🔍 **Analyze** all changed files
+- 📝 **Comment** with detailed review
+- 🔐 **Check** for security issues
+- ⚡ **Suggest** performance improvements
+- 🧹 **Recommend** code quality improvements
+
+### 3. Interact with CodeRabbit
+
+You can ask CodeRabbit questions directly in PR comments:
+
+```markdown
+@coderabbitai explain this function
+@coderabbitai is there a security issue here?
+@coderabbitai suggest a better approach
+@coderabbitai summarize the changes
+```
+
+### 4. Address Feedback
+
+- ✅ Fix critical issues before merging
+- 💡 Consider suggestions for improvements
+- 💬 Ask for clarification if needed
+- 🔄 Push fixes → CodeRabbit re-reviews automatically
 
 ## 🤖 CodeRabbit Features
 
 ### Automatic Code Reviews
-- **AI-powered code analysis** for every pull request
-- **Style and quality checks** based on Python best practices
-- **Security vulnerability detection**
-- **Performance optimization suggestions**
-
-### Pull Request Automation
-- **Auto-generated PR descriptions** with detailed analysis
-- **Auto-generated PR titles** with clear prefixes
-- **Smart suggestions** for improvements
+- **AI-powered analysis** for every pull request
+- **Python best practices** enforcement
+- **Security vulnerability** detection
+- **Performance optimization** suggestions
+- **Ruff compatibility** checks
 
 ### Chat Integration
-- **AI chat assistant** for code questions
-- **Context-aware responses** based on your codebase
+- **Ask questions** in any PR comment
+- **Context-aware** responses based on your codebase
 - **Multi-file analysis** for complex questions
+- **German language** support
 
-## 📋 Best Practices with CodeRabbit
+### What CodeRabbit Checks
 
-### 1. Pull Request Workflow
+| Category | Examples |
+|----------|----------|
+| **Security** | SQL injection, path traversal, hardcoded secrets |
+| **Performance** | Inefficient loops, unnecessary allocations |
+| **Quality** | Unused variables, dead code, complexity |
+| **Style** | PEP 8 compliance, naming conventions |
+| **Testing** | Missing tests, weak assertions |
 
-1. **Create feature branch**:
-   ```bash
-   git checkout -b feature/your-feature
-   ```
+## 📊 Integration with CI/CD
 
-2. **Make changes** and commit with clear messages
+### Workflow with GitHub Actions + Ruff + CodeRabbit
 
-3. **Push branch**:
-   ```bash
-   git push origin feature/your-feature
-   ```
+```
+┌─────────────────┐
+│   Create PR     │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐    ┌─────────────────┐
+│ CodeRabbit      │    │ GitHub Actions  │
+│ AI Review       │    │ (Ruff + pytest) │
+└────────┬────────┘    └────────┬────────┘
+         │                      │
+         └──────────┬───────────┘
+                    ▼
+         ┌─────────────────┐
+         │ Human Review    │
+         └────────┬────────┘
+                  │
+                  ▼
+         ┌─────────────────┐
+         │ Merge to main   │
+         └─────────────────┘
+```
 
-4. **Create Pull Request** on GitHub
+### All Checks Must Pass
 
-5. **CodeRabbit will automatically**:
-   - Analyze the code
-   - Provide detailed review
-   - Suggest improvements
-   - Check for vulnerabilities
+1. **CodeRabbit** - No critical issues
+2. **Ruff** - No linting errors
+3. **pytest** - All tests pass
+4. **Human approval** - At least 1 reviewer
 
-### 2. Addressing CodeRabbit Feedback
+## 🎯 Best Practices
 
-- **Review suggestions** carefully
-- **Fix issues** marked as critical
-- **Consider improvements** for better code quality
-- **Use chat** to ask for clarification
+### Writing Good Commit Messages
 
-### 3. Merging Process
+CodeRabbit understands conventional commits:
 
-1. **All checks pass** (CI/CD + CodeRabbit)
-2. **Required approvals** are obtained
-3. **No critical issues** remain
-4. **Merge with confidence**
+```bash
+feat: add global deduplication
+fix: handle empty directories correctly
+docs: update README with new options
+test: add hash calculation tests
+refactor: extract file operations to separate module
+```
 
-## 🎯 CodeRabbit Configuration Tips
+### Organizing Pull Requests
 
-### Customizing Review Profile
+- **Small, focused PRs** get better reviews
+- **Clear descriptions** help CodeRabbit understand context
+- **Link issues** with `Fixes #123` or `Closes #456`
+
+### Responding to Feedback
+
+```markdown
+# Good responses:
+@coderabbitai I fixed the issue in the latest commit
+@coderabbitai This is intentional because [reason]
+@coderabbitai Can you explain why this is a problem?
+
+# Request re-review after fixes:
+@coderabbitai review again
+```
+
+## 🔧 Customizing Configuration
+
+### Switch to English Reviews
+
+```yaml
+language: en
+```
+
+### Use Relaxed Review Profile
 
 ```yaml
 reviews:
-  profile: strict  # Options: lenient, balanced, strict, very_strict
+  profile: chill  # Less strict, fewer comments
 ```
 
-### Focusing on Specific Areas
+### Exclude More Files
 
 ```yaml
-reviews:
-  focus_areas:
-    - security
-    - performance
-    - maintainability
-    - documentation
-```
-
-### Ignoring Specific Files
-
-```yaml
-reviews:
-  paths:
-    exclude:
-      - "tests/fixtures/**"
-      - "docs/**"
-      - "*.md"
-```
-
-## 📊 Integration with Existing Workflows
-
-### GitHub Actions + CodeRabbit
-
-The repository's GitHub Actions workflows work seamlessly with CodeRabbit:
-
-1. **CodeRabbit analyzes** the code first
-2. **GitHub Actions runs** tests and linting
-3. **Both must pass** before merging
-
-### Example Workflow
-
-```mermaid
-graph TD
-    A[Create PR] --> B[CodeRabbit Review]
-    B --> C[GitHub Actions CI]
-    C --> D[Manual Review]
-    D --> E[Merge to main]
+path_filters:
+  - "folder_extractor/**/*.py"
+  - "!**/migrations/**"
+  - "!**/generated/**"
 ```
 
 ## 🤔 Troubleshooting
 
 ### CodeRabbit Not Reviewing
 
-1. **Check GitHub App installation**
-2. **Verify repository access**
-3. **Ensure `.coderabbit.yaml` exists**
-4. **Check branch protection rules**
+1. Check if GitHub App is installed: [github.com/apps/coderabbit](https://github.com/apps/coderabbit)
+2. Verify `.coderabbit.yaml` exists in repo root
+3. Ensure PR is not a draft
+4. Check repository permissions
 
-### False Positives
+### Too Many Comments
 
-1. **Use chat** to ask for clarification
-2. **Add comments** explaining the code
-3. **Configure exceptions** in `.coderabbit.yaml`
+```yaml
+reviews:
+  profile: chill  # Switch from assertive to chill
+```
 
-## 🎉 Benefits of CodeRabbit
+### Wrong Language
 
-✅ **Faster code reviews** - AI assists human reviewers  
-✅ **Higher code quality** - Consistent style and best practices  
-✅ **Better security** - Automatic vulnerability detection  
-✅ **Knowledge sharing** - AI explains complex code  
-✅ **Onboarding help** - New developers get instant feedback  
+```yaml
+language: en  # or de, fr, es, etc.
+```
 
 ## 📚 Resources
 
-- [CodeRabbit Documentation](https://docs.coderabbit.ai)
-- [Python Best Practices](https://peps.python.org/pep-0008/)
-- [GitHub Actions Docs](https://docs.github.com/en/actions)
+- **CodeRabbit Docs**: [docs.coderabbit.ai](https://docs.coderabbit.ai)
+- **Configuration Schema**: [coderabbit.ai/integrations/schema.v2.json](https://coderabbit.ai/integrations/schema.v2.json)
+- **Ruff Docs**: [docs.astral.sh/ruff](https://docs.astral.sh/ruff/)
+- **GitHub Actions**: [docs.github.com/en/actions](https://docs.github.com/en/actions)
+
+## 🎉 Benefits
+
+| Benefit | Description |
+|---------|-------------|
+| ⚡ **Faster Reviews** | AI reviews in minutes, not hours |
+| 🔒 **Better Security** | Catches vulnerabilities humans miss |
+| 📈 **Higher Quality** | Consistent standards across all PRs |
+| 🎓 **Learning** | Explains issues and teaches best practices |
+| 🌍 **German Support** | Native language reviews |
 
 ---
 
-**Happy Coding with CodeRabbit!** 🚀
+**Happy Coding with CodeRabbit!** 🐰🚀

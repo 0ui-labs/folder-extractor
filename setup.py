@@ -24,7 +24,7 @@ setup(
     description="Ein sicheres Tool zum Extrahieren von Dateien aus Unterordnern",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/folder-extractor",
+    url="https://github.com/0ui-labs/folder-extractor",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -61,7 +61,7 @@ setup(
     },
     keywords="folder, extractor, organize, files, directory, cleanup",
     project_urls={
-        "Bug Reports": "https://github.com/yourusername/folder-extractor/issues",
-        "Source": "https://github.com/yourusername/folder-extractor",
+        "Bug Reports": "https://github.com/0ui-labs/folder-extractor/issues",
+        "Source": "https://github.com/0ui-labs/folder-extractor",
     },
 )

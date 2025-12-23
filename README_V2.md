@@ -21,6 +21,7 @@ Most scripts of this kind are "quick & dirty" and risky. Folder Extractor is dif
 *   🛡️ **Safety First:** Restricts operations to safe directories **only** (Desktop, Downloads, Documents). Prevents accidental system damage.
 *   ↩️ **Time Machine:** Includes a full **Undo** function. Made a mistake? Revert everything with one command.
 *   🧠 **Intelligent:** Detects duplicates and auto-renames them (`file_1.txt`) instead of overwriting data.
+*   🔄 **Smart Dedup:** Detects identical files by content (SHA256 hash) – no more duplicate copies.
 *   ⚡ **Zero Config:** No external dependencies. No config files. Just install and run.
 
 ## 🚀 Quick Start
@@ -77,7 +78,14 @@ Collecting YouTube links from various `.url` or `.webloc` files?
 folder-extractor --type url,webloc --domain youtube.com
 ```
 
-### 5. "Oops, I didn't mean to do that!"
+### 5. Eliminate Duplicates
+You have the same photos in 10 different folders?
+```bash
+folder-extractor --deduplicate --global-dedup
+```
+*Detects identical files by content and keeps only one copy.*
+
+### 6. "Oops, I didn't mean to do that!"
 Did you extract files that should have stayed where they were?
 ```bash
 folder-extractor --undo
@@ -97,6 +105,8 @@ folder-extractor --undo
 | `--type`, `-t` | Filters by file extension (e.g., `pdf,jpg`). |
 | `--domain` | Filters web links by domain (only for `.url`/`.webloc`). |
 | `--include-hidden` | Includes hidden files (starting with `.`). |
+| `--deduplicate` | Detects identical files (hash comparison) and avoids duplicates. |
+| `--global-dedup` | Global duplicate check across entire target folder. |
 | `--version`, `-v` | Shows the installed version. |
 
 ---

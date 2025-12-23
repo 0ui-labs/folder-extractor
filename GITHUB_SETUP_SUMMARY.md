@@ -1,13 +1,15 @@
 # GitHub Repository Setup Summary
 
-## 🎉 Repository Successfully Initialized!
+## 🎉 Repository Successfully Published!
 
-Your Folder Extractor project is now ready for GitHub! Here's what has been set up:
+**Folder Extractor v1.3.3** is live on GitHub with full CI/CD and AI-powered code reviews!
+
+**Repository**: https://github.com/0ui-labs/folder-extractor
 
 ## 📁 Repository Structure
 
 ```
-Folder Extractor/
+folder-extractor/
 ├── .git/                    # Git repository
 ├── .github/                 # GitHub configuration
 │   ├── ISSUE_TEMPLATE/      # Issue templates
@@ -17,66 +19,78 @@ Folder Extractor/
 │   └── workflows/           # CI/CD workflows
 │       ├── python-package.yml
 │       └── release.yml
-├── .gitignore              # Files to ignore
-├── GITHUB_README.md        # GitHub-specific README
-├── README.md               # Original German README
-├── LICENSE                 # MIT License
-├── CONTRIBUTING.md         # Contribution guidelines
-├── CODE_OF_CONDUCT.md      # Community guidelines
-├── CHANGELOG.md            # Version history
-├── requirements.txt        # Development dependencies
-├── folder_extractor/       # Main package
-├── tests/                  # Test suite
-└── setup.py                # Package configuration
+├── .coderabbit.yaml         # CodeRabbit AI configuration
+├── .gitignore               # Files to ignore
+├── folder_extractor/        # Main package
+│   ├── cli/                 # Command Line Interface
+│   │   ├── app.py           # Main CLI application
+│   │   ├── parser.py        # Argument parsing
+│   │   └── interface.py     # Console output
+│   ├── core/                # Business Logic
+│   │   ├── extractor.py     # Extraction orchestration
+│   │   ├── file_discovery.py
+│   │   ├── file_operations.py
+│   │   └── state_manager.py
+│   ├── config/              # Configuration
+│   │   ├── constants.py
+│   │   └── settings.py
+│   └── utils/               # Utilities
+│       ├── path_validators.py
+│       ├── file_validators.py
+│       └── parsers.py
+├── tests/                   # Test suite (538 tests)
+│   ├── unit/
+│   ├── integration/
+│   └── performance/
+├── setup.py                 # Package configuration
+├── pyproject.toml           # Modern Python config
+├── run_tests.py             # Test runner
+└── [Documentation files]
 ```
-
-## 🚀 GitHub Setup Instructions
-
-### 1. Create GitHub Repository
-
-1. Go to [GitHub](https://github.com) and log in
-2. Click "New" to create a new repository
-3. Enter repository name: `folder-extractor`
-4. Choose **Public** or **Private**
-5. **Do NOT** initialize with README, .gitignore, or license
-6. Click "Create repository"
-
-### 2. Connect Local Repository to GitHub
-
-```bash
-# Navigate to your project directory
-cd /Users/philippbriese/Documents/dev/dump/Folder\ Extractor
-
-# Add GitHub as remote repository
-git remote add origin https://github.com/your-username/folder-extractor.git
-
-# Push your code to GitHub
-git push -u origin master
-```
-
-### 3. Enable GitHub Features
-
-After pushing, go to your GitHub repository and:
-
-1. **Enable Issues**: Already enabled by default
-2. **Enable Wiki**: Optional for additional documentation
-3. **Enable Projects**: For project management
-4. **Enable Discussions**: For community discussions
 
 ## 🤖 CI/CD Pipeline
 
-The repository includes **GitHub Actions workflows** that will automatically:
+The repository uses **GitHub Actions** with **Ruff** and **CodeRabbit**:
 
 ### Python Package CI Workflow
 - **Tests**: Runs on Python 3.7-3.12
-- **Linting**: Checks code style with Black, Flake8, isort
-- **Coverage**: Uploads test coverage to Codecov
+- **Linting**: Ruff for code style and quality
+- **Coverage**: 95%+ test coverage
 - **Build**: Creates distribution packages
 
 ### Release Workflow
 - **Automatic releases** when tags are pushed (e.g., `v1.3.4`)
 - **Builds and uploads** Python packages to releases
 - **Creates release notes** automatically
+
+### CodeRabbit AI Reviews
+- **Automatic code reviews** on every pull request
+- **German language** support (configured in `.coderabbit.yaml`)
+- **Security vulnerability** detection
+- **Performance suggestions**
+
+```
+┌─────────────────┐
+│   Create PR     │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐    ┌─────────────────┐
+│ CodeRabbit      │    │ GitHub Actions  │
+│ AI Review       │    │ (Ruff + pytest) │
+└────────┬────────┘    └────────┬────────┘
+         │                      │
+         └──────────┬───────────┘
+                    ▼
+         ┌─────────────────┐
+         │ Human Review    │
+         └────────┬────────┘
+                  │
+                  ▼
+         ┌─────────────────┐
+         │ Merge to main   │
+         └─────────────────┘
+```
 
 ## 📋 Issue and Pull Request Templates
 
@@ -92,77 +106,126 @@ The repository includes **GitHub Actions workflows** that will automatically:
 
 ## 📝 Documentation Files
 
-### GITHUB_README.md
-- English version optimized for GitHub
-- Badges for Python version, license, code style
-- Clear installation and usage instructions
-- Feature highlights with emojis
-
-### CONTRIBUTING.md
-- Comprehensive contribution guidelines
-- Development workflow
-- Code style requirements
-- Testing instructions
-- Branch strategy
-
-### CODE_OF_CONDUCT.md
-- Community guidelines based on Contributor Covenant
-- Standards for behavior
-- Reporting procedures
-- Enforcement policies
+| File | Description |
+|------|-------------|
+| **README.md** | German technical documentation |
+| **GITHUB_README.md** | English README for GitHub |
+| **ANLEITUNG.md** | German user guide with examples |
+| **CONTRIBUTING.md** | Contribution guidelines + CodeRabbit |
+| **CODE_OF_CONDUCT.md** | Contributor Covenant v2.1 |
+| **CHANGELOG.md** | Version history |
+| **ARCHITECTURE.md** | Technical architecture |
+| **FEATURES.md** | Roadmap and planned features |
+| **CLAUDE.md** | AI assistant context |
 
 ## 🔧 Development Setup
 
 ### Install Dependencies
 
 ```bash
-pip install -r requirements.txt
-pip install -e .
+# Clone the repository
+git clone https://github.com/0ui-labs/folder-extractor.git
+cd folder-extractor
+
+# Install with test dependencies
+pip install -e ".[test]"
+
+# Verify installation
+folder-extractor --version
 ```
 
 ### Run Tests
 
 ```bash
-python -m pytest tests/
+# All 538 tests
+python run_tests.py
+
+# With coverage report
+python run_tests.py coverage
+
+# Specific category
+pytest tests/unit/
+pytest tests/integration/
 ```
 
 ### Run Linting
 
 ```bash
-black .
-flake8 .
-isort .
+# Check for issues
+ruff check .
+
+# Auto-format code
+ruff format .
 ```
 
-## 🎯 Next Steps
+## 🎯 Development Workflow
 
-1. **Push to GitHub**: `git push -u origin master`
-2. **Create a release**: Tag a version and push it
-3. **Set up Codecov**: Add CODECOV_TOKEN to GitHub secrets
-4. **Enable GitHub Pages**: For documentation (optional)
-5. **Add collaborators**: If working with a team
+### Create a Feature
+
+```bash
+# Create feature branch
+git checkout -b feature/my-new-feature
+
+# Make changes...
+git add .
+git commit -m "feat: add my new feature"
+
+# Push to GitHub
+git push -u origin feature/my-new-feature
+
+# Create PR on GitHub → CodeRabbit reviews automatically!
+```
+
+### Interact with CodeRabbit
+
+```markdown
+@coderabbitai explain this function
+@coderabbitai is there a security issue here?
+@coderabbitai review again
+```
 
 ## 📊 Repository Statistics
 
-- **Commits**: 9 initial commits
-- **Files**: 120+ Python files
-- **Lines of Code**: 9,393+ lines
-- **Test Coverage**: Ready for integration
-- **Documentation**: Complete and comprehensive
+| Metric | Value |
+|--------|-------|
+| **Commits** | 54+ |
+| **Python Files** | 48 |
+| **Lines of Code** | 17,800+ |
+| **Test Functions** | 538 |
+| **Test Coverage** | 95%+ |
+| **Dependencies** | Zero (stdlib only) |
+| **Python Support** | 3.7 - 3.12 |
 
-## 🎉 Congratulations!
+## ✨ Key Features (v1.3.3)
 
-Your Folder Extractor project is now **GitHub-ready** with:
+| Feature | Description |
+|---------|-------------|
+| 🔒 **Security** | Operations restricted to Desktop/Downloads/Documents |
+| 📁 **Flattening** | Extract files from nested subdirectories |
+| 🗂️ **Sort by Type** | Organize into PDF/, JPEG/, etc. folders |
+| 🔄 **Deduplication** | SHA256 hash-based duplicate detection |
+| 🌍 **Global Dedup** | Find duplicates across entire target |
+| 🌐 **Domain Filter** | Filter .url/.webloc files by domain |
+| ↩️ **Undo** | Full operation history with restore |
+| 👻 **Hidden Files** | Optional inclusion of dotfiles |
 
-✅ Professional repository structure  
-✅ CI/CD pipeline with GitHub Actions  
-✅ Issue and PR templates  
-✅ Comprehensive documentation  
-✅ Contribution guidelines  
-✅ Code of conduct  
-✅ MIT License  
-✅ Development dependencies  
-✅ Test suite  
-✅ Professional README  
+## 🎉 Repository Status
 
-The repository follows **best practices** for open-source projects and is ready for collaboration! 🚀
+Your Folder Extractor project is **live and production-ready** with:
+
+✅ Professional repository structure
+✅ CI/CD pipeline with GitHub Actions + Ruff
+✅ AI-powered code reviews with CodeRabbit
+✅ Issue and PR templates
+✅ Comprehensive documentation (DE + EN)
+✅ Contributor Covenant v2.1
+✅ MIT License
+✅ 538 tests with 95%+ coverage
+✅ Content-based deduplication (v1.3.3)
+✅ Zero runtime dependencies
+
+**Repository**: https://github.com/0ui-labs/folder-extractor
+
+---
+
+*Made with ❤️ and Python* 🚀

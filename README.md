@@ -14,10 +14,12 @@ Ein sicheres Command-Line-Tool zum Extrahieren aller Dateien aus Unterordnern in
 - ↩️ **Undo-Funktion**: Macht die letzte Operation rückgängig
 - 🔍 **Dry-Run Modus**: Zeigt was passieren würde, ohne es zu tun
 - 📈 **Fortschrittsanzeige**: Prozentuale Anzeige während der Verschiebung
-- 📎 **Dateityp-Filter**: Extrahiere nur bestimmte Dateitypen (NEU in v1.2.0)
-- 🌐 **Domain-Filter**: Filtere Web-Links nach bestimmten Domains (NEU in v1.2.0)
-- 🗂️ **Sortierung nach Typ**: Organisiere Dateien automatisch in Typ-Ordner (NEU in v1.3.0)
-- 👻 **Versteckte Dateien**: Optional auch versteckte Dateien einbeziehen (NEU in v1.3.2)
+- 📎 **Dateityp-Filter**: Extrahiere nur bestimmte Dateitypen
+- 🌐 **Domain-Filter**: Filtere Web-Links nach bestimmten Domains
+- 🗂️ **Sortierung nach Typ**: Organisiere Dateien automatisch in Typ-Ordner
+- 👻 **Versteckte Dateien**: Optional auch versteckte Dateien einbeziehen
+- 🔄 **Intelligente Deduplizierung**: Erkennt identische Dateien anhand des Inhalts (Hash-Vergleich)
+- 🌍 **Globale Deduplizierung**: Findet Duplikate im gesamten Zielordner
 
 ## Installation
 
@@ -85,9 +87,15 @@ folder-extractor --include-hidden
 
 # Kombiniert: Versteckte PDFs sortiert extrahieren
 folder-extractor --type pdf --include-hidden --sort-by-type
+
+# Duplikate vermeiden (identischer Inhalt wird nicht dupliziert)
+folder-extractor --deduplicate
+
+# Globale Deduplizierung (prüft ALLE Dateien im Zielordner)
+folder-extractor --global-dedup
 ```
 
-### Dateityp-Filter (NEU in v1.2.0)
+### Dateityp-Filter
 
 Mit der `--type` Option können Sie gezielt nur bestimmte Dateitypen extrahieren:
 - Andere Dateien bleiben unberührt
@@ -101,7 +109,7 @@ Beispiele für Dateitypen:
 - **Daten**: json, xml, csv, xlsx
 - **Code**: py, js, java, cpp, html, css, md
 
-### Domain-Filter für Web-Links (NEU in v1.2.0)
+### Domain-Filter für Web-Links
 
 Mit der `--domain` Option können Sie Web-Links nach Domains filtern:
 - Funktioniert nur zusammen mit `--type url` oder `--type webloc`
@@ -120,7 +128,7 @@ folder-extractor --type url --domain github.com,stackoverflow.com
 folder-extractor --type url,webloc --domain reddit.com --depth 3
 ```
 
-### Sortierung nach Typ (NEU in v1.3.0)
+### Sortierung nach Typ
 
 Mit der `--sort-by-type` Option werden Dateien automatisch in Typ-spezifische Ordner organisiert:
 - Erstellt automatisch Ordner wie PDF/, JPEG/, DOCX/, etc.
@@ -137,7 +145,7 @@ Arbeitsordner/
 └── DOCX/      (alle .docx Dateien)
 ```
 
-### Versteckte Dateien einbeziehen (NEU in v1.3.2)
+### Versteckte Dateien einbeziehen
 
 Mit der `--include-hidden` Option werden auch versteckte Dateien (die mit . beginnen) extrahiert:
 - Standardmäßig werden versteckte Dateien/Ordner ignoriert
@@ -151,6 +159,37 @@ folder-extractor --include-hidden
 
 # Versteckte Konfigurationsdateien extrahieren
 folder-extractor --type json,yml,env --include-hidden
+```
+
+### Intelligente Deduplizierung
+
+Mit `--deduplicate` werden Dateien mit identischem Inhalt erkannt und nicht dupliziert:
+- Vergleicht Dateien anhand ihres SHA256-Hash
+- Gleicher Name + gleicher Inhalt = Quelldatei wird entfernt (kein Duplikat)
+- Gleicher Name + anderer Inhalt = Automatische Umbenennung (wie bisher)
+
+Beispiele:
+```bash
+# Duplikate beim Extrahieren vermeiden
+folder-extractor --deduplicate
+
+# Kombiniert mit Sortierung
+folder-extractor --sort-by-type --deduplicate
+```
+
+### Globale Deduplizierung
+
+Mit `--global-dedup` werden Duplikate im **gesamten Zielordner** erkannt:
+- Prüft nicht nur neue Dateien, sondern auch bereits vorhandene
+- Findet Duplikate auch wenn Dateinamen unterschiedlich sind
+- ⚠️ Kann bei großen Ordnern langsamer sein
+
+```bash
+# Globale Prüfung aktivieren
+folder-extractor --global-dedup
+
+# Nützlich für Foto-Sammlungen mit vielen Kopien
+folder-extractor --type jpg,png --global-dedup
 ```
 
 ### Sicherheitsfeatures

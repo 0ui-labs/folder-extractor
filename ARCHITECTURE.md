@@ -18,38 +18,34 @@ Folder Extractor is a German-language command-line tool for safely extracting fi
 ```
 folder_extractor/
 ├── __init__.py
-├── main.py               # Legacy monolithic implementation (preserved for compatibility)
-├── main_enhanced.py      # Enhanced entry point with architecture selection
-├── main_final.py         # Final integrated entry point
+├── main.py               # Compatibility wrapper for legacy function names
 │
 ├── cli/                  # Command Line Interface layer
 │   ├── __init__.py
-│   ├── parser.py         # Argument parsing
+│   ├── parser.py         # Argument parsing with custom help
 │   ├── interface.py      # Console interaction & progress display
-│   ├── app.py           # CLI application orchestration
-│   └── app_v2.py        # Enhanced CLI with state management
+│   └── app.py            # Enhanced CLI application with state management
 │
 ├── core/                 # Business logic layer
 │   ├── __init__.py
-│   ├── file_discovery.py # File finding and filtering
-│   ├── file_operations.py # File manipulation operations
-│   ├── extractor.py      # Core extraction orchestration
-│   ├── extractor_v2.py   # Enhanced extractor with state management
+│   ├── file_discovery.py # File finding, filtering, and weblink parsing
+│   ├── file_operations.py # File operations, hashing, and history management
+│   ├── extractor.py      # Enhanced extraction orchestration
 │   ├── state.py          # Application state interfaces
 │   ├── state_manager.py  # Thread-safe state management
-│   ├── progress.py       # Progress tracking
-│   └── migration.py      # Migration utilities and adapters
+│   ├── progress.py       # Progress tracking with callbacks
+│   └── migration.py      # Settings migration utilities
 │
 ├── config/              # Configuration layer
 │   ├── __init__.py
-│   ├── constants.py     # Application constants
-│   └── settings.py      # Runtime settings management
+│   ├── constants.py     # Application constants, messages, file type mappings
+│   └── settings.py      # Runtime settings management (singleton)
 │
 └── utils/               # Utility functions
     ├── __init__.py
     ├── path_validators.py  # Path security validation
-    ├── file_validators.py  # File validation utilities
-    └── terminal.py         # Terminal operations
+    ├── file_validators.py  # File type and temp file validation
+    └── parsers.py          # Input parsing (file types, domains, depth)
 ```
 
 ## Key Components
@@ -58,12 +54,13 @@ folder_extractor/
 
 **Purpose**: Handle user interaction, command parsing, and presentation
 
-- **`parser.py`**: Defines command-line arguments using argparse
-- **`interface.py`**: 
-  - `ConsoleInterface`: Manages user output and input
-  - `KeyboardHandler`: Handles ESC key detection for abort
-- **`app.py`**: Basic CLI application orchestration
-- **`app_v2.py`**: Enhanced CLI with integrated state management
+- **`parser.py`**: Defines command-line arguments using argparse with custom help text
+- **`interface.py`**:
+  - `ConsoleInterface`: Manages user output, progress display, and confirmation dialogs
+  - `create_console_interface()`: Factory function for interface creation
+- **`app.py`**:
+  - `EnhancedFolderExtractorCLI`: Main CLI application with state management integration
+  - Handles extraction and undo workflows
 
 ### 2. Core Business Logic (`core/`)
 
@@ -105,14 +102,30 @@ folder_extractor/
   
 - **`file_operations.py`**:
   - `IFileOperations`: Interface for file operations
-  - `FileOperations`: Basic file operations (move, copy, unique naming)
-  - `FileMover`: High-level file moving with progress tracking
+  - `FileOperations`: File operations including:
+    - `move_file()`: Atomic file moving (rename or copy+delete fallback)
+    - `generate_unique_name()`: Creates unique filenames for duplicates
+    - `calculate_file_hash()`: SHA256 hash calculation for deduplication
+    - `build_hash_index()`: Builds hash index for global deduplication
+    - `determine_type_folder()`: Maps file extensions to folder names
+  - `FileMover`: High-level file moving with:
+    - Progress tracking and abort signal support
+    - Content-based deduplication (`--deduplicate`)
+    - Global deduplication across entire target (`--global-dedup`)
+    - Sort-by-type functionality
   - `HistoryManager`: Manages operation history for undo
+    - Central storage in `~/.config/folder_extractor/history/`
+    - Immutable file protection on macOS
+    - Legacy file migration
 
 - **`extractor.py`**:
-  - `IExtractor`: Interface for extraction operations
-  - `FileExtractor`: Coordinates file discovery and moving
-  - `ExtractionOrchestrator`: High-level extraction workflow
+  - `IEnhancedExtractor`: Interface for enhanced extraction operations
+  - `EnhancedFileExtractor`: Coordinates file discovery and moving with state tracking
+  - `EnhancedExtractionOrchestrator`: High-level extraction workflow with:
+    - Security validation
+    - User confirmation
+    - Progress callbacks
+    - Empty directory cleanup
 
 - **`state_manager.py`**:
   - `IStateManager`: Interface for state management
@@ -136,9 +149,12 @@ folder_extractor/
 
 **Purpose**: Shared utility functions
 
-- **`path_validators.py`**: Security validation for paths
-- **`file_validators.py`**: File type and attribute validation
-- **`terminal.py`**: Terminal settings and color support
+- **`path_validators.py`**: Security validation for paths (Desktop/Downloads/Documents only)
+- **`file_validators.py`**: File type validation, temp file detection, system file filtering
+- **`parsers.py`**: Input parsing utilities:
+  - `parse_file_types()`: Parses comma-separated file extensions
+  - `parse_domains()`: Parses and normalizes domain filters
+  - `parse_depth()`: Validates and parses depth parameter
 
 ## Design Patterns Used
 
@@ -202,17 +218,62 @@ class ExtractorAdapter(IExtractor):
         self.enhanced_extractor = enhanced_extractor
 ```
 
+## Deduplication Architecture
+
+The application supports two levels of duplicate detection:
+
+### Content-Based Deduplication (`--deduplicate`)
+
+Detects files with identical content when they have the same name:
+
+```
+Source: folder1/photo.jpg (hash: abc123)
+Target: photo.jpg (hash: abc123)
+Result: Source is deleted (not moved), counted as content duplicate
+```
+
+**Algorithm:**
+1. Check if destination file with same name exists
+2. Calculate SHA256 hash of both files
+3. If hashes match → delete source, skip move
+4. If hashes differ → rename source (`photo_1.jpg`)
+
+### Global Deduplication (`--global-dedup`)
+
+Detects files with identical content anywhere in the target directory:
+
+```
+Source: folder1/vacation.jpg (hash: xyz789)
+Target: exists as photos/beach.jpg (hash: xyz789)
+Result: Source is deleted, counted as global duplicate
+```
+
+**Algorithm:**
+1. Build hash index of ALL files in target directory (Phase 1)
+2. For each source file:
+   - Calculate hash
+   - Check if hash exists in index
+   - If match found → delete source, skip move
+3. Update index after each successful move
+
+**Performance Optimization:**
+- Size-based pre-filtering: Only hash files with matching sizes
+- Chunked reading: 8KB chunks for memory efficiency with large files
+- Abort signal integration: Can cancel long indexing operations
+
 ## Data Flow
 
 1. **User Input** → CLI Parser → Settings Configuration
 2. **Execution Request** → CLI App → Orchestrator
 3. **File Discovery** → FileDiscovery finds files based on criteria
 4. **Validation** → Security and file validators check each file
-5. **File Operations** → FileMover moves files with progress tracking
-6. **State Updates** → StateManager tracks operation progress
-7. **Progress Display** → ConsoleInterface shows real-time progress
-8. **History Saving** → HistoryManager saves operations for undo
-9. **Result Display** → ConsoleInterface shows summary
+5. **Hash Indexing** (if global-dedup) → Build index of existing files
+6. **File Operations** → FileMover moves files with deduplication checks
+7. **State Updates** → StateManager tracks operation progress
+8. **Progress Display** → ConsoleInterface shows real-time progress
+9. **History Saving** → HistoryManager saves operations for undo
+10. **Cleanup** → Remove empty directories
+11. **Result Display** → ConsoleInterface shows summary with duplicate counts
 
 ## Thread Safety
 
@@ -225,12 +286,12 @@ The application ensures thread safety through:
 
 ## Migration Strategy
 
-The architecture supports gradual migration from the monolithic design:
+The architecture maintains backward compatibility:
 
-1. **Backward Compatibility**: Legacy main.py preserved
-2. **Architecture Selection**: Environment variable controls which architecture to use
-3. **Adapters**: Bridge between old and new interfaces
-4. **Settings Migration**: Automatic migration of settings to state manager
+1. **Legacy Function Names**: `main.py` provides wrapper functions with original German names
+2. **History Migration**: Automatic migration from local `.folder_extractor_history.json` to central config
+3. **Settings Migration**: `MigrationHelper` migrates settings to state manager
+4. **Interface Adapters**: Bridge between legacy and enhanced interfaces
 
 ## Testing Strategy
 
@@ -272,8 +333,10 @@ The architecture is designed for extensibility:
 
 The modular architecture enables future enhancements:
 
-1. **GUI Frontend**: Add graphical interface using the same core
-2. **Network Operations**: Add remote file system support
-3. **Plugin System**: Dynamic loading of extensions
-4. **Parallel Processing**: Multi-threaded file operations
-5. **Cloud Integration**: Support for cloud storage providers
+1. **Persistent Configuration**: Save user preferences to config file (planned for v1.4.0)
+2. **Improved Undo for Duplicates**: Restore deduplicated files by copying (planned for v1.4.0)
+3. **GUI Frontend**: Add graphical interface using the same core
+4. **Watch Mode**: Monitor directories and auto-organize new files
+5. **Archive Extraction**: Transparent handling of ZIP/RAR/7z files
+6. **EXIF-based Sorting**: Organize photos by capture date
+7. **Plugin System**: Dynamic loading of extensions

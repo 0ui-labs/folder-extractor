@@ -2,23 +2,37 @@
 
 ## Übersicht
 
-Diese Test Suite dokumentiert und verifiziert das aktuelle Verhalten von Folder Extractor vor der geplanten Refaktorierung.
+Umfassende Test Suite für Folder Extractor mit Unit-, Integration- und Performance-Tests.
 
 ## Test-Struktur
 
 ```
 tests/
-├── unit/                    # Unit Tests für einzelne Funktionen
-│   ├── test_parsing_functions.py
-│   └── test_file_operations.py
-├── integration/             # Integration Tests für Workflows
-│   ├── test_main_functionality.py
-│   ├── test_file_moving.py
-│   ├── test_undo_functionality.py
-│   ├── test_abort_handling.py
-│   ├── test_terminal_handling.py
-│   └── test_edge_cases.py
-└── performance/            # Performance Benchmarks
+├── unit/                           # Unit Tests für einzelne Module
+│   ├── test_cli_app.py             # CLI Application Tests
+│   ├── test_cli_interface.py       # CLI Interface Tests
+│   ├── test_cli_parser.py          # Argument Parser Tests
+│   ├── test_core_extractor.py      # Core Extractor Tests
+│   ├── test_core_extractor_enhanced.py  # Enhanced Extractor Tests
+│   ├── test_core_file_discovery.py # File Discovery Tests
+│   ├── test_core_file_operations.py # File Operations Tests
+│   ├── test_core_state.py          # State Management Tests
+│   ├── test_deep_structures.py     # Deep Directory Tests
+│   ├── test_file_operations.py     # Legacy File Operations
+│   ├── test_global_dedup.py        # Global Deduplication Tests
+│   ├── test_hashing.py             # File Hashing Tests (SHA256)
+│   ├── test_migration.py           # Settings Migration Tests
+│   ├── test_new_parsers.py         # Parser Tests
+│   ├── test_progress.py            # Progress Tracking Tests
+│   ├── test_properties.py          # Property-based Tests
+│   ├── test_settings.py            # Settings Tests
+│   ├── test_state_manager.py       # State Manager Tests
+│   ├── test_validators.py          # Validator Tests
+│   └── test_conftest_fixtures.py   # Fixture Tests
+├── integration/                    # Integration Tests für Workflows
+│   ├── test_backward_compatibility.py  # Rückwärtskompatibilität
+│   └── test_extraction_workflow.py     # End-to-End Workflows
+└── performance/                    # Performance Benchmarks
     └── test_benchmarks.py
 ```
 
@@ -52,22 +66,22 @@ python run_tests.py coverage
 ## Test-Kategorien
 
 ### Unit Tests
-- **Parsing Functions**: Test der Eingabe-Parser für Dateitypen und Domains
-- **File Operations**: Test von Dateioperationen wie eindeutige Namengenerierung
+- **CLI Tests**: Parser, Interface und Application Tests
+- **Core Tests**: Extractor, File Discovery, File Operations
+- **State Management**: State Manager und Progress Tracking
+- **Hashing & Dedup**: SHA256-Hashing und Duplikat-Erkennung
+- **Validators & Parsers**: Eingabe-Validierung und Parsing
+- **Settings & Migration**: Konfiguration und Legacy-Migration
 
 ### Integration Tests
-- **Main Functionality**: Test der Hauptfunktionen (Dateisuche, Sicherheitsvalidierung)
-- **File Moving**: Test des Dateiverschiebens und Sortierens
-- **Undo Functionality**: Test der Undo-Operationen
-- **Abort Handling**: Test der ESC-Taste Abbruchfunktion
-- **Terminal Handling**: Test der Terminal-Einstellungen
-- **Edge Cases**: Test von Spezialfällen (Unicode, große Dateimengen)
+- **Extraction Workflow**: End-to-End Tests des kompletten Workflows
+- **Backward Compatibility**: Tests für Rückwärtskompatibilität
 
 ### Performance Benchmarks
 - Dateisuche in verschiedenen Strukturen
+- Hash-Berechnung für große Dateien
 - Verschieben vieler Dateien
 - Eindeutige Namengenerierung
-- Leere Ordner Bereinigung
 
 ## Wichtige Test-Fixtures
 
