@@ -313,9 +313,9 @@ class TestDeepStructuresRealFilesystem:
 
         return total_files
 
-    def test_real_filesystem_100_levels_no_max_depth(self, tmp_path):
+    def test_real_filesystem_50_levels_no_max_depth(self, tmp_path):
         """
-        FileDiscovery finds all files in a 100-level deep real directory.
+        FileDiscovery finds all files in a 50-level deep real directory.
 
         Purpose:
             Verify that find_files() correctly traverses a moderately deep
@@ -324,14 +324,15 @@ class TestDeepStructuresRealFilesystem:
         Rationale:
             Real filesystem tests catch edge cases that mocking misses:
             OS-specific path length limits, actual I/O behavior, symlink handling.
+            Note: Uses 50 levels (not 100) to avoid PATH_MAX limits on macOS.
 
         Setup:
-            Create a 100-level deep directory structure with 1 file per level.
+            Create a 50-level deep directory structure with 1 file per level.
 
         Expected:
-            All 100 files are found, one from each level.
+            All 50 files are found, one from each level.
         """
-        depth = 100
+        depth = 50
         files_per_level = 1
 
         total_files = self.create_deep_directory_structure(
@@ -346,9 +347,9 @@ class TestDeepStructuresRealFilesystem:
             f"got {len(found_files)}"
         )
 
-    def test_real_filesystem_100_levels_with_max_depth(self, tmp_path):
+    def test_real_filesystem_50_levels_with_max_depth(self, tmp_path):
         """
-        max_depth limits file discovery in real 100-level directory.
+        max_depth limits file discovery in real 50-level directory.
 
         Purpose:
             Verify that max_depth correctly limits traversal depth in a
@@ -357,15 +358,16 @@ class TestDeepStructuresRealFilesystem:
         Rationale:
             Users rely on max_depth to limit operations to specific levels.
             This must work identically on real filesystems as with mocks.
+            Note: Uses 50 levels (not 100) to avoid PATH_MAX limits on macOS.
 
         Setup:
-            Create 100-level deep structure, set max_depth=50.
+            Create 50-level deep structure, set max_depth=25.
 
         Expected:
-            Only files from levels 0-49 are returned (50 files total).
+            Only files from levels 0-24 are returned (25 files total).
         """
-        depth = 100
-        max_depth_limit = 50
+        depth = 50
+        max_depth_limit = 25
         files_per_level = 1
 
         self.create_deep_directory_structure(tmp_path, depth, files_per_level)
@@ -374,7 +376,7 @@ class TestDeepStructuresRealFilesystem:
         found_files = discovery.find_files(tmp_path, max_depth=max_depth_limit)
 
         # max_depth limits descent, but files at depth=max_depth are still processed.
-        # With max_depth=50, files at depths 0-50 are found (51 files).
+        # With max_depth=25, files at depths 0-25 are found (26 files).
         # The condition `current_depth >= max_depth` stops descent but processes
         # current directory first.
         expected_files = (max_depth_limit + 1) * files_per_level

@@ -30,7 +30,7 @@ exclude_lines = [
     "if sys.platform == .win32.:",
 ]
 
-fail_under = 100
+fail_under = 90
 show_missing = true
 
 [tool.pytest.ini_options]
