@@ -63,6 +63,8 @@ settings.local.json
 
 # Private files
 vision/
+tasks/
+
 
 # Hypothesis cache
 .hypothesis/

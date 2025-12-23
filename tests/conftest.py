@@ -2,6 +2,7 @@
 Pytest configuration and shared fixtures
 """
 
+import hashlib
 import shutil
 import sys
 from pathlib import Path
@@ -136,3 +137,29 @@ def reset_global_state():
     yield
     # Also reset after the test to clean up any modifications
     reset_state_manager()
+
+
+# =============================================================================
+# Hashing Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def binary_test_file(temp_dir):
+    """
+    Create a binary test file with known content and pre-computed hash.
+
+    Returns a tuple of (file_path, expected_sha256_hash) for use in
+    hash verification tests.
+
+    Usage:
+        def test_hash(binary_test_file):
+            file_path, expected_hash = binary_test_file
+            result = calculate_hash(file_path)
+            assert result == expected_hash
+    """
+    file_path = Path(temp_dir) / "test_binary.bin"
+    content = b"Test binary content for hashing"
+    file_path.write_bytes(content)
+    expected_hash = hashlib.sha256(content).hexdigest()
+    return str(file_path), expected_hash

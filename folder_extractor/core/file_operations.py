@@ -97,6 +97,43 @@ class IFileOperations(ABC):  # pragma: no cover
         """Determine the folder name for a file type."""
         pass
 
+    @abstractmethod
+    def calculate_file_hash(
+        self, filepath: Union[str, Path], algorithm: str = "sha256"
+    ) -> str:
+        """Calculate the hash of a file.
+
+        Args:
+            filepath: Path to the file to hash
+            algorithm: Hash algorithm to use (default: sha256)
+
+        Returns:
+            Hexadecimal hash string
+        """
+        pass
+
+    @abstractmethod
+    def build_hash_index(
+        self, directory: Union[str, Path], include_all: bool = False
+    ) -> Dict[str, List[Path]]:
+        """Build a hash index of all files in a directory tree.
+
+        Scans the directory recursively and groups files by their content hash.
+        Uses size-based pre-filtering to minimize expensive hash calculations
+        (unless include_all is True).
+
+        Args:
+            directory: Root directory to scan (str or Path)
+            include_all: If True, hash ALL files (for global deduplication).
+                        If False, only hash files with matching sizes (optimization).
+
+        Returns:
+            Dictionary mapping hash values to lists of file paths.
+            If include_all=False: Only includes hashes with multiple files (duplicates).
+            If include_all=True: Includes ALL file hashes.
+        """
+        pass
+
 
 class FileOperations(IFileOperations):
     """Implementation of file operations."""
@@ -271,6 +308,183 @@ class FileOperations(IFileOperations):
         else:
             # No extension
             return NO_EXTENSION_FOLDER
+
+    def calculate_file_hash(
+        self, filepath: Union[str, Path], algorithm: str = "sha256"
+    ) -> str:
+        """
+        Calculate the hash of a file using the specified algorithm.
+
+        Reads the file in chunks to minimize memory usage, making it suitable
+        for large files (e.g., videos).
+
+        Args:
+            filepath: Path to the file to hash (str or Path)
+            algorithm: Hash algorithm to use (default: "sha256")
+                       Supported: "md5", "sha1", "sha256", "sha512", etc.
+
+        Returns:
+            Hexadecimal hash string
+
+        Raises:
+            FileOperationError: If file doesn't exist, is not readable,
+                               or is a directory
+            ValueError: If algorithm is not supported
+
+        Example:
+            >>> ops = FileOperations()
+            >>> hash_value = ops.calculate_file_hash("video.mp4")
+            >>> print(hash_value)
+            'a1b2c3d4...'
+        """
+        # Convert to Path object
+        file_path = Path(filepath)
+
+        # Validate file exists
+        if not file_path.exists():
+            raise FileOperationError(f"Datei existiert nicht: {file_path}")
+
+        # Validate it's a file, not a directory
+        if file_path.is_dir():
+            raise FileOperationError(
+                f"Pfad ist ein Verzeichnis, keine Datei: {file_path}"
+            )
+
+        # Create hash object - ValueError is raised by hashlib for invalid algorithms
+        try:
+            hash_obj = hashlib.new(algorithm)
+        except ValueError as e:
+            raise ValueError(f"Ungültiger Hash-Algorithmus: {algorithm}") from e
+
+        # Read file in chunks and update hash
+        chunk_size = 8192  # 8KB chunks - optimal for I/O performance
+
+        try:
+            with file_path.open("rb") as f:
+                while True:
+                    chunk = f.read(chunk_size)
+                    if not chunk:
+                        break
+                    hash_obj.update(chunk)
+        except PermissionError as e:
+            raise FileOperationError(
+                f"Keine Berechtigung zum Lesen der Datei: {file_path}"
+            ) from e
+        except OSError as e:
+            raise FileOperationError(
+                f"Fehler beim Lesen der Datei: {file_path} - {e}"
+            ) from e
+
+        return hash_obj.hexdigest()
+
+    def build_hash_index(
+        self, directory: Union[str, Path], include_all: bool = False
+    ) -> Dict[str, List[Path]]:
+        """
+        Build a hash index of all files in a directory tree.
+
+        Scans the directory recursively and groups files by their content hash.
+        Uses size-based pre-filtering to minimize expensive hash calculations
+        (unless include_all is True).
+
+        Args:
+            directory: Root directory to scan (str or Path)
+            include_all: If True, hash ALL files (for global deduplication).
+                        If False, only hash files with matching sizes (optimization).
+
+        Returns:
+            Dictionary mapping hash values to lists of file paths.
+            If include_all=False: Only includes hashes with multiple files (duplicates).
+            If include_all=True: Includes ALL file hashes.
+            Example: {"abc123...": [Path("/path/file1.txt"), Path("/path/file2.txt")]}
+
+        Raises:
+            FileOperationError: If directory doesn't exist, is not readable,
+                               or is not a directory
+
+        Example:
+            >>> ops = FileOperations()
+            >>> index = ops.build_hash_index("/media/photos")
+            >>> # Find all duplicate groups
+            >>> duplicates = {h: paths for h, paths in index.items() if len(paths) > 1}
+            >>> print(f"Found {len(duplicates)} groups of duplicates")
+        """
+        from collections import defaultdict
+
+        # Convert to Path object
+        dir_path = Path(directory)
+
+        # Validate directory exists
+        if not dir_path.exists():
+            raise FileOperationError(f"Verzeichnis existiert nicht: {dir_path}")
+
+        # Validate it's a directory, not a file
+        if not dir_path.is_dir():
+            raise FileOperationError(
+                f"Pfad ist eine Datei, kein Verzeichnis: {dir_path}"
+            )
+
+        # Check if we can read the directory
+        try:
+            # Try to list the directory to check permissions
+            next(dir_path.iterdir(), None)
+        except PermissionError as e:
+            raise FileOperationError(
+                f"Keine Leseberechtigung für Verzeichnis: {dir_path}"
+            ) from e
+
+        # Phase 1: Group files by size (fast metadata operation)
+        size_groups: Dict[int, List[Path]] = defaultdict(list)
+
+        try:
+            for path in dir_path.rglob("*"):
+                # Check abort signal
+                if self.abort_signal and self.abort_signal.is_set():
+                    break
+
+                # Skip directories
+                if not path.is_file():
+                    continue
+
+                try:
+                    size = path.stat().st_size
+                    size_groups[size].append(path)
+                except OSError:
+                    # Skip files we can't access (permissions, deleted, etc.)
+                    continue
+        except PermissionError as e:
+            raise FileOperationError(
+                f"Keine Leseberechtigung für Verzeichnis: {dir_path}"
+            ) from e
+
+        # Phase 2: Hash files based on include_all flag
+        hash_index: Dict[str, List[Path]] = defaultdict(list)
+
+        for _size, paths in size_groups.items():
+            # Skip sizes with only one file if not including all
+            # (no duplicates possible for unique sizes)
+            if not include_all and len(paths) == 1:
+                continue
+
+            # Check abort signal
+            if self.abort_signal and self.abort_signal.is_set():
+                break
+
+            for path in paths:
+                try:
+                    hash_value = self.calculate_file_hash(path)
+                    hash_index[hash_value].append(path)
+                except FileOperationError:
+                    # Skip files that became unreadable (deleted, permissions changed)
+                    continue
+
+        # Return based on include_all flag
+        if include_all:
+            # Return ALL hashes (for global deduplication)
+            return dict(hash_index)
+        else:
+            # Filter to only include hashes with multiple files (actual duplicates)
+            return {h: paths for h, paths in hash_index.items() if len(paths) > 1}
 
 
 class HistoryManager:
@@ -471,16 +685,23 @@ class HistoryManager:
 class FileMover:
     """High-level file moving operations."""
 
-    def __init__(self, file_ops: IFileOperations, abort_signal=None):
+    def __init__(
+        self,
+        file_ops: IFileOperations,
+        abort_signal=None,
+        indexing_callback=None,
+    ):
         """
         Initialize file mover.
 
         Args:
             file_ops: File operations implementation
             abort_signal: Threading event to signal abort
+            indexing_callback: Callback for "start"/"end" during indexing
         """
         self.file_ops = file_ops
         self.abort_signal = abort_signal
+        self.indexing_callback = indexing_callback
 
     def move_files(
         self,
@@ -488,7 +709,13 @@ class FileMover:
         destination: Union[str, Path],
         dry_run: bool = False,
         progress_callback=None,
-    ) -> Tuple[int, int, int, List[Dict]]:
+        deduplicate: bool = False,
+        global_dedup: bool = False,
+    ) -> Union[
+        Tuple[int, int, int, List[Dict]],
+        Tuple[int, int, int, int, List[Dict]],
+        Tuple[int, int, int, int, int, List[Dict]],
+    ]:
         """
         Move multiple files to destination.
 
@@ -497,9 +724,17 @@ class FileMover:
             destination: Destination directory (str or Path)
             dry_run: If True, simulate the operation
             progress_callback: Optional callback for progress updates
+            deduplicate: If True, skip files with identical content (via hash)
+                        when destination has same-named file with identical content
+            global_dedup: If True, skip files whose content already exists
+                         ANYWHERE in the destination tree (regardless of filename)
 
         Returns:
-            Tuple of (moved_count, error_count, duplicate_count, history)
+            Tuple of counts and history. Contents depend on flags:
+            - global_dedup: (moved, errors, name_dups, content_dups,
+                            global_dups, history)
+            - deduplicate: (moved, errors, duplicates, content_dups, history)
+            - default: (moved, errors, duplicates, history)
         """
         # Convert destination to Path
         dest_path = Path(destination)
@@ -507,7 +742,26 @@ class FileMover:
         moved = 0
         errors = 0
         duplicates = 0
+        content_duplicates = 0
+        global_duplicates = 0
         history = []
+
+        # Build hash index for global deduplication
+        hash_index: Dict[str, List[Path]] = {}
+        if global_dedup:
+            try:
+                # Signal indexing start
+                if self.indexing_callback:
+                    self.indexing_callback("start")
+                # Get all existing hashes in destination for dedup
+                hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
+            except FileOperationError:
+                # If we can't build index, continue without global dedup
+                pass
+            finally:
+                # Signal indexing end
+                if self.indexing_callback:
+                    self.indexing_callback("end")
 
         for i, file_path in enumerate(files):  # pragma: no branch
             # Check abort signal
@@ -524,7 +778,77 @@ class FileMover:
             try:
                 filename = source_path.name
 
-                # Generate unique name if needed
+                # Skip files already at destination level (no move needed)
+                source_parent = source_path.parent.resolve()
+                source_is_at_destination = source_parent == dest_path.resolve()
+                if source_is_at_destination:
+                    # File is already where it needs to be, skip processing
+                    continue
+
+                existing_dest = dest_path / filename
+
+                # Content duplicate check - BEFORE global dedup when same name
+                # Same name + same content = content duplicate (not global)
+                if existing_dest.exists() and deduplicate:
+                    # Try hash comparison for deduplication
+                    try:
+                        source_hash = self.file_ops.calculate_file_hash(source_path)
+                        dest_hash = self.file_ops.calculate_file_hash(existing_dest)
+
+                        if source_hash == dest_hash:
+                            # Identical content - skip move, delete source
+                            content_duplicates += 1
+                            if not dry_run:
+                                source_path.unlink()
+                                history.append(
+                                    {
+                                        "original_pfad": str(source_path),
+                                        "neuer_pfad": str(existing_dest),
+                                        "original_name": filename,
+                                        "neuer_name": filename,
+                                        "zeitstempel": datetime.now().isoformat(),
+                                        "content_duplicate": True,
+                                    }
+                                )
+                            continue
+                    except (FileOperationError, OSError):
+                        # Hash calculation failed - fall back to rename behavior
+                        pass
+
+                # Global dedup check - AFTER content duplicate check
+                # Only runs when no file with same name exists
+                # Catches files with different names but matching content
+                if global_dedup and not existing_dest.exists():
+                    try:
+                        source_hash = self.file_ops.calculate_file_hash(source_path)
+                        if source_hash in hash_index:
+                            # Check content in DIFFERENT file (not source)
+                            matching_files = [
+                                p
+                                for p in hash_index[source_hash]
+                                if p.resolve() != source_path.resolve()
+                            ]
+                            if matching_files:
+                                # Content in another file = global duplicate
+                                global_duplicates += 1
+                                if not dry_run:
+                                    source_path.unlink()
+                                    history.append(
+                                        {
+                                            "original_pfad": str(source_path),
+                                            "neuer_pfad": str(matching_files[0]),
+                                            "original_name": filename,
+                                            "neuer_name": matching_files[0].name,
+                                            "zeitstempel": datetime.now().isoformat(),
+                                            "global_duplicate": True,
+                                        }
+                                    )
+                                continue
+                    except FileOperationError:
+                        # Hash calculation failed - continue with normal move
+                        pass
+
+                # Generate unique name if needed (normal duplicate handling)
                 unique_name = self.file_ops.generate_unique_name(dest_path, filename)
                 if unique_name != filename:
                     duplicates += 1
@@ -536,6 +860,14 @@ class FileMover:
                     source_path, final_dest, dry_run
                 ):  # pragma: no branch
                     moved += 1
+
+                    # Update hash index for subsequent files
+                    if global_dedup and not dry_run:
+                        try:
+                            file_hash = self.file_ops.calculate_file_hash(final_dest)
+                            hash_index.setdefault(file_hash, []).append(final_dest)
+                        except FileOperationError:
+                            pass
 
                     # Record in history (use strings for JSON serialization)
                     if not dry_run:
@@ -554,6 +886,18 @@ class FileMover:
                 if progress_callback:  # pragma: no branch
                     progress_callback(i + 1, len(files), file_path, error=str(e))
 
+        # Return appropriate tuple based on flags
+        if global_dedup:
+            return (
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                global_duplicates,
+                history,
+            )
+        if deduplicate:
+            return moved, errors, duplicates, content_duplicates, history
         return moved, errors, duplicates, history
 
     def move_files_sorted(
@@ -563,7 +907,13 @@ class FileMover:
         dry_run: bool = False,
         progress_callback=None,
         folder_override_callback=None,
-    ) -> Tuple[int, int, int, List[Dict], List[str]]:
+        deduplicate: bool = False,
+        global_dedup: bool = False,
+    ) -> Union[
+        Tuple[int, int, int, List[Dict], List[str]],
+        Tuple[int, int, int, int, List[Dict], List[str]],
+        Tuple[int, int, int, int, int, List[Dict], List[str]],
+    ]:
         """
         Move files sorted by type into subdirectories.
 
@@ -574,9 +924,18 @@ class FileMover:
             progress_callback: Optional callback for progress updates
             folder_override_callback: Optional callback(filepath) -> folder_name
                                      If provided, can override the default folder name
+            deduplicate: If True, skip files with identical content (via hash)
+                        when destination has same-named file with identical content
+            global_dedup: If True, skip files whose content already exists
+                         ANYWHERE in the destination tree (regardless of filename)
 
         Returns:
-            Tuple of (moved, errors, duplicates, history, created_folders)
+            Tuple of counts and history. Contents depend on flags:
+            - global_dedup: (moved, errors, name_dups, content_dups,
+                            global_dups, history, created_folders)
+            - deduplicate: (moved, errors, duplicates, content_dups,
+                           history, created_folders)
+            - default: (moved, errors, duplicates, history, created_folders)
         """
         # Convert destination to Path
         dest_path = Path(destination)
@@ -584,8 +943,27 @@ class FileMover:
         moved = 0
         errors = 0
         duplicates = 0
+        content_duplicates = 0
+        global_duplicates = 0
         history = []
         created_folders = set()
+
+        # Build hash index for global deduplication
+        hash_index: Dict[str, List[Path]] = {}
+        if global_dedup:
+            try:
+                # Signal indexing start
+                if self.indexing_callback:
+                    self.indexing_callback("start")
+                # Get all existing hashes in destination for dedup
+                hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
+            except FileOperationError:
+                # If we can't build index, continue without global dedup
+                pass
+            finally:
+                # Signal indexing end
+                if self.indexing_callback:
+                    self.indexing_callback("end")
 
         for i, file_path in enumerate(files):  # pragma: no branch
             # Check abort signal
@@ -602,7 +980,31 @@ class FileMover:
             try:
                 filename = source_path.name
 
-                # Determine type folder - check override callback first
+                # Skip files already in their correct type folder
+                # (already sorted, should not be moved or deduped)
+                source_parent = source_path.parent.resolve()
+                source_is_at_destination = source_parent == dest_path.resolve()
+
+                # Check if file is already in the correct type folder
+                source_is_in_correct_type_folder = False
+                if not source_is_at_destination:
+                    parent_folder_name = source_path.parent.name
+                    file_extension = source_path.suffix.lower()
+                    type_folder = FILE_TYPE_FOLDERS.get(file_extension, "OTHER")
+                    source_grandparent = source_parent.parent.resolve()
+                    # File is in correct type folder if:
+                    # 1. Parent folder name matches expected type folder
+                    # 2. Parent's parent is destination (direct child folder)
+                    source_is_in_correct_type_folder = (
+                        parent_folder_name == type_folder
+                        and source_grandparent == dest_path.resolve()
+                    )
+
+                if source_is_at_destination or source_is_in_correct_type_folder:
+                    # Already at destination or in correct folder, skip
+                    continue
+
+                # Determine type folder first - needed for dedup checks
                 type_folder = None
                 if folder_override_callback:
                     type_folder = folder_override_callback(source_path)
@@ -618,6 +1020,68 @@ class FileMover:
                     type_path.mkdir(parents=True, exist_ok=True)
                     created_folders.add(type_folder)
 
+                existing_dest = type_path / filename
+
+                # Check if destination file exists and deduplicate is enabled
+                if existing_dest.exists() and deduplicate:
+                    # Try hash comparison for deduplication
+                    try:
+                        source_hash = self.file_ops.calculate_file_hash(source_path)
+                        dest_hash = self.file_ops.calculate_file_hash(existing_dest)
+
+                        if source_hash == dest_hash:
+                            # Identical content - skip move, delete source
+                            content_duplicates += 1
+                            if not dry_run:
+                                source_path.unlink()
+                                history.append(
+                                    {
+                                        "original_pfad": str(source_path),
+                                        "neuer_pfad": str(existing_dest),
+                                        "original_name": filename,
+                                        "neuer_name": filename,
+                                        "zeitstempel": datetime.now().isoformat(),
+                                        "content_duplicate": True,
+                                    }
+                                )
+                            continue
+                    except (FileOperationError, OSError):
+                        # Hash calculation failed - fall back to rename behavior
+                        pass
+
+                # Global dedup check - AFTER content duplicate check
+                # Only runs when no file with same name exists
+                # Catches files with different names but matching content
+                if global_dedup and not existing_dest.exists():
+                    try:
+                        source_hash = self.file_ops.calculate_file_hash(source_path)
+                        if source_hash in hash_index:
+                            # Check content in DIFFERENT file (not source)
+                            matching_files = [
+                                p
+                                for p in hash_index[source_hash]
+                                if p.resolve() != source_path.resolve()
+                            ]
+                            if matching_files:
+                                # Content in another file = global duplicate
+                                global_duplicates += 1
+                                if not dry_run:
+                                    source_path.unlink()
+                                    history.append(
+                                        {
+                                            "original_pfad": str(source_path),
+                                            "neuer_pfad": str(matching_files[0]),
+                                            "original_name": filename,
+                                            "neuer_name": matching_files[0].name,
+                                            "zeitstempel": datetime.now().isoformat(),
+                                            "global_duplicate": True,
+                                        }
+                                    )
+                                continue
+                    except FileOperationError:
+                        # Hash calculation failed - continue with normal move
+                        pass
+
                 # Generate unique name
                 unique_name = self.file_ops.generate_unique_name(type_path, filename)
                 if unique_name != filename:
@@ -630,6 +1094,14 @@ class FileMover:
                     source_path, final_dest, dry_run
                 ):  # pragma: no branch
                     moved += 1
+
+                    # Update hash index for subsequent files
+                    if global_dedup and not dry_run:
+                        try:
+                            file_hash = self.file_ops.calculate_file_hash(final_dest)
+                            hash_index.setdefault(file_hash, []).append(final_dest)
+                        except FileOperationError:
+                            pass
 
                     # Record in history (use strings for JSON serialization)
                     if not dry_run:
@@ -648,4 +1120,18 @@ class FileMover:
                 if progress_callback:  # pragma: no branch
                     progress_callback(i + 1, len(files), file_path, error=str(e))
 
-        return moved, errors, duplicates, history, list(created_folders)
+        # Return appropriate tuple based on flags
+        folders = list(created_folders)
+        if global_dedup:
+            return (
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                global_duplicates,
+                history,
+                folders,
+            )
+        if deduplicate:
+            return (moved, errors, duplicates, content_duplicates, history, folders)
+        return moved, errors, duplicates, history, folders

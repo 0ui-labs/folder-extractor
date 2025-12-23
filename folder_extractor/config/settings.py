@@ -25,6 +25,8 @@ class Settings:
             "max_depth": 0,
             "include_hidden": False,
             "sort_by_type": False,
+            "deduplicate": False,
+            "global_dedup": False,
             # Filtering
             "file_type_filter": None,
             "domain_filter": None,
@@ -89,6 +91,14 @@ class Settings:
         return self._settings["sort_by_type"]
 
     @property
+    def deduplicate(self) -> bool:
+        return self._settings["deduplicate"]
+
+    @property
+    def global_dedup(self) -> bool:
+        return self._settings["global_dedup"]
+
+    @property
     def file_type_filter(self) -> Optional[list]:
         return self._settings["file_type_filter"]
 
@@ -107,6 +117,8 @@ def configure_from_args(args) -> None:
     settings.set("max_depth", args.depth)
     settings.set("include_hidden", args.include_hidden)
     settings.set("sort_by_type", args.sort_by_type)
+    settings.set("deduplicate", args.deduplicate)
+    settings.set("global_dedup", getattr(args, "global_dedup", False))
 
     # Parse filters
     if args.type:

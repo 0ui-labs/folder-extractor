@@ -65,7 +65,7 @@ class TestConsoleInterface:
             if call.args:
                 arg = call.args[0]
                 # Should be string or simple renderable, not Panel
-                assert not hasattr(arg, 'renderable'), "Panel-like object detected"
+                assert not hasattr(arg, "renderable"), "Panel-like object detected"
 
     def test_show_welcome_contains_exact_version(self, mock_console_class):
         """Test welcome message contains exact version from constants."""
@@ -93,7 +93,7 @@ class TestConsoleInterface:
         call_args = mock_console.print.call_args
         output = str(call_args[0][0])
         # Count consecutive dashes - should have at least 20
-        dash_count = output.count('-')
+        dash_count = output.count("-")
         assert dash_count >= 20, (
             f"Separator should have at least 20 dashes, found {dash_count}"
         )
@@ -111,7 +111,7 @@ class TestConsoleInterface:
             if call.args:
                 arg = call.args[0]
                 # Should not have padding attribute (Padding objects have this)
-                assert not hasattr(arg, 'pad'), "Padding object detected"
+                assert not hasattr(arg, "pad"), "Padding object detected"
                 # Argument should be a string, not a rich Padding wrapper
                 assert isinstance(arg, str), (
                     f"Expected string output, got {type(arg).__name__}"
@@ -416,8 +416,7 @@ class TestConsoleInterface:
                 # Check TextColumn calls - should NOT have a " " (space-only) column
                 text_col_calls = [str(call) for call in mock_text_col.call_args_list]
                 padding_column_used = any(
-                    "(' ',)" in call or '(" ",)' in call
-                    for call in text_col_calls
+                    "(' ',)" in call or '(" ",)' in call for call in text_col_calls
                 )
                 assert not padding_column_used, (
                     f"Padding TextColumn detected in: {text_col_calls}"
@@ -736,9 +735,7 @@ class TestConsoleInterface:
         assert "[green][+][/green]" in moved_line, (
             f"Missing green color codes for [+] symbol in: {moved_line}"
         )
-        assert "Verschoben:" in moved_line, (
-            f"Missing 'Verschoben:' in: {moved_line}"
-        )
+        assert "Verschoben:" in moved_line, f"Missing 'Verschoben:' in: {moved_line}"
         assert "[green]15[/green]" in moved_line, (
             f"Missing green color codes for count in: {moved_line}"
         )
@@ -748,9 +745,7 @@ class TestConsoleInterface:
         assert "[yellow][!][/yellow]" in dupes_line, (
             f"Missing yellow color codes for [!] symbol in: {dupes_line}"
         )
-        assert "Duplikate:" in dupes_line, (
-            f"Missing 'Duplikate:' in: {dupes_line}"
-        )
+        assert "Duplikate:" in dupes_line, f"Missing 'Duplikate:' in: {dupes_line}"
         assert "[yellow]3[/yellow]" in dupes_line, (
             f"Missing yellow color codes for count in: {dupes_line}"
         )
@@ -760,9 +755,7 @@ class TestConsoleInterface:
         assert "[red][x][/red]" in errors_line, (
             f"Missing red color codes for [x] symbol in: {errors_line}"
         )
-        assert "Fehler:" in errors_line, (
-            f"Missing 'Fehler:' in: {errors_line}"
-        )
+        assert "Fehler:" in errors_line, f"Missing 'Fehler:' in: {errors_line}"
         assert "[red]1[/red]" in errors_line, (
             f"Missing red color codes for count in: {errors_line}"
         )
@@ -790,8 +783,8 @@ class TestConsoleInterface:
             if call.args:
                 arg = call.args[0]
                 # Should be string, not Table
-                assert not hasattr(arg, 'add_row'), "Table-like object detected"
-                assert not hasattr(arg, 'add_column'), "Table-like object detected"
+                assert not hasattr(arg, "add_row"), "Table-like object detected"
+                assert not hasattr(arg, "add_column"), "Table-like object detected"
 
     def test_show_summary_success_shows_created_folders(self, mock_console_class):
         """Test successful summary shows created folders."""
@@ -875,6 +868,270 @@ class TestConsoleInterface:
         assert "PDF" in call_args_str
         assert "2" in call_args_str
 
+    def test_show_summary_success_shows_content_duplicates(self, mock_console_class):
+        """Test successful summary shows content duplicates when present."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "content_duplicates": 5,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show cyan symbol and label for local content duplicates
+        assert "[cyan][~][/cyan]" in call_args_str
+        assert "Lokale Inhalts-Duplikate" in call_args_str
+        assert "[cyan]5[/cyan]" in call_args_str
+
+    def test_show_summary_success_no_content_duplicates_when_zero(
+        self, mock_console_class
+    ):
+        """Test summary hides content duplicates line when count is zero."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 2,
+            "content_duplicates": 0,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show content duplicates symbol when count is 0
+        assert "[~]" not in call_args_str
+
+    def test_show_summary_success_no_content_duplicates_key_missing(
+        self, mock_console_class
+    ):
+        """Test summary handles missing content_duplicates key gracefully."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 2,
+            "errors": 0,
+            # No content_duplicates key
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show content duplicates symbol when key missing
+        assert "[~]" not in call_args_str
+
+    def test_show_summary_content_duplicates_appears_between_name_and_errors(
+        self, mock_console_class
+    ):
+        """Test content duplicates line appears in correct position in summary."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "name_duplicates": 2,
+            "content_duplicates": 5,
+            "errors": 1,
+        }
+        interface.show_summary(results)
+
+        # Get all print calls in order
+        print_calls = mock_console.print.call_args_list
+        printed_strings = [str(call.args[0]) for call in print_calls if call.args]
+
+        # Find positions of key lines
+        name_dupes_idx = None
+        content_dupes_idx = None
+        fehler_idx = None
+
+        for idx, line in enumerate(printed_strings):
+            if "Namens-Duplikate" in line:
+                name_dupes_idx = idx
+            if "Lokale Inhalts-Duplikate" in line:
+                content_dupes_idx = idx
+            if "Fehler:" in line:
+                fehler_idx = idx
+
+        # Verify order: Namens-Duplikate < Lokale Inhalts < Fehler
+        assert name_dupes_idx is not None, "Namens-Duplikate line not found"
+        assert content_dupes_idx is not None, "Lokale Inhalts-Duplikate line not found"
+        assert fehler_idx is not None, "Fehler line not found"
+        assert name_dupes_idx < content_dupes_idx < fehler_idx, (
+            f"Wrong order: Namens@{name_dupes_idx}, "
+            f"Lokale@{content_dupes_idx}, Fehler@{fehler_idx}"
+        )
+
+    def test_show_summary_shows_three_separate_duplicate_categories(
+        self, mock_console_class
+    ):
+        """Test summary displays name, content, and global duplicates separately."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "name_duplicates": 3,
+            "content_duplicates": 5,
+            "global_duplicates": 2,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show all three duplicate types
+        assert "Namens-Duplikate" in call_args_str
+        assert "3" in call_args_str
+        assert "Lokale Inhalts-Duplikate" in call_args_str
+        assert "5" in call_args_str
+        assert "Globale Inhalts-Duplikate" in call_args_str
+        assert "2" in call_args_str
+
+    def test_show_summary_hides_zero_duplicate_categories(self, mock_console_class):
+        """Test summary hides duplicate categories when count is zero."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "name_duplicates": 0,
+            "content_duplicates": 5,
+            "global_duplicates": 0,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show zero categories
+        assert "Namens-Duplikate" not in call_args_str
+        assert "Globale Inhalts-Duplikate" not in call_args_str
+        # Should show non-zero category
+        assert "Lokale Inhalts-Duplikate" in call_args_str
+        assert "5" in call_args_str
+
+    def test_show_summary_backward_compat_with_old_duplicates_key(
+        self, mock_console_class
+    ):
+        """Test summary falls back to 'duplicates' key when new keys are missing."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 7,  # Old-style key, no breakdown
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show generic duplicates
+        assert "Duplikate" in call_args_str
+        assert "7" in call_args_str
+
+    def test_show_summary_no_duplicates_when_all_zero(self, mock_console_class):
+        """Test summary shows no duplicate lines when all counts are zero."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "name_duplicates": 0,
+            "content_duplicates": 0,
+            "global_duplicates": 0,
+            "duplicates": 0,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show any duplicate lines
+        assert "Duplikate" not in call_args_str
+        assert "Namens-Duplikate" not in call_args_str
+        assert "Inhalts-Duplikate" not in call_args_str
+
+
+@patch("folder_extractor.cli.interface.Console")
+class TestIndexingSpinner:
+    """Tests for indexing spinner functionality."""
+
+    def test_show_indexing_spinner_displays_message(self, mock_console_class):
+        """Test indexing spinner shows the indexing message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+            interface.show_indexing_spinner()
+
+            # Should create Progress with spinner
+            mock_progress_class.assert_called_once()
+            mock_progress.start.assert_called_once()
+            # Should add task with indexing message
+            mock_progress.add_task.assert_called_once()
+            call_args = mock_progress.add_task.call_args
+            assert (
+                "Indiziere" in call_args[0][0] or "indiziere" in str(call_args).lower()
+            )
+
+    def test_hide_indexing_spinner_stops_progress(self, mock_console_class):
+        """Test hiding indexing spinner stops the progress display."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+            interface.show_indexing_spinner()
+            interface.hide_indexing_spinner()
+
+            mock_progress.stop.assert_called_once()
+
+    def test_hide_indexing_spinner_safe_when_not_started(self, mock_console_class):
+        """Test hiding indexing spinner is safe when never started."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        # Should not raise when spinner was never started
+        interface.hide_indexing_spinner()
+
+    def test_show_indexing_spinner_quiet_mode(self, mock_console_class):
+        """Test indexing spinner not shown in quiet mode."""
+        settings.set("quiet", True)
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            interface = ConsoleInterface()
+            interface.show_indexing_spinner()
+
+            # Progress should not be initialized in quiet mode
+            mock_progress_class.assert_not_called()
+
 
 @patch("folder_extractor.cli.interface.Console")
 def test_create_console_interface(mock_console_class):
@@ -912,6 +1169,25 @@ class TestConsoleInterfaceStyles:
         assert interface.error_style is not None
         assert interface.warning_style is not None
         assert interface.info_style is not None
+
+    def test_dedupe_style_exists_and_is_cyan(self, mock_console_class):
+        """Test dedupe_style exists with cyan color and no modifiers."""
+        mock_console_class.return_value = MagicMock()
+
+        interface = ConsoleInterface()
+
+        # dedupe_style should exist
+        assert hasattr(interface, "dedupe_style")
+        assert interface.dedupe_style is not None
+
+        # Style should have cyan color
+        style = interface.dedupe_style
+        assert style.color is not None
+        assert style.color.name == "cyan"
+
+        # Style should NOT have bold or dim modifiers (minimalist)
+        assert style.bold is not True, "dedupe_style should not be bold"
+        assert style.dim is not True, "dedupe_style should not be dim"
 
 
 @patch("folder_extractor.cli.interface.Console")

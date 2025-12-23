@@ -24,6 +24,7 @@ class MigrationHelper:
             "max_depth": settings.get("max_depth", 0),
             "include_hidden": settings.get("include_hidden", False),
             "sort_by_type": settings.get("sort_by_type", False),
+            "deduplicate": settings.get("deduplicate", False),
             "file_type_filter": settings.get("file_type_filter"),
             "domain_filter": settings.get("domain_filter"),
         }

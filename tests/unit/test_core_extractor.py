@@ -123,14 +123,16 @@ class TestEnhancedFileExtractor:
         """Test extraction in dry run mode."""
         settings.set("dry_run", True)
 
-        # Create source file
-        source_file = tmp_path / "source.txt"
+        # Create source file in subdirectory (files at root are skipped as "already at destination")
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        source_file = subdir / "source.txt"
         source_file.touch()
 
-        # Extract
+        # Extract - destination is tmp_path (root)
         result = self.extractor.extract_files([str(source_file)], tmp_path)
 
-        # File should still exist in original location
+        # File should still exist in original location (dry run = no actual move)
         assert source_file.exists()
         assert result["moved"] == 1
         assert len(result["history"]) == 0  # No history in dry run

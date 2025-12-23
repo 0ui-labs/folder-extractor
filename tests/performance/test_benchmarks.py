@@ -159,7 +159,7 @@ class TestFileDiscoveryPerformance:
         """Benchmark finding files in 100-level deep structure."""
         with tempfile.TemporaryDirectory() as temp_dir:
             print("\nCreating 100-level deep structure...")
-            created = create_deep_linear_structure(temp_dir, depth=100, files_per_level=5)
+            create_deep_linear_structure(temp_dir, depth=100, files_per_level=5)
 
             with BenchmarkTimer("Find files (100 levels deep)"):
                 files = finde_dateien(temp_dir, max_tiefe=0)
@@ -172,7 +172,7 @@ class TestFileDiscoveryPerformance:
         """Benchmark finding files in 200-level deep structure."""
         with tempfile.TemporaryDirectory() as temp_dir:
             print("\nCreating 200-level deep structure...")
-            created = create_deep_linear_structure(temp_dir, depth=200, files_per_level=5)
+            create_deep_linear_structure(temp_dir, depth=200, files_per_level=5)
 
             with BenchmarkTimer("Find files (200 levels deep)"):
                 files = finde_dateien(temp_dir, max_tiefe=0)
@@ -192,13 +192,17 @@ class TestFileDiscoveryPerformance:
             # Use 150 levels - safe for PATH_MAX while demonstrating iterative approach
             depth = 150
             print(f"\nCreating {depth}-level deep structure...")
-            print(f"(Python recursion limit: {sys.getrecursionlimit()}, but PATH_MAX is the real limit)")
-            created = create_deep_linear_structure(temp_dir, depth=depth, files_per_level=5)
+            print(
+                f"(Python recursion limit: {sys.getrecursionlimit()}, but PATH_MAX is the real limit)"
+            )
+            create_deep_linear_structure(temp_dir, depth=depth, files_per_level=5)
 
             with BenchmarkTimer(f"Find files ({depth} levels deep - iterative)"):
                 files = finde_dateien(temp_dir, max_tiefe=0)
 
-            assert len(files) == depth * 5, f"Expected {depth * 5} files, got {len(files)}"
+            assert len(files) == depth * 5, (
+                f"Expected {depth * 5} files, got {len(files)}"
+            )
             print(f"✓ Iterative os.walk() successfully handled {depth} levels")
             print(f"✓ Found {len(files)} files without RecursionError")
 
@@ -207,8 +211,12 @@ class TestFileDiscoveryPerformance:
         """Benchmark max_depth parameter efficiency on deep structure."""
         with tempfile.TemporaryDirectory() as temp_dir:
             structure_depth = 150
-            print(f"\nBenchmarking max_depth parameter on {structure_depth}-level structure...")
-            created = create_deep_linear_structure(temp_dir, depth=structure_depth, files_per_level=5)
+            print(
+                f"\nBenchmarking max_depth parameter on {structure_depth}-level structure..."
+            )
+            create_deep_linear_structure(
+                temp_dir, depth=structure_depth, files_per_level=5
+            )
 
             # Test various max_depth values
             depth_values = [10, 50, 100, 0]  # 0 = unlimited
@@ -220,7 +228,9 @@ class TestFileDiscoveryPerformance:
                     files = finde_dateien(temp_dir, max_tiefe=depth)
 
                 expected = structure_depth * 5 if depth == 0 else depth * 5
-                assert len(files) == expected, f"max_depth={depth}: expected {expected}, got {len(files)}"
+                assert len(files) == expected, (
+                    f"max_depth={depth}: expected {expected}, got {len(files)}"
+                )
                 print(f"  max_depth={depth_label}: {len(files)} files found")
                 results.append((depth_label, len(files)))
 
@@ -240,7 +250,9 @@ class TestFileDiscoveryPerformance:
 
         # Flat structure: 100 subdirectories with 5 files each (depth 1)
         with tempfile.TemporaryDirectory() as temp_dir:
-            print(f"Creating flat structure ({levels} folders × {files_per_level} files, depth 1)...")
+            print(
+                f"Creating flat structure ({levels} folders × {files_per_level} files, depth 1)..."
+            )
             for folder_idx in range(levels):
                 folder = Path(temp_dir) / f"f{folder_idx}"
                 folder.mkdir()
@@ -250,18 +262,26 @@ class TestFileDiscoveryPerformance:
             with BenchmarkTimer("Find files (flat structure)") as flat_timer:
                 flat_files = finde_dateien(temp_dir, max_tiefe=0)
 
-            assert len(flat_files) == total_files, f"Flat: expected {total_files}, got {len(flat_files)}"
+            assert len(flat_files) == total_files, (
+                f"Flat: expected {total_files}, got {len(flat_files)}"
+            )
             flat_time = flat_timer.duration
 
         # Deep structure: 100 levels with 5 files each
         with tempfile.TemporaryDirectory() as temp_dir:
-            print(f"Creating deep structure ({levels} levels × {files_per_level} files)...")
-            created = create_deep_linear_structure(temp_dir, depth=levels, files_per_level=files_per_level)
+            print(
+                f"Creating deep structure ({levels} levels × {files_per_level} files)..."
+            )
+            create_deep_linear_structure(
+                temp_dir, depth=levels, files_per_level=files_per_level
+            )
 
             with BenchmarkTimer("Find files (deep structure)") as deep_timer:
                 deep_files = finde_dateien(temp_dir, max_tiefe=0)
 
-            assert len(deep_files) == total_files, f"Deep: expected {total_files}, got {len(deep_files)}"
+            assert len(deep_files) == total_files, (
+                f"Deep: expected {total_files}, got {len(deep_files)}"
+            )
             deep_time = deep_timer.duration
 
         # Print comparison
