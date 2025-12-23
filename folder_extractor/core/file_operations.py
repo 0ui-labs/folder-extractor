@@ -342,9 +342,7 @@ class FileOperations(IFileOperations):
 
         # Validate file exists
         if not file_path.exists():
-            raise FileOperationError(
-                f"Datei existiert nicht: {file_path}"
-            )
+            raise FileOperationError(f"Datei existiert nicht: {file_path}")
 
         # Validate it's a file, not a directory
         if file_path.is_dir():
@@ -418,9 +416,7 @@ class FileOperations(IFileOperations):
 
         # Validate directory exists
         if not dir_path.exists():
-            raise FileOperationError(
-                f"Verzeichnis existiert nicht: {dir_path}"
-            )
+            raise FileOperationError(f"Verzeichnis existiert nicht: {dir_path}")
 
         # Validate it's a directory, not a file
         if not dir_path.is_dir():
@@ -758,9 +754,7 @@ class FileMover:
                 if self.indexing_callback:
                     self.indexing_callback("start")
                 # Get all existing hashes in destination for dedup
-                hash_index = self.file_ops.build_hash_index(
-                    dest_path, include_all=True
-                )
+                hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
             except FileOperationError:
                 # If we can't build index, continue without global dedup
                 pass
@@ -830,7 +824,8 @@ class FileMover:
                         if source_hash in hash_index:
                             # Check content in DIFFERENT file (not source)
                             matching_files = [
-                                p for p in hash_index[source_hash]
+                                p
+                                for p in hash_index[source_hash]
                                 if p.resolve() != source_path.resolve()
                             ]
                             if matching_files:
@@ -894,8 +889,12 @@ class FileMover:
         # Return appropriate tuple based on flags
         if global_dedup:
             return (
-                moved, errors, duplicates, content_duplicates,
-                global_duplicates, history
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                global_duplicates,
+                history,
             )
         if deduplicate:
             return moved, errors, duplicates, content_duplicates, history
@@ -957,9 +956,7 @@ class FileMover:
                 if self.indexing_callback:
                     self.indexing_callback("start")
                 # Get all existing hashes in destination for dedup
-                hash_index = self.file_ops.build_hash_index(
-                    dest_path, include_all=True
-                )
+                hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
             except FileOperationError:
                 # If we can't build index, continue without global dedup
                 pass
@@ -1061,7 +1058,8 @@ class FileMover:
                         if source_hash in hash_index:
                             # Check content in DIFFERENT file (not source)
                             matching_files = [
-                                p for p in hash_index[source_hash]
+                                p
+                                for p in hash_index[source_hash]
                                 if p.resolve() != source_path.resolve()
                             ]
                             if matching_files:
@@ -1126,11 +1124,14 @@ class FileMover:
         folders = list(created_folders)
         if global_dedup:
             return (
-                moved, errors, duplicates, content_duplicates,
-                global_duplicates, history, folders
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                global_duplicates,
+                history,
+                folders,
             )
         if deduplicate:
-            return (
-                moved, errors, duplicates, content_duplicates, history, folders
-            )
+            return (moved, errors, duplicates, content_duplicates, history, folders)
         return moved, errors, duplicates, history, folders

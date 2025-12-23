@@ -77,7 +77,10 @@ class TestGenerateUniqueNameProperties:
         deadline=None,
         suppress_health_check=[HealthCheck.too_slow],
     )
-    @given(basename=safe_basename, ext=st.sampled_from([".txt", ".pdf", ".jpg", ".png", ".doc"]))
+    @given(
+        basename=safe_basename,
+        ext=st.sampled_from([".txt", ".pdf", ".jpg", ".png", ".doc"]),
+    )
     def test_extension_preserved(self, basename: str, ext: str):
         """
         Invariante: Die Dateiendung muss nach Konfliktauflösung erhalten bleiben.
@@ -161,13 +164,12 @@ class TestGenerateUniqueNameProperties:
             )
 
             # Prüfe das _N Suffix
-            suffix_part = result_stem[len(original_stem):]
+            suffix_part = result_stem[len(original_stem) :]
             pattern = r"^_(\d+)$"
             match = re.match(pattern, suffix_part)
 
             assert match is not None, (
-                f"Ungültiges Namensformat: {result} "
-                f"(erwartet: {original_stem}_N{ext})"
+                f"Ungültiges Namensformat: {result} (erwartet: {original_stem}_N{ext})"
             )
 
             # Die Nummer muss positiv sein
@@ -221,9 +223,7 @@ class TestGenerateUniqueNameProperties:
         ext=st.sampled_from([".txt", ".pdf"]),
         gap_position=st.integers(min_value=1, max_value=5),
     )
-    def test_finds_gap_in_numbering(
-        self, basename: str, ext: str, gap_position: int
-    ):
+    def test_finds_gap_in_numbering(self, basename: str, ext: str, gap_position: int):
         """
         Invariante: Die Funktion findet Lücken in der Nummerierung.
 

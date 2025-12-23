@@ -462,7 +462,9 @@ class TestDeduplicationWorkflow:
 
         # Verify total count
         all_datei_files = list(test_dir.glob("datei*.txt"))
-        assert len(all_datei_files) == 4, f"Expected 4 files, found {len(all_datei_files)}"
+        assert len(all_datei_files) == 4, (
+            f"Expected 4 files, found {len(all_datei_files)}"
+        )
 
         # Verify subdirectories are cleaned up (files moved out)
         assert not (test_dir / "subdir1" / "datei.txt").exists()
@@ -499,7 +501,9 @@ class TestDeduplicationWorkflow:
 
         # Verify total count - only 1 file
         all_datei_files = list(test_dir.glob("datei*.txt"))
-        assert len(all_datei_files) == 1, f"Expected 1 file, found {len(all_datei_files)}"
+        assert len(all_datei_files) == 1, (
+            f"Expected 1 file, found {len(all_datei_files)}"
+        )
 
         # Verify subdirectories are cleaned up
         assert not (test_dir / "subdir1" / "datei.txt").exists()
@@ -619,9 +623,15 @@ class TestDeduplicationWorkflow:
         assert result == 0, "CLI should exit successfully"
 
         # Verify NO files were moved - all originals still in subdirectories
-        assert (test_dir / "subdir1" / "datei.txt").exists(), "File should NOT be moved in dry-run"
-        assert (test_dir / "subdir2" / "datei.txt").exists(), "File should NOT be moved in dry-run"
-        assert (test_dir / "subdir3" / "datei.txt").exists(), "File should NOT be moved in dry-run"
+        assert (test_dir / "subdir1" / "datei.txt").exists(), (
+            "File should NOT be moved in dry-run"
+        )
+        assert (test_dir / "subdir2" / "datei.txt").exists(), (
+            "File should NOT be moved in dry-run"
+        )
+        assert (test_dir / "subdir3" / "datei.txt").exists(), (
+            "File should NOT be moved in dry-run"
+        )
 
         # Original in root should still be there
         assert (test_dir / "datei.txt").exists()
@@ -657,9 +667,16 @@ class TestDeduplicationWorkflow:
         # Verify output contains deduplication info
         # The exact wording depends on implementation, but should mention duplicates
         output_lower = captured.out.lower()
-        assert any(term in output_lower for term in [
-            "duplikat", "identisch", "übersprungen", "skipped", "duplicate"
-        ]), f"Output should mention duplicates. Got: {captured.out[:500]}"
+        assert any(
+            term in output_lower
+            for term in [
+                "duplikat",
+                "identisch",
+                "übersprungen",
+                "skipped",
+                "duplicate",
+            ]
+        ), f"Output should mention duplicates. Got: {captured.out[:500]}"
 
     def test_deduplication_with_no_duplicates(self, workflow_test_env):
         """Deduplication with unique files behaves like normal extraction.
@@ -827,10 +844,13 @@ class TestGlobalDeduplication:
 
         # Setup: Create target file and source file with identical content
         content = b"JPEG_DATA_SAMPLE_CONTENT_12345"
-        create_identical_files(test_dir, [
-            ("", "Urlaub_2023.jpg", content),           # Existing file in root
-            ("subdir", "IMG_001.jpg", content),         # Source file with same content
-        ])
+        create_identical_files(
+            test_dir,
+            [
+                ("", "Urlaub_2023.jpg", content),  # Existing file in root
+                ("subdir", "IMG_001.jpg", content),  # Source file with same content
+            ],
+        )
 
         os.chdir(test_dir)
 
@@ -876,10 +896,17 @@ class TestGlobalDeduplication:
         test_dir = workflow_test_env["test_dir"]
 
         # Setup: Create files with different content
-        create_identical_files(test_dir, [
-            ("", "Urlaub_2023.jpg", b"JPEG_DATA_A"),      # Existing file
-            ("subdir", "IMG_001.jpg", b"JPEG_DATA_B"),    # Source with DIFFERENT content
-        ])
+        create_identical_files(
+            test_dir,
+            [
+                ("", "Urlaub_2023.jpg", b"JPEG_DATA_A"),  # Existing file
+                (
+                    "subdir",
+                    "IMG_001.jpg",
+                    b"JPEG_DATA_B",
+                ),  # Source with DIFFERENT content
+            ],
+        )
 
         os.chdir(test_dir)
 
@@ -919,16 +946,19 @@ class TestGlobalDeduplication:
         content_b = "CONTENT_B_DIFFERENT"
 
         # Setup: Create complex scenario with exactly one of each duplicate type
-        create_identical_files(test_dir, [
-            # Target file (already at destination, won't be moved)
-            ("", "existing.txt", content_a),
-            # Global duplicate (different name, same content as target) → 1 global dup
-            ("subdir1", "file1.txt", content_a),
-            # Content duplicate (same name AND same content as target) → 1 content dup
-            ("subdir2", "existing.txt", content_a),
-            # Name duplicate (same name but DIFFERENT content) → 1 name dup (renamed)
-            ("subdir3", "existing.txt", content_b),
-        ])
+        create_identical_files(
+            test_dir,
+            [
+                # Target file (already at destination, won't be moved)
+                ("", "existing.txt", content_a),
+                # Global duplicate (different name, same content as target) → 1 global dup
+                ("subdir1", "file1.txt", content_a),
+                # Content duplicate (same name AND same content as target) → 1 content dup
+                ("subdir2", "existing.txt", content_a),
+                # Name duplicate (same name but DIFFERENT content) → 1 name dup (renamed)
+                ("subdir3", "existing.txt", content_b),
+            ],
+        )
 
         os.chdir(test_dir)
 
@@ -1003,12 +1033,15 @@ class TestGlobalDeduplication:
         content = b"PHOTO_DATA_IDENTICAL_CONTENT"
 
         # Setup: One target and three identical sources
-        create_identical_files(test_dir, [
-            ("", "photo.jpg", content),              # Existing target
-            ("folder1", "IMG_001.jpg", content),     # Duplicate 1
-            ("folder2", "IMG_002.jpg", content),     # Duplicate 2
-            ("folder3", "IMG_003.jpg", content),     # Duplicate 3
-        ])
+        create_identical_files(
+            test_dir,
+            [
+                ("", "photo.jpg", content),  # Existing target
+                ("folder1", "IMG_001.jpg", content),  # Duplicate 1
+                ("folder2", "IMG_002.jpg", content),  # Duplicate 2
+                ("folder3", "IMG_003.jpg", content),  # Duplicate 3
+            ],
+        )
 
         os.chdir(test_dir)
 
@@ -1023,9 +1056,15 @@ class TestGlobalDeduplication:
 
         # Only original should exist
         assert (test_dir / "photo.jpg").exists(), "Original should exist"
-        assert not (test_dir / "IMG_001.jpg").exists(), "Duplicate 1 should not be copied"
-        assert not (test_dir / "IMG_002.jpg").exists(), "Duplicate 2 should not be copied"
-        assert not (test_dir / "IMG_003.jpg").exists(), "Duplicate 3 should not be copied"
+        assert not (test_dir / "IMG_001.jpg").exists(), (
+            "Duplicate 1 should not be copied"
+        )
+        assert not (test_dir / "IMG_002.jpg").exists(), (
+            "Duplicate 2 should not be copied"
+        )
+        assert not (test_dir / "IMG_003.jpg").exists(), (
+            "Duplicate 3 should not be copied"
+        )
 
         # Verify only 1 JPG file
         jpg_files = list(test_dir.glob("*.jpg"))
@@ -1084,10 +1123,13 @@ class TestGlobalDeduplication:
         content = b"IDENTICAL_CONTENT_FOR_DRY_RUN_TEST"
 
         # Setup: Same as test_global_dedup_identical_content
-        create_identical_files(test_dir, [
-            ("", "Urlaub_2023.jpg", content),
-            ("subdir", "IMG_001.jpg", content),
-        ])
+        create_identical_files(
+            test_dir,
+            [
+                ("", "Urlaub_2023.jpg", content),
+                ("subdir", "IMG_001.jpg", content),
+            ],
+        )
 
         os.chdir(test_dir)
 

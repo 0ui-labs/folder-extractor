@@ -65,7 +65,7 @@ class TestConsoleInterface:
             if call.args:
                 arg = call.args[0]
                 # Should be string or simple renderable, not Panel
-                assert not hasattr(arg, 'renderable'), "Panel-like object detected"
+                assert not hasattr(arg, "renderable"), "Panel-like object detected"
 
     def test_show_welcome_contains_exact_version(self, mock_console_class):
         """Test welcome message contains exact version from constants."""
@@ -93,7 +93,7 @@ class TestConsoleInterface:
         call_args = mock_console.print.call_args
         output = str(call_args[0][0])
         # Count consecutive dashes - should have at least 20
-        dash_count = output.count('-')
+        dash_count = output.count("-")
         assert dash_count >= 20, (
             f"Separator should have at least 20 dashes, found {dash_count}"
         )
@@ -111,7 +111,7 @@ class TestConsoleInterface:
             if call.args:
                 arg = call.args[0]
                 # Should not have padding attribute (Padding objects have this)
-                assert not hasattr(arg, 'pad'), "Padding object detected"
+                assert not hasattr(arg, "pad"), "Padding object detected"
                 # Argument should be a string, not a rich Padding wrapper
                 assert isinstance(arg, str), (
                     f"Expected string output, got {type(arg).__name__}"
@@ -416,8 +416,7 @@ class TestConsoleInterface:
                 # Check TextColumn calls - should NOT have a " " (space-only) column
                 text_col_calls = [str(call) for call in mock_text_col.call_args_list]
                 padding_column_used = any(
-                    "(' ',)" in call or '(" ",)' in call
-                    for call in text_col_calls
+                    "(' ',)" in call or '(" ",)' in call for call in text_col_calls
                 )
                 assert not padding_column_used, (
                     f"Padding TextColumn detected in: {text_col_calls}"
@@ -736,9 +735,7 @@ class TestConsoleInterface:
         assert "[green][+][/green]" in moved_line, (
             f"Missing green color codes for [+] symbol in: {moved_line}"
         )
-        assert "Verschoben:" in moved_line, (
-            f"Missing 'Verschoben:' in: {moved_line}"
-        )
+        assert "Verschoben:" in moved_line, f"Missing 'Verschoben:' in: {moved_line}"
         assert "[green]15[/green]" in moved_line, (
             f"Missing green color codes for count in: {moved_line}"
         )
@@ -748,9 +745,7 @@ class TestConsoleInterface:
         assert "[yellow][!][/yellow]" in dupes_line, (
             f"Missing yellow color codes for [!] symbol in: {dupes_line}"
         )
-        assert "Duplikate:" in dupes_line, (
-            f"Missing 'Duplikate:' in: {dupes_line}"
-        )
+        assert "Duplikate:" in dupes_line, f"Missing 'Duplikate:' in: {dupes_line}"
         assert "[yellow]3[/yellow]" in dupes_line, (
             f"Missing yellow color codes for count in: {dupes_line}"
         )
@@ -760,9 +755,7 @@ class TestConsoleInterface:
         assert "[red][x][/red]" in errors_line, (
             f"Missing red color codes for [x] symbol in: {errors_line}"
         )
-        assert "Fehler:" in errors_line, (
-            f"Missing 'Fehler:' in: {errors_line}"
-        )
+        assert "Fehler:" in errors_line, f"Missing 'Fehler:' in: {errors_line}"
         assert "[red]1[/red]" in errors_line, (
             f"Missing red color codes for count in: {errors_line}"
         )
@@ -790,8 +783,8 @@ class TestConsoleInterface:
             if call.args:
                 arg = call.args[0]
                 # Should be string, not Table
-                assert not hasattr(arg, 'add_row'), "Table-like object detected"
-                assert not hasattr(arg, 'add_column'), "Table-like object detected"
+                assert not hasattr(arg, "add_row"), "Table-like object detected"
+                assert not hasattr(arg, "add_column"), "Table-like object detected"
 
     def test_show_summary_success_shows_created_folders(self, mock_console_class):
         """Test successful summary shows created folders."""
@@ -895,7 +888,9 @@ class TestConsoleInterface:
         assert "Lokale Inhalts-Duplikate" in call_args_str
         assert "[cyan]5[/cyan]" in call_args_str
 
-    def test_show_summary_success_no_content_duplicates_when_zero(self, mock_console_class):
+    def test_show_summary_success_no_content_duplicates_when_zero(
+        self, mock_console_class
+    ):
         """Test summary hides content duplicates line when count is zero."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -914,7 +909,9 @@ class TestConsoleInterface:
         # Should NOT show content duplicates symbol when count is 0
         assert "[~]" not in call_args_str
 
-    def test_show_summary_success_no_content_duplicates_key_missing(self, mock_console_class):
+    def test_show_summary_success_no_content_duplicates_key_missing(
+        self, mock_console_class
+    ):
         """Test summary handles missing content_duplicates key gracefully."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -952,9 +949,7 @@ class TestConsoleInterface:
 
         # Get all print calls in order
         print_calls = mock_console.print.call_args_list
-        printed_strings = [
-            str(call.args[0]) for call in print_calls if call.args
-        ]
+        printed_strings = [str(call.args[0]) for call in print_calls if call.args]
 
         # Find positions of key lines
         name_dupes_idx = None
@@ -978,7 +973,9 @@ class TestConsoleInterface:
             f"Lokale@{content_dupes_idx}, Fehler@{fehler_idx}"
         )
 
-    def test_show_summary_shows_three_separate_duplicate_categories(self, mock_console_class):
+    def test_show_summary_shows_three_separate_duplicate_categories(
+        self, mock_console_class
+    ):
         """Test summary displays name, content, and global duplicates separately."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1027,7 +1024,9 @@ class TestConsoleInterface:
         assert "Lokale Inhalts-Duplikate" in call_args_str
         assert "5" in call_args_str
 
-    def test_show_summary_backward_compat_with_old_duplicates_key(self, mock_console_class):
+    def test_show_summary_backward_compat_with_old_duplicates_key(
+        self, mock_console_class
+    ):
         """Test summary falls back to 'duplicates' key when new keys are missing."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1092,7 +1091,9 @@ class TestIndexingSpinner:
             # Should add task with indexing message
             mock_progress.add_task.assert_called_once()
             call_args = mock_progress.add_task.call_args
-            assert "Indiziere" in call_args[0][0] or "indiziere" in str(call_args).lower()
+            assert (
+                "Indiziere" in call_args[0][0] or "indiziere" in str(call_args).lower()
+            )
 
     def test_hide_indexing_spinner_stops_progress(self, mock_console_class):
         """Test hiding indexing spinner stops the progress display."""

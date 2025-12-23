@@ -528,7 +528,9 @@ class TestFileOperations:
                     abort_signal.set()
                 return original_hash(path, *args, **kwargs)
 
-            with patch.object(file_ops, 'calculate_file_hash', side_effect=hash_with_abort):
+            with patch.object(
+                file_ops, "calculate_file_hash", side_effect=hash_with_abort
+            ):
                 result = file_ops.build_hash_index(temp_dir)
 
             # Should have processed some but not all files
@@ -1160,7 +1162,9 @@ class TestFileMoverDeduplication:
             assert duplicates == 1  # Name conflict, renamed
             assert content_duplicates == 0
             assert (pdf_folder / "report_1.pdf").exists()
-            assert (pdf_folder / "report_1.pdf").read_text() == "new PDF content - different"
+            assert (
+                pdf_folder / "report_1.pdf"
+            ).read_text() == "new PDF content - different"
 
     def test_move_files_sorted_deduplicate_disabled_returns_old_signature(self):
         """Without deduplicate, move_files_sorted returns 5-tuple (backward compat)."""
@@ -1285,7 +1289,9 @@ class TestFileMoverGlobalDedup:
             assert global_dups == 1
             assert not source_file.exists(), "Source should be deleted"
             assert existing_file.exists(), "Existing file should remain"
-            assert not (dest_dir / "different_name.txt").exists(), "File should not be moved"
+            assert not (dest_dir / "different_name.txt").exists(), (
+                "File should not be moved"
+            )
 
     def test_move_files_global_dedup_moves_unique_content(self):
         """Files with unique content are moved normally with global_dedup."""
@@ -1445,7 +1451,12 @@ class TestFileMoverGlobalDedup:
             # Move with both flags
             moved, errors, name_dups, content_dups, global_dups, history = (
                 self.file_mover.move_files(
-                    [global_dup_source, content_dup_source, name_dup_source, unique_source],
+                    [
+                        global_dup_source,
+                        content_dup_source,
+                        name_dup_source,
+                        unique_source,
+                    ],
                     dest_dir,
                     deduplicate=True,
                     global_dedup=True,

@@ -252,6 +252,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 )
                 global_duplicates = 0
             else:
+
                 def progress_cb(c, _t, f, e=None):
                     progress_tracker.update(c, f, e)
 
@@ -318,6 +319,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 )
                 global_duplicates = 0
             else:
+
                 def progress_cb(c, _t, f, e=None):
                     progress_tracker.update(c, f, e)
 

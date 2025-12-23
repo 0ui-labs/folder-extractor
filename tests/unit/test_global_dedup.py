@@ -159,7 +159,7 @@ class TestBuildHashIndexSizeOptimization:
         ops = FileOperations()
 
         # Mock calculate_file_hash to track calls
-        with patch.object(ops, 'calculate_file_hash') as mock_hash:
+        with patch.object(ops, "calculate_file_hash") as mock_hash:
             result = ops.build_hash_index(temp_dir)
 
             # Hash should never be called for files with unique sizes
@@ -221,7 +221,9 @@ class TestBuildHashIndexSizeOptimization:
 
         ops = FileOperations()
 
-        with patch.object(ops, 'calculate_file_hash', wraps=ops.calculate_file_hash) as mock_hash:
+        with patch.object(
+            ops, "calculate_file_hash", wraps=ops.calculate_file_hash
+        ) as mock_hash:
             result = ops.build_hash_index(temp_dir)
 
             # Only the 2 files with matching sizes should be hashed
@@ -362,7 +364,10 @@ class TestBuildHashIndexErrors:
         with pytest.raises(FileOperationError) as exc_info:
             ops.build_hash_index(nonexistent)
 
-        assert "existiert nicht" in str(exc_info.value).lower() or "not exist" in str(exc_info.value).lower()
+        assert (
+            "existiert nicht" in str(exc_info.value).lower()
+            or "not exist" in str(exc_info.value).lower()
+        )
 
     def test_file_instead_of_directory_raises_error(self, temp_dir):
         """Passing a file path instead of directory raises error.
@@ -378,7 +383,11 @@ class TestBuildHashIndexErrors:
 
         # Error message should indicate the path is not a directory
         error_msg = str(exc_info.value).lower()
-        assert "verzeichnis" in error_msg or "directory" in error_msg or "datei" in error_msg
+        assert (
+            "verzeichnis" in error_msg
+            or "directory" in error_msg
+            or "datei" in error_msg
+        )
 
     @pytest.mark.skipif(sys.platform == "win32", reason="Unix-only permission test")
     def test_permission_denied_raises_error(self, temp_dir):
@@ -471,7 +480,7 @@ class TestBuildHashIndexErrors:
                 raise FileOperationError(f"Datei existiert nicht: {path}")
             return original_hash(path, *args, **kwargs)
 
-        with patch.object(ops, 'calculate_file_hash', side_effect=hash_with_delete):
+        with patch.object(ops, "calculate_file_hash", side_effect=hash_with_delete):
             # Should not raise, just skip the deleted file
             ops.build_hash_index(temp_dir)
 
@@ -645,11 +654,14 @@ class TestBuildHashIndexProperties:
     @settings(
         max_examples=50,
         deadline=None,
-        suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture]
+        suppress_health_check=[
+            HealthCheck.too_slow,
+            HealthCheck.function_scoped_fixture,
+        ],
     )
     @given(
         num_files=st.integers(min_value=2, max_value=20),
-        content=st.binary(min_size=1, max_size=1000)
+        content=st.binary(min_size=1, max_size=1000),
     )
     def test_all_identical_files_single_hash(self, num_files, content):
         """N identical files produce exactly one hash group with N paths.
@@ -678,11 +690,14 @@ class TestBuildHashIndexProperties:
     @settings(
         max_examples=30,
         deadline=None,
-        suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture]
+        suppress_health_check=[
+            HealthCheck.too_slow,
+            HealthCheck.function_scoped_fixture,
+        ],
     )
     @given(
         num_groups=st.integers(min_value=2, max_value=5),
-        group_size=st.integers(min_value=2, max_value=4)
+        group_size=st.integers(min_value=2, max_value=4),
     )
     def test_multiple_duplicate_groups(self, num_groups, group_size):
         """Multiple groups of duplicates produce multiple hash entries.
@@ -710,7 +725,10 @@ class TestBuildHashIndexProperties:
     @settings(
         max_examples=20,
         deadline=None,
-        suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture]
+        suppress_health_check=[
+            HealthCheck.too_slow,
+            HealthCheck.function_scoped_fixture,
+        ],
     )
     @given(content=st.binary(min_size=0, max_size=5000))
     def test_index_deterministic(self, content):

@@ -147,7 +147,10 @@ class TestCalculateFileHashProperties:
     @settings(
         max_examples=50,
         deadline=None,
-        suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
+        suppress_health_check=[
+            HealthCheck.too_slow,
+            HealthCheck.function_scoped_fixture,
+        ],
     )
     @given(binary_content=st.binary(min_size=0, max_size=50000))
     def test_hash_deterministic(self, binary_content, tmp_path):
@@ -168,7 +171,10 @@ class TestCalculateFileHashProperties:
     @settings(
         max_examples=50,
         deadline=None,
-        suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
+        suppress_health_check=[
+            HealthCheck.too_slow,
+            HealthCheck.function_scoped_fixture,
+        ],
     )
     @given(
         content1=st.binary(min_size=1, max_size=1000),
@@ -198,7 +204,10 @@ class TestCalculateFileHashProperties:
     @settings(
         max_examples=50,
         deadline=None,
-        suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
+        suppress_health_check=[
+            HealthCheck.too_slow,
+            HealthCheck.function_scoped_fixture,
+        ],
     )
     @given(binary_content=st.binary(min_size=0, max_size=100000))
     def test_hash_format_valid(self, binary_content, tmp_path):
@@ -220,7 +229,10 @@ class TestCalculateFileHashProperties:
     @settings(
         max_examples=20,
         deadline=None,
-        suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
+        suppress_health_check=[
+            HealthCheck.too_slow,
+            HealthCheck.function_scoped_fixture,
+        ],
     )
     @given(binary_content=st.binary(min_size=0, max_size=10000))
     def test_hash_matches_direct_hashlib(self, binary_content, tmp_path):
@@ -258,9 +270,11 @@ class TestCalculateFileHashErrors:
         with pytest.raises(FileOperationError) as exc_info:
             file_ops.calculate_file_hash(nonexistent)
 
-        assert "existiert nicht" in str(exc_info.value).lower() or \
-               "not exist" in str(exc_info.value).lower() or \
-               "nicht gefunden" in str(exc_info.value).lower()
+        assert (
+            "existiert nicht" in str(exc_info.value).lower()
+            or "not exist" in str(exc_info.value).lower()
+            or "nicht gefunden" in str(exc_info.value).lower()
+        )
 
     def test_directory_raises_error(self, temp_dir):
         """Passing a directory instead of file raises FileOperationError.
@@ -275,8 +289,12 @@ class TestCalculateFileHashErrors:
             file_ops.calculate_file_hash(dir_path)
 
         error_msg = str(exc_info.value).lower()
-        assert "verzeichnis" in error_msg or "directory" in error_msg or \
-               "keine datei" in error_msg or "not a file" in error_msg
+        assert (
+            "verzeichnis" in error_msg
+            or "directory" in error_msg
+            or "keine datei" in error_msg
+            or "not a file" in error_msg
+        )
 
     def test_invalid_algorithm_raises_error(self, temp_dir):
         """Invalid hash algorithm raises ValueError.
@@ -291,8 +309,7 @@ class TestCalculateFileHashErrors:
             file_ops.calculate_file_hash(file_path, algorithm="invalid_algo")
 
     @pytest.mark.skipif(
-        platform.system() == "Windows",
-        reason="Permission handling differs on Windows"
+        platform.system() == "Windows", reason="Permission handling differs on Windows"
     )
     def test_permission_denied_raises_error(self, temp_dir):
         """File without read permission raises FileOperationError.
@@ -311,8 +328,12 @@ class TestCalculateFileHashErrors:
                 file_ops.calculate_file_hash(file_path)
 
             error_msg = str(exc_info.value).lower()
-            assert "berechtigung" in error_msg or "permission" in error_msg or \
-                   "zugriff" in error_msg or "access" in error_msg
+            assert (
+                "berechtigung" in error_msg
+                or "permission" in error_msg
+                or "zugriff" in error_msg
+                or "access" in error_msg
+            )
         finally:
             # Restore permissions for cleanup
             file_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
@@ -358,7 +379,7 @@ class TestCalculateFileHashEdgeCases:
 
     @pytest.mark.skipif(
         platform.system() == "Windows",
-        reason="Symlinks require special permissions on Windows"
+        reason="Symlinks require special permissions on Windows",
     )
     def test_hash_symlink(self, temp_dir):
         """Symbolic link is resolved and target file content is hashed.
