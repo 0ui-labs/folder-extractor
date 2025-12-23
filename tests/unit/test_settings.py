@@ -156,6 +156,13 @@ class TestSettings:
         s.set("deduplicate", True)
         assert s.deduplicate is True
 
+    def test_global_dedup_property(self):
+        """Test global_dedup property enables content dedup across entire destination."""
+        s = Settings()
+        assert s.global_dedup is False
+        s.set("global_dedup", True)
+        assert s.global_dedup is True
+
 
 class TestGlobalSettings:
     """Tests for global settings instance."""
@@ -261,7 +268,41 @@ class TestConfigureFromArgs:
         args.type = None
         args.domain = None
         args.deduplicate = True
+        args.global_dedup = False
 
         configure_from_args(args)
 
         assert settings.get("deduplicate") is True
+
+    def test_with_global_dedup_flag(self):
+        """Test configuration with global_dedup flag enables tree-wide content dedup."""
+        args = MagicMock()
+        args.dry_run = False
+        args.depth = 0
+        args.include_hidden = False
+        args.sort_by_type = False
+        args.type = None
+        args.domain = None
+        args.deduplicate = False
+        args.global_dedup = True
+
+        configure_from_args(args)
+
+        assert settings.get("global_dedup") is True
+
+    def test_with_both_dedup_flags(self):
+        """Test configuration with both dedup flags enabled together."""
+        args = MagicMock()
+        args.dry_run = False
+        args.depth = 0
+        args.include_hidden = False
+        args.sort_by_type = False
+        args.type = None
+        args.domain = None
+        args.deduplicate = True
+        args.global_dedup = True
+
+        configure_from_args(args)
+
+        assert settings.get("deduplicate") is True
+        assert settings.get("global_dedup") is True

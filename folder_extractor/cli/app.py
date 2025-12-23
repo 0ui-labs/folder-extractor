@@ -93,12 +93,20 @@ class EnhancedFolderExtractorCLI:
         ):
             self.interface.show_progress(current, total, filepath, error)
 
+        # Set up indexing callback for global dedup spinner
+        def indexing_callback(event: str):
+            if event == "start":
+                self.interface.show_indexing_spinner()
+            elif event == "end":
+                self.interface.hide_indexing_spinner()
+
         try:
             # Execute extraction
             result = orchestrator.execute_extraction(
                 source_path=path,
                 confirmation_callback=self.interface.confirm_operation,
                 progress_callback=progress_callback,
+                indexing_callback=indexing_callback,
             )
 
             # Show summary

@@ -101,6 +101,12 @@ class ArgumentParser:
             help="Nur Weblinks von bestimmten Domains (z.B. youtube.com)",
         )
 
+        parser.add_argument(
+            "--global-dedup",
+            action="store_true",
+            help="Globale Deduplizierung (kann bei großen Ordnern langsam sein)",
+        )
+
         return parser
 
     def parse_args(self, args: Optional[List[str]] = None) -> argparse.Namespace:

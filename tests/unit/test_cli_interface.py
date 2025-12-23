@@ -884,16 +884,15 @@ class TestConsoleInterface:
         results = {
             "status": "success",
             "moved": 10,
-            "duplicates": 2,
             "content_duplicates": 5,
             "errors": 0,
         }
         interface.show_summary(results)
 
         call_args_str = str(mock_console.print.call_args_list)
-        # Should show cyan symbol and label
+        # Should show cyan symbol and label for local content duplicates
         assert "[cyan][~][/cyan]" in call_args_str
-        assert "Identisch:" in call_args_str
+        assert "Lokale Inhalts-Duplikate" in call_args_str
         assert "[cyan]5[/cyan]" in call_args_str
 
     def test_show_summary_success_no_content_duplicates_when_zero(self, mock_console_class):
@@ -934,7 +933,7 @@ class TestConsoleInterface:
         # Should NOT show content duplicates symbol when key missing
         assert "[~]" not in call_args_str
 
-    def test_show_summary_content_duplicates_appears_between_duplicates_and_errors(
+    def test_show_summary_content_duplicates_appears_between_name_and_errors(
         self, mock_console_class
     ):
         """Test content duplicates line appears in correct position in summary."""
@@ -945,7 +944,7 @@ class TestConsoleInterface:
         results = {
             "status": "success",
             "moved": 10,
-            "duplicates": 2,
+            "name_duplicates": 2,
             "content_duplicates": 5,
             "errors": 1,
         }
@@ -958,26 +957,179 @@ class TestConsoleInterface:
         ]
 
         # Find positions of key lines
-        duplicates_idx = None
-        identisch_idx = None
+        name_dupes_idx = None
+        content_dupes_idx = None
         fehler_idx = None
 
         for idx, line in enumerate(printed_strings):
-            if "Duplikate:" in line:
-                duplicates_idx = idx
-            if "Identisch:" in line:
-                identisch_idx = idx
+            if "Namens-Duplikate" in line:
+                name_dupes_idx = idx
+            if "Lokale Inhalts-Duplikate" in line:
+                content_dupes_idx = idx
             if "Fehler:" in line:
                 fehler_idx = idx
 
-        # Verify order: Duplikate < Identisch < Fehler
-        assert duplicates_idx is not None, "Duplikate line not found"
-        assert identisch_idx is not None, "Identisch line not found"
+        # Verify order: Namens-Duplikate < Lokale Inhalts < Fehler
+        assert name_dupes_idx is not None, "Namens-Duplikate line not found"
+        assert content_dupes_idx is not None, "Lokale Inhalts-Duplikate line not found"
         assert fehler_idx is not None, "Fehler line not found"
-        assert duplicates_idx < identisch_idx < fehler_idx, (
-            f"Wrong order: Duplikate@{duplicates_idx}, "
-            f"Identisch@{identisch_idx}, Fehler@{fehler_idx}"
+        assert name_dupes_idx < content_dupes_idx < fehler_idx, (
+            f"Wrong order: Namens@{name_dupes_idx}, "
+            f"Lokale@{content_dupes_idx}, Fehler@{fehler_idx}"
         )
+
+    def test_show_summary_shows_three_separate_duplicate_categories(self, mock_console_class):
+        """Test summary displays name, content, and global duplicates separately."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "name_duplicates": 3,
+            "content_duplicates": 5,
+            "global_duplicates": 2,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show all three duplicate types
+        assert "Namens-Duplikate" in call_args_str
+        assert "3" in call_args_str
+        assert "Lokale Inhalts-Duplikate" in call_args_str
+        assert "5" in call_args_str
+        assert "Globale Inhalts-Duplikate" in call_args_str
+        assert "2" in call_args_str
+
+    def test_show_summary_hides_zero_duplicate_categories(self, mock_console_class):
+        """Test summary hides duplicate categories when count is zero."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "name_duplicates": 0,
+            "content_duplicates": 5,
+            "global_duplicates": 0,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show zero categories
+        assert "Namens-Duplikate" not in call_args_str
+        assert "Globale Inhalts-Duplikate" not in call_args_str
+        # Should show non-zero category
+        assert "Lokale Inhalts-Duplikate" in call_args_str
+        assert "5" in call_args_str
+
+    def test_show_summary_backward_compat_with_old_duplicates_key(self, mock_console_class):
+        """Test summary falls back to 'duplicates' key when new keys are missing."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "duplicates": 7,  # Old-style key, no breakdown
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show generic duplicates
+        assert "Duplikate" in call_args_str
+        assert "7" in call_args_str
+
+    def test_show_summary_no_duplicates_when_all_zero(self, mock_console_class):
+        """Test summary shows no duplicate lines when all counts are zero."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "name_duplicates": 0,
+            "content_duplicates": 0,
+            "global_duplicates": 0,
+            "duplicates": 0,
+            "errors": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show any duplicate lines
+        assert "Duplikate" not in call_args_str
+        assert "Namens-Duplikate" not in call_args_str
+        assert "Inhalts-Duplikate" not in call_args_str
+
+
+@patch("folder_extractor.cli.interface.Console")
+class TestIndexingSpinner:
+    """Tests for indexing spinner functionality."""
+
+    def test_show_indexing_spinner_displays_message(self, mock_console_class):
+        """Test indexing spinner shows the indexing message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+            interface.show_indexing_spinner()
+
+            # Should create Progress with spinner
+            mock_progress_class.assert_called_once()
+            mock_progress.start.assert_called_once()
+            # Should add task with indexing message
+            mock_progress.add_task.assert_called_once()
+            call_args = mock_progress.add_task.call_args
+            assert "Indiziere" in call_args[0][0] or "indiziere" in str(call_args).lower()
+
+    def test_hide_indexing_spinner_stops_progress(self, mock_console_class):
+        """Test hiding indexing spinner stops the progress display."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+            interface.show_indexing_spinner()
+            interface.hide_indexing_spinner()
+
+            mock_progress.stop.assert_called_once()
+
+    def test_hide_indexing_spinner_safe_when_not_started(self, mock_console_class):
+        """Test hiding indexing spinner is safe when never started."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        # Should not raise when spinner was never started
+        interface.hide_indexing_spinner()
+
+    def test_show_indexing_spinner_quiet_mode(self, mock_console_class):
+        """Test indexing spinner not shown in quiet mode."""
+        settings.set("quiet", True)
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            interface = ConsoleInterface()
+            interface.show_indexing_spinner()
+
+            # Progress should not be initialized in quiet mode
+            mock_progress_class.assert_not_called()
 
 
 @patch("folder_extractor.cli.interface.Console")

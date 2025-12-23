@@ -138,6 +138,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         destination: Union[str, Path],
         operation_id: Optional[str] = None,
         progress_callback: ProgressCallback = None,
+        indexing_callback: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Extract files to destination with operation tracking.
 
@@ -146,6 +147,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             destination: Destination directory
             operation_id: Optional operation ID for tracking
             progress_callback: Optional progress callback
+            indexing_callback: Optional callback for indexing start/end events
 
         Returns:
             Dictionary with extraction results
@@ -157,7 +159,9 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             "moved": 0,
             "skipped": 0,
             "duplicates": 0,
+            "name_duplicates": 0,
             "content_duplicates": 0,
+            "global_duplicates": 0,
             "errors": 0,
             "created_folders": [],
             "history": [],
@@ -166,8 +170,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         # Get abort signal from state manager
         abort_signal = self.state_manager.get_abort_signal()
 
-        # Create file mover with abort signal
-        file_mover = FileMover(self.file_operations, abort_signal)
+        # Create file mover with abort signal and indexing callback
+        file_mover = FileMover(self.file_operations, abort_signal, indexing_callback)
 
         # Create progress tracker
         def update_progress(info: ProgressInfo):
@@ -206,7 +210,23 @@ class EnhancedFileExtractor(IEnhancedExtractor):
 
             # Move files sorted by type
             deduplicate = settings.get("deduplicate", False)
-            if deduplicate:
+            global_dedup = settings.get("global_dedup", False)
+            if global_dedup:
+                # Global deduplication - checks against entire destination tree
+                moved, errors, duplicates, content_duplicates, global_duplicates, history, created_folders = (
+                    file_mover.move_files_sorted(
+                        files=files,
+                        destination=destination_str,
+                        dry_run=settings.get("dry_run", False),
+                        progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
+                            c, f, e
+                        ),
+                        folder_override_callback=folder_override,
+                        deduplicate=deduplicate,
+                        global_dedup=True,
+                    )
+                )
+            elif deduplicate:
                 moved, errors, duplicates, content_duplicates, history, created_folders = (
                     file_mover.move_files_sorted(
                         files=files,
@@ -219,6 +239,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                         deduplicate=True,
                     )
                 )
+                global_duplicates = 0
             else:
                 moved, errors, duplicates, history, created_folders = (
                     file_mover.move_files_sorted(
@@ -232,18 +253,34 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     )
                 )
                 content_duplicates = 0
+                global_duplicates = 0
             move_results = {
                 "moved": moved,
                 "errors": errors,
                 "duplicates": duplicates,
+                "name_duplicates": duplicates,  # Map duplicates to name_duplicates for UI
                 "content_duplicates": content_duplicates,
+                "global_duplicates": global_duplicates,
                 "history": history,
                 "created_folders": created_folders,
             }
         else:
             # Move files flat
             deduplicate = settings.get("deduplicate", False)
-            if deduplicate:
+            global_dedup = settings.get("global_dedup", False)
+            if global_dedup:
+                # Global deduplication - checks against entire destination tree
+                moved, errors, duplicates, content_duplicates, global_duplicates, history = file_mover.move_files(
+                    files=files,
+                    destination=destination_str,
+                    dry_run=settings.get("dry_run", False),
+                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
+                        c, f, e
+                    ),
+                    deduplicate=deduplicate,
+                    global_dedup=True,
+                )
+            elif deduplicate:
                 moved, errors, duplicates, content_duplicates, history = file_mover.move_files(
                     files=files,
                     destination=destination_str,
@@ -253,6 +290,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     ),
                     deduplicate=True,
                 )
+                global_duplicates = 0
             else:
                 moved, errors, duplicates, history = file_mover.move_files(
                     files=files,
@@ -263,11 +301,14 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     ),
                 )
                 content_duplicates = 0
+                global_duplicates = 0
             move_results = {
                 "moved": moved,
                 "errors": errors,
                 "duplicates": duplicates,
+                "name_duplicates": duplicates,  # Map duplicates to name_duplicates for UI
                 "content_duplicates": content_duplicates,
+                "global_duplicates": global_duplicates,
                 "history": history,
                 "created_folders": [],
             }
@@ -512,6 +553,7 @@ class EnhancedExtractionOrchestrator:
         source_path: Union[str, Path],
         confirmation_callback: Optional[Callable[[int], bool]] = None,
         progress_callback: ProgressCallback = None,
+        indexing_callback: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Execute complete extraction workflow.
 
@@ -519,6 +561,7 @@ class EnhancedExtractionOrchestrator:
             source_path: Source directory path
             confirmation_callback: Optional callback for user confirmation
             progress_callback: Optional callback for progress updates
+            indexing_callback: Optional callback for indexing start/end events
 
         Returns:
             Dictionary with operation results
@@ -561,7 +604,7 @@ class EnhancedExtractionOrchestrator:
 
                 # Extract files
                 results = self.extractor.extract_files(
-                    files, source_path, op.operation_id, progress_callback
+                    files, source_path, op.operation_id, progress_callback, indexing_callback
                 )
 
                 # Add metadata

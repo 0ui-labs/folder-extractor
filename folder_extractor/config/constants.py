@@ -240,6 +240,11 @@ Zusammenfassung:
     "SORT_BY_TYPE_CREATING": "\nErstelle Ordnerstruktur nach Dateityp...",
     "SORT_BY_TYPE_CREATED": "✓ Ordner '{folder}' erstellt",
     "ABORT_HINT": "\nDrücke Ctrl+C zum Abbrechen...",
+    # Global deduplication messages
+    "INDEXING_TARGET": "Indiziere Zielordner...",
+    "DEDUP_NAME_DUPLICATES": "Namens-Duplikate",
+    "DEDUP_CONTENT_DUPLICATES": "Lokale Inhalts-Duplikate",
+    "DEDUP_GLOBAL_DUPLICATES": "Globale Inhalts-Duplikate",
 }
 
 
@@ -260,6 +265,8 @@ Optionen:
     -u, --undo              Letzte Operation rückgängig machen
     --include-hidden        Versteckte Dateien einbeziehen
     --deduplicate           Identische Dateien (gleicher Inhalt) nicht duplizieren
+    --global-dedup          Globale Deduplizierung über gesamten Zielordner
+                            ⚠ WARNUNG: Kann bei großen Ordnern langsam sein!
     --domain DOMAINS        Nur Weblinks von bestimmten Domains (z.B. youtube.com)
 
 Beispiele:
@@ -284,6 +291,10 @@ Beispiele:
     # Duplikate vermeiden (nur eindeutige Inhalte behalten)
     folder-extractor --deduplicate
     # Zeigt in der Zusammenfassung: "Identisch: X" für übersprungene Dateien
+
+    # Globale Deduplizierung (prüft ALLE Dateien im Zielordner)
+    folder-extractor --global-dedup
+    # Findet Duplikate auch wenn Dateinamen unterschiedlich sind
 
     # Letzte Operation rückgängig machen
     folder-extractor --undo

@@ -94,6 +94,22 @@ class TestArgumentParser:
         args = self.parser.parse_args(["--domain", "youtube.com,github.com"])
         assert args.domain == "youtube.com,github.com"
 
+    def test_global_dedup_flag(self):
+        """Test global deduplication flag enables content-based dedup across entire destination."""
+        # Default should be False
+        args = self.parser.parse_args([])
+        assert args.global_dedup is False
+
+        # Flag enables global deduplication
+        args = self.parser.parse_args(["--global-dedup"])
+        assert args.global_dedup is True
+
+    def test_deduplicate_and_global_dedup_flags_together(self):
+        """Test that both deduplication flags can be used together."""
+        args = self.parser.parse_args(["--deduplicate", "--global-dedup"])
+        assert args.deduplicate is True
+        assert args.global_dedup is True
+
     def test_help_flag(self):
         """Test help flag handling."""
         with patch("sys.stdout", new=StringIO()) as mock_stdout:
@@ -128,6 +144,7 @@ class TestArgumentParser:
                 "--sort-by-type",
                 "--include-hidden",
                 "--deduplicate",
+                "--global-dedup",
                 "--domain",
                 "example.com",
             ]
@@ -139,6 +156,7 @@ class TestArgumentParser:
         assert args.sort_by_type is True
         assert args.include_hidden is True
         assert args.deduplicate is True
+        assert args.global_dedup is True
         assert args.domain == "example.com"
 
     def test_short_and_long_forms(self):

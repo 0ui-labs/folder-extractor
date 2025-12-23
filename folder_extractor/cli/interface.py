@@ -69,6 +69,7 @@ class ConsoleInterface(IUserInterface):
         self.console = Console()
         self.progress = None
         self.task_id = None
+        self.indexing_spinner = None
 
         # Theme styles (minimalist - no bold/dim modifiers)
         self.success_style = Style(color="green")
@@ -203,6 +204,26 @@ class ConsoleInterface(IUserInterface):
             self.progress = None
             self.task_id = None
 
+    def show_indexing_spinner(self) -> None:
+        """Show spinner during index building for global deduplication."""
+        if settings.get("quiet", False):
+            return
+
+        self.indexing_spinner = Progress(
+            SpinnerColumn(),
+            TextColumn("{task.description}"),
+            console=self.console,
+            transient=True,
+        )
+        self.indexing_spinner.start()
+        self.indexing_spinner.add_task(MESSAGES["INDEXING_TARGET"], total=None)
+
+    def hide_indexing_spinner(self) -> None:
+        """Hide the indexing spinner."""
+        if self.indexing_spinner is not None:
+            self.indexing_spinner.stop()
+            self.indexing_spinner = None
+
     def show_summary(self, results: dict) -> None:
         """Show operation summary.
 
@@ -238,19 +259,44 @@ class ConsoleInterface(IUserInterface):
             if "moved" in results:
                 self.console.print("Zusammenfassung:")
                 moved = results.get("moved", 0)
-                dupes = results.get("duplicates", 0)
                 errors = results.get("errors", 0)
                 self.console.print(
                     f"[green][+][/green] Verschoben: [green]{moved}[/green]"
                 )
-                self.console.print(
-                    f"[yellow][!][/yellow] Duplikate: [yellow]{dupes}[/yellow]"
-                )
+
+                # Get duplicate counts - prefer new granular keys
+                name_dupes = results.get("name_duplicates", 0)
                 content_dupes = results.get("content_duplicates", 0)
-                if content_dupes > 0:
-                    self.console.print(
-                        f"[cyan][~][/cyan] Identisch:  [cyan]{content_dupes}[/cyan]"
-                    )
+                global_dupes = results.get("global_duplicates", 0)
+
+                # Check if we have the new granular duplicate types
+                has_new_keys = any(
+                    key in results
+                    for key in ["name_duplicates", "content_duplicates", "global_duplicates"]
+                )
+
+                if has_new_keys:
+                    # Show separate duplicate categories (only if > 0)
+                    if name_dupes > 0:
+                        self.console.print(
+                            f"[yellow][!][/yellow] {MESSAGES['DEDUP_NAME_DUPLICATES']}: [yellow]{name_dupes}[/yellow]"
+                        )
+                    if content_dupes > 0:
+                        self.console.print(
+                            f"[cyan][~][/cyan] {MESSAGES['DEDUP_CONTENT_DUPLICATES']}: [cyan]{content_dupes}[/cyan]"
+                        )
+                    if global_dupes > 0:
+                        self.console.print(
+                            f"[magenta][≡][/magenta] {MESSAGES['DEDUP_GLOBAL_DUPLICATES']}: [magenta]{global_dupes}[/magenta]"
+                        )
+                else:
+                    # Backward compatibility: show old-style duplicates
+                    dupes = results.get("duplicates", 0)
+                    if dupes > 0:
+                        self.console.print(
+                            f"[yellow][!][/yellow] Duplikate: [yellow]{dupes}[/yellow]"
+                        )
+
                 self.console.print(f"[red][x][/red] Fehler:     [red]{errors}[/red]")
 
             # Show created folders if sort by type

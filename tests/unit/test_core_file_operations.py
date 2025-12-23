@@ -1235,3 +1235,528 @@ class TestFileMoverDeduplication:
             assert duplicates == 0
             assert content_duplicates == 0
             assert (dest_dir / "unique.txt").exists()
+
+
+class TestFileMoverGlobalDedup:
+    """Test FileMover global deduplication functionality.
+
+    Global deduplication checks ALL source files against ALL existing files
+    in the destination directory tree (regardless of filename), skipping
+    files that already exist with identical content anywhere in the destination.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.file_ops = FileOperations()
+        self.file_mover = FileMover(self.file_ops)
+
+    def test_move_files_global_dedup_skips_existing_duplicate(self):
+        """Source files with content already in dest are skipped and deleted.
+
+        When global_dedup=True and a file's content already exists somewhere
+        in the destination tree (even with a different name), the source
+        file is deleted rather than moved.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create identical content with DIFFERENT names
+            identical_content = "This content exists in destination already"
+            existing_file = dest_dir / "existing.txt"
+            existing_file.write_text(identical_content)
+
+            source_file = source_dir / "different_name.txt"
+            source_file.write_text(identical_content)
+
+            # Move with global deduplication enabled
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files([source_file], dest_dir, global_dedup=True)
+            )
+
+            # Source should be deleted, not moved (global duplicate)
+            assert moved == 0
+            assert errors == 0
+            assert name_dups == 0
+            assert content_dups == 0
+            assert global_dups == 1
+            assert not source_file.exists(), "Source should be deleted"
+            assert existing_file.exists(), "Existing file should remain"
+            assert not (dest_dir / "different_name.txt").exists(), "File should not be moved"
+
+    def test_move_files_global_dedup_moves_unique_content(self):
+        """Files with unique content are moved normally with global_dedup."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create existing file with different content
+            (dest_dir / "existing.txt").write_text("existing content")
+
+            # Source file with unique content
+            source_file = source_dir / "new_file.txt"
+            source_file.write_text("completely different unique content")
+
+            # Move with global deduplication enabled
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files([source_file], dest_dir, global_dedup=True)
+            )
+
+            assert moved == 1
+            assert global_dups == 0
+            assert (dest_dir / "new_file.txt").exists()
+
+    def test_move_files_global_dedup_updates_index_for_subsequent_files(self):
+        """Index is updated after each move to detect duplicates within batch.
+
+        When moving multiple files, newly moved files should be added to the
+        index so that subsequent files with identical content are detected.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()  # Empty destination
+
+            # Create 3 files with identical content
+            identical_content = "all three files have this content"
+            file1 = source_dir / "first.txt"
+            file2 = source_dir / "second.txt"
+            file3 = source_dir / "third.txt"
+            file1.write_text(identical_content)
+            file2.write_text(identical_content)
+            file3.write_text(identical_content)
+
+            # Move all three with global deduplication
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files(
+                    [file1, file2, file3], dest_dir, global_dedup=True
+                )
+            )
+
+            # First file should be moved, subsequent duplicates should be skipped
+            assert moved == 1
+            assert global_dups == 2
+            assert errors == 0
+
+            # Only one file should exist in destination
+            dest_files = list(dest_dir.glob("*.txt"))
+            assert len(dest_files) == 1
+
+    def test_move_files_global_dedup_finds_duplicates_in_subdirectories(self):
+        """Global dedup finds duplicates in nested destination subdirectories."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create nested structure with existing file
+            nested = dest_dir / "level1" / "level2"
+            nested.mkdir(parents=True)
+            identical_content = "content hidden deep in subdirectory"
+            (nested / "deep_file.txt").write_text(identical_content)
+
+            # Source file with same content but different name at root
+            source_file = source_dir / "surface_file.txt"
+            source_file.write_text(identical_content)
+
+            # Move with global deduplication
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files([source_file], dest_dir, global_dedup=True)
+            )
+
+            # Should detect the duplicate in nested directory
+            assert moved == 0
+            assert global_dups == 1
+            assert not source_file.exists()
+
+    def test_move_files_global_dedup_dry_run_preserves_source(self):
+        """Dry run with global_dedup does not delete source files."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            identical_content = "dry run test content"
+            (dest_dir / "existing.txt").write_text(identical_content)
+
+            source_file = source_dir / "duplicate.txt"
+            source_file.write_text(identical_content)
+
+            # Dry run with global deduplication
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files(
+                    [source_file], dest_dir, dry_run=True, global_dedup=True
+                )
+            )
+
+            # Source should still exist (dry run)
+            assert source_file.exists()
+            assert global_dups == 1
+            assert len(history) == 0
+
+    def test_move_files_global_dedup_combined_with_deduplicate(self):
+        """global_dedup and deduplicate can be used together.
+
+        Content duplicates (same name + same content) are checked FIRST to ensure
+        proper categorization. Global duplicates (different name, matching content)
+        are checked only when no same-named file exists at destination.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # 1. Global duplicate: same content, different name → counted as global duplicate
+            global_dup_content = "global duplicate content"
+            (dest_dir / "existing_global.txt").write_text(global_dup_content)
+            global_dup_source = source_dir / "global_dup.txt"
+            global_dup_source.write_text(global_dup_content)
+
+            # 2. Content duplicate: same name, same content → counted as content duplicate
+            #    Content duplicate check happens BEFORE global check when same-named file exists
+            content_dup_content = "content duplicate"
+            (dest_dir / "same_name.txt").write_text(content_dup_content)
+            content_dup_source = source_dir / "same_name.txt"
+            content_dup_source.write_text(content_dup_content)
+
+            # 3. Name duplicate: same name, different content → triggers rename
+            (dest_dir / "name_conflict.txt").write_text("original content")
+            name_dup_source = source_dir / "name_conflict.txt"
+            name_dup_source.write_text("different content")
+
+            # 4. Unique file: no duplicates
+            unique_source = source_dir / "unique.txt"
+            unique_source.write_text("completely unique content")
+
+            # Move with both flags
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files(
+                    [global_dup_source, content_dup_source, name_dup_source, unique_source],
+                    dest_dir,
+                    deduplicate=True,
+                    global_dedup=True,
+                )
+            )
+
+            # Proper categorization:
+            # - global_dup.txt: different name, content exists → global duplicate
+            # - same_name.txt: same name, same content → content duplicate (not global)
+            assert global_dups == 1  # only global_dup.txt
+            assert content_dups == 1  # same_name.txt is a content duplicate
+            assert name_dups == 1  # name_conflict.txt (renamed)
+            assert moved == 2  # name_conflict_1.txt and unique.txt
+
+    def test_move_files_global_dedup_records_history(self):
+        """History entries for global duplicates have global_duplicate flag."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            identical_content = "history flag test"
+            existing_file = dest_dir / "existing.txt"
+            existing_file.write_text(identical_content)
+
+            source_file = source_dir / "duplicate.txt"
+            source_file.write_text(identical_content)
+
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files([source_file], dest_dir, global_dedup=True)
+            )
+
+            # History should record the global duplicate
+            assert len(history) == 1
+            assert history[0].get("global_duplicate") is True
+            assert history[0]["original_pfad"] == str(source_file)
+
+    def test_move_files_global_dedup_empty_destination(self):
+        """With empty destination, all unique files are moved normally."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()  # Empty
+
+            file1 = source_dir / "file1.txt"
+            file2 = source_dir / "file2.txt"
+            file1.write_text("content 1")
+            file2.write_text("content 2")
+
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files([file1, file2], dest_dir, global_dedup=True)
+            )
+
+            assert moved == 2
+            assert global_dups == 0
+            assert (dest_dir / "file1.txt").exists()
+            assert (dest_dir / "file2.txt").exists()
+
+    def test_move_files_without_global_dedup_returns_4_tuple(self):
+        """Without global_dedup, move_files returns backward-compatible 4-tuple."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            source_file = source_dir / "test.txt"
+            source_file.touch()
+
+            # Old signature without global_dedup
+            result = self.file_mover.move_files([source_file], dest_dir)
+
+            # Should return 4-tuple for backward compatibility
+            assert len(result) == 4
+            moved, errors, duplicates, history = result
+            assert moved == 1
+
+
+class TestFileMoverGlobalDedupSorted:
+    """Test FileMover global deduplication with sorted (by type) moves.
+
+    These tests verify global_dedup functionality in move_files_sorted(),
+    which organizes files into type-specific subdirectories.
+    """
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.file_ops = FileOperations()
+        self.file_mover = FileMover(self.file_ops)
+
+    def test_move_files_sorted_global_dedup_skips_existing(self):
+        """Sorted move skips files already existing in dest type folder.
+
+        When a PDF already exists in the PDF folder with same content,
+        a new PDF with identical content should be skipped.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create PDF folder with existing file
+            pdf_folder = dest_dir / "PDF"
+            pdf_folder.mkdir()
+            identical_content = "PDF content for global dedup"
+            (pdf_folder / "existing.pdf").write_text(identical_content)
+
+            # Source file with same content but different name
+            source_file = source_dir / "report.pdf"
+            source_file.write_text(identical_content)
+
+            # Move sorted with global deduplication
+            moved, errors, name_dups, content_dups, global_dups, history, created = (
+                self.file_mover.move_files_sorted(
+                    [source_file], dest_dir, global_dedup=True
+                )
+            )
+
+            assert moved == 0
+            assert global_dups == 1
+            assert not source_file.exists()
+            assert not (pdf_folder / "report.pdf").exists()
+
+    def test_move_files_sorted_global_dedup_finds_in_other_type_folders(self):
+        """Global dedup finds duplicates across all type folders.
+
+        A duplicate in JPEG folder should prevent moving a file to PDF folder
+        if content matches (though this is an edge case).
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create file in one type folder
+            jpeg_folder = dest_dir / "JPEG"
+            jpeg_folder.mkdir()
+            identical_content = b"binary content shared"
+            (jpeg_folder / "image.jpg").write_bytes(identical_content)
+
+            # Source file of different type but same content
+            source_file = source_dir / "data.bin"
+            source_file.write_bytes(identical_content)
+
+            # Move sorted with global deduplication
+            moved, errors, name_dups, content_dups, global_dups, history, created = (
+                self.file_mover.move_files_sorted(
+                    [source_file], dest_dir, global_dedup=True
+                )
+            )
+
+            # Content already exists (in JPEG folder), should be detected
+            assert global_dups == 1
+            assert moved == 0
+
+    def test_move_files_sorted_global_dedup_updates_index(self):
+        """Index is updated during sorted moves for within-batch deduplication."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()  # Empty
+
+            # Create 3 PDFs with identical content
+            identical_content = "PDF content for batch test"
+            file1 = source_dir / "doc1.pdf"
+            file2 = source_dir / "doc2.pdf"
+            file3 = source_dir / "doc3.pdf"
+            file1.write_text(identical_content)
+            file2.write_text(identical_content)
+            file3.write_text(identical_content)
+
+            # Move all with global deduplication
+            moved, errors, name_dups, content_dups, global_dups, history, created = (
+                self.file_mover.move_files_sorted(
+                    [file1, file2, file3], dest_dir, global_dedup=True
+                )
+            )
+
+            # First should move, others should be global duplicates
+            assert moved == 1
+            assert global_dups == 2
+            pdf_files = list((dest_dir / "PDF").glob("*.pdf"))
+            assert len(pdf_files) == 1
+
+    def test_move_files_sorted_global_dedup_with_deduplicate(self):
+        """Combined global_dedup and deduplicate with sorted moves.
+
+        Content duplicates (same name + same content) are checked FIRST to ensure
+        proper categorization. Global duplicates (different name, matching content)
+        are checked only when no same-named file exists at destination.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            # Create TEXT folder with existing files
+            text_folder = dest_dir / "TEXT"
+            text_folder.mkdir()
+
+            # Global duplicate: different name, same content → counted as global duplicate
+            global_dup_content = "global dup content"
+            (text_folder / "existing.txt").write_text(global_dup_content)
+            global_dup = source_dir / "global.txt"
+            global_dup.write_text(global_dup_content)
+
+            # Content duplicate: same name, same content → counted as content duplicate
+            # Content duplicate check happens BEFORE global check when same-named file exists
+            content_dup_content = "content dup"
+            (text_folder / "same.txt").write_text(content_dup_content)
+            content_dup = source_dir / "same.txt"
+            content_dup.write_text(content_dup_content)
+
+            # Unique file
+            unique = source_dir / "unique.txt"
+            unique.write_text("completely unique")
+
+            moved, errors, name_dups, content_dups, global_dups, history, created = (
+                self.file_mover.move_files_sorted(
+                    [global_dup, content_dup, unique],
+                    dest_dir,
+                    deduplicate=True,
+                    global_dedup=True,
+                )
+            )
+
+            # Proper categorization:
+            # - global.txt: different name, content exists → global duplicate
+            # - same.txt: same name, same content → content duplicate (not global)
+            assert global_dups == 1  # only global.txt
+            assert content_dups == 1  # same.txt is a content duplicate
+            assert moved == 1
+            assert (text_folder / "unique.txt").exists()
+
+    def test_move_files_sorted_global_dedup_dry_run(self):
+        """Dry run with global_dedup in sorted mode preserves sources."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            pdf_folder = dest_dir / "PDF"
+            pdf_folder.mkdir()
+            identical = "identical PDF"
+            (pdf_folder / "existing.pdf").write_text(identical)
+
+            source_file = source_dir / "new.pdf"
+            source_file.write_text(identical)
+
+            moved, errors, name_dups, content_dups, global_dups, history, created = (
+                self.file_mover.move_files_sorted(
+                    [source_file], dest_dir, dry_run=True, global_dedup=True
+                )
+            )
+
+            assert source_file.exists()
+            assert global_dups == 1
+            assert len(history) == 0
+
+    def test_move_files_sorted_global_dedup_records_history(self):
+        """History entries for sorted global duplicates have flag."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            text_folder = dest_dir / "TEXT"
+            text_folder.mkdir()
+            (text_folder / "existing.txt").write_text("shared content")
+
+            source = source_dir / "new.txt"
+            source.write_text("shared content")
+
+            moved, errors, name_dups, content_dups, global_dups, history, created = (
+                self.file_mover.move_files_sorted([source], dest_dir, global_dedup=True)
+            )
+
+            assert len(history) == 1
+            assert history[0].get("global_duplicate") is True
+
+    def test_move_files_sorted_without_global_dedup_returns_5_tuple(self):
+        """Without global_dedup, move_files_sorted returns 5-tuple."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            source = source_dir / "test.pdf"
+            source.touch()
+
+            result = self.file_mover.move_files_sorted([source], dest_dir)
+
+            assert len(result) == 5
+            moved, errors, duplicates, history, created_folders = result
+            assert moved == 1
