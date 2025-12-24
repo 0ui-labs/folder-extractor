@@ -5,6 +5,7 @@ Coordinates file discovery, filtering, and moving operations
 with integrated progress tracking and state management.
 """
 
+import shutil
 from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
@@ -505,6 +506,10 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 if op.abort_signal.is_set():
                     break
 
+                # Extract duplicate flags
+                is_content_dup = entry.get("content_duplicate", False)
+                is_global_dup = entry.get("global_duplicate", False)
+
                 try:
                     # Get original path and ensure parent directory exists
                     original_path = Path(
@@ -512,11 +517,31 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                     )
                     original_path.parent.mkdir(parents=True, exist_ok=True)
 
-                    # Undo the move
-                    self.file_operations.move_file(
-                        entry.get("neuer_pfad", entry.get("new_path")),
-                        str(original_path),
-                    )
+                    # Handle duplicates differently: copy instead of move
+                    if is_content_dup or is_global_dup:
+                        # For duplicates, the original was deleted during extraction.
+                        # We need to copy from the remaining file (neuer_pfad).
+                        source_of_content = entry.get(
+                            "neuer_pfad", entry.get("new_path")
+                        )
+                        source_path = Path(source_of_content)
+
+                        if not source_path.exists():
+                            raise FileNotFoundError(
+                                f"Duplikat-Referenz nicht gefunden: {source_path}"
+                            )
+
+                        shutil.copy2(source_path, original_path)
+                    else:
+                        # Normal file: move back to original location
+                        source_path = Path(
+                            entry.get("neuer_pfad", entry.get("new_path"))
+                        )
+                        self.file_operations.move_file(
+                            str(source_path),
+                            str(original_path),
+                        )
+
                     restored += 1
 
                     # Update progress

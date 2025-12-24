@@ -439,6 +439,381 @@ class TestEnhancedFileExtractor:
         assert result["status"] == "no_history"
         assert result["restored"] == 0
 
+    def test_undo_restores_deduplicated_file_by_copying(self, tmp_path):
+        """Deduplicated files are restored by copying from the duplicate source.
+
+        When a file was skipped during extraction because it was a duplicate
+        (content_duplicate=True), the undo operation should restore it by
+        copying from the file it was a duplicate of (neuer_pfad field).
+
+        The original file no longer exists (was deleted during dedup), so
+        the undo must copy from neuer_pfad back to original_pfad.
+        """
+        # Setup: Create destination directory with the "original" file
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+        original_file = dest_dir / "original.txt"
+        original_file.write_text("test content")
+
+        # Setup: Create empty source directory (file was deleted during dedup)
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+
+        # Create history with a deduplicated file entry
+        # neuer_pfad points to the file that still exists
+        # original_pfad is where it should be restored to
+        operations = [
+            {
+                "original_pfad": str(source_dir / "duplicate.txt"),
+                "neuer_pfad": str(original_file),
+                "original_name": "duplicate.txt",
+                "neuer_name": "original.txt",
+                "zeitstempel": "2024-01-01T12:00:00",
+                "content_duplicate": True,
+                "duplicate_of": str(original_file),  # Reference to the remaining file
+            }
+        ]
+
+        history_data = {"operationen": operations}
+        self.mock_history_manager.load_history.return_value = history_data
+
+        # Mock ManagedOperation context manager
+        mock_operation = Mock()
+        mock_operation.abort_signal = self.abort_signal  # Not set
+        mock_operation.update_stats = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        # Execute undo - let shutil.copy2 run without mocking
+        with patch("folder_extractor.core.extractor.ProgressTracker"):
+            with patch(
+                "folder_extractor.core.extractor.ManagedOperation",
+                return_value=mock_operation,
+            ):
+                result = self.extractor.undo_last_operation(tmp_path)
+
+        # Verify: The deduplicated file should be restored
+        assert result["restored"] == 1, f"Expected 1 restored file, got {result}"
+        assert result["errors"] == 0, f"Expected no errors, got {result}"
+        assert result["aborted"] is False
+
+        # Critical assertion: The file should exist and have correct content
+        restored_file = source_dir / "duplicate.txt"
+        assert restored_file.exists(), "Deduplizierte Datei wurde nicht wiederhergestellt"
+        assert (
+            restored_file.read_text() == "test content"
+        ), "Dateiinhalt stimmt nicht überein"
+
+        # Verify: The original file in dest should still exist (copied, not moved)
+        assert original_file.exists(), "Original file should still exist after copy"
+
+    def test_undo_deduplicated_file_source_deleted(self, tmp_path):
+        """Undo gracefully handles missing source file for deduplicated entries.
+
+        When a deduplicated file's source (neuer_pfad) no longer exists,
+        the undo operation should report an error but continue processing
+        other entries without crashing.
+        """
+        # Setup: Create empty source directory
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+
+        # Setup: dest directory exists but the file does NOT
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+        # Note: original_file is NOT created - simulating deletion
+
+        # Create history with a deduplicated file entry pointing to missing file
+        missing_file_path = str(dest_dir / "deleted_original.txt")
+        operations = [
+            {
+                "original_pfad": str(source_dir / "duplicate.txt"),
+                "neuer_pfad": missing_file_path,  # Does not exist!
+                "original_name": "duplicate.txt",
+                "neuer_name": "deleted_original.txt",
+                "zeitstempel": "2024-01-01T12:00:00",
+                "content_duplicate": True,
+            }
+        ]
+
+        history_data = {"operationen": operations}
+        self.mock_history_manager.load_history.return_value = history_data
+
+        # Mock ManagedOperation context manager
+        mock_operation = Mock()
+        mock_operation.abort_signal = self.abort_signal
+        mock_operation.update_stats = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        # Configure move_file mock to raise FileNotFoundError (realistic behavior)
+        self.mock_file_operations.move_file.side_effect = FileNotFoundError(
+            f"Source file not found: {missing_file_path}"
+        )
+
+        # Execute undo
+        with patch("folder_extractor.core.extractor.ProgressTracker"):
+            with patch(
+                "folder_extractor.core.extractor.ManagedOperation",
+                return_value=mock_operation,
+            ):
+                result = self.extractor.undo_last_operation(tmp_path)
+
+        # Verify: Operation should fail gracefully with error count
+        assert result["restored"] == 0, "No files should be restored when source missing"
+        assert result["errors"] == 1, "Should report one error for missing source"
+        assert result["aborted"] is False, "Should not abort, just report error"
+
+        # The file should NOT exist since source was missing
+        restored_file = source_dir / "duplicate.txt"
+        assert not restored_file.exists(), "File should not be created when source missing"
+
+    def test_undo_global_duplicate_by_copying(self, tmp_path):
+        """Global duplicates are restored by copying, same as content duplicates.
+
+        Files marked with global_duplicate=True should be restored by copying
+        from neuer_pfad back to original_pfad, preserving the file at destination.
+        """
+        # Setup: Create destination directory with the file
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+        original_file = dest_dir / "global_original.txt"
+        original_file.write_text("global duplicate content")
+
+        # Setup: Create empty source directory
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+
+        # Create history with a global duplicate entry
+        operations = [
+            {
+                "original_pfad": str(source_dir / "global_dup.txt"),
+                "neuer_pfad": str(original_file),
+                "original_name": "global_dup.txt",
+                "neuer_name": "global_original.txt",
+                "zeitstempel": "2024-01-01T12:00:00",
+                "global_duplicate": True,  # Global duplicate flag instead of content_duplicate
+            }
+        ]
+
+        history_data = {"operationen": operations}
+        self.mock_history_manager.load_history.return_value = history_data
+
+        # Mock ManagedOperation context manager
+        mock_operation = Mock()
+        mock_operation.abort_signal = self.abort_signal
+        mock_operation.update_stats = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        # Execute undo
+        with patch("folder_extractor.core.extractor.ProgressTracker"):
+            with patch(
+                "folder_extractor.core.extractor.ManagedOperation",
+                return_value=mock_operation,
+            ):
+                result = self.extractor.undo_last_operation(tmp_path)
+
+        # Verify: The global duplicate should be restored
+        assert result["restored"] == 1, f"Expected 1 restored file, got {result}"
+        assert result["errors"] == 0, f"Expected no errors, got {result}"
+
+        # Critical assertion: The file should exist with correct content
+        restored_file = source_dir / "global_dup.txt"
+        assert restored_file.exists(), "Global duplicate should be restored"
+        assert (
+            restored_file.read_text() == "global duplicate content"
+        ), "Content should match original"
+
+        # Verify: Original file at dest should still exist (copied, not moved)
+        assert original_file.exists(), "Original should still exist after copy"
+
+    def test_undo_duplicate_updates_progress_correctly(self, tmp_path):
+        """Progress is correctly tracked for mixed entries (normal + duplicates).
+
+        When undoing a history with a mix of normal files and duplicates,
+        the ProgressTracker.increment should be called once per entry,
+        and ManagedOperation.update_stats should receive correct values.
+        """
+        # Setup: Create test directories and files
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+
+        # Create files that exist in dest (for undo to work)
+        normal_file = dest_dir / "normal.txt"
+        normal_file.write_text("normal content")
+
+        content_dup_source = dest_dir / "content_original.txt"
+        content_dup_source.write_text("content duplicate")
+
+        global_dup_source = dest_dir / "global_original.txt"
+        global_dup_source.write_text("global duplicate")
+
+        # Create history with 3 entries: 1 normal, 1 content_duplicate, 1 global_duplicate
+        operations = [
+            {
+                "original_pfad": str(source_dir / "normal_restored.txt"),
+                "neuer_pfad": str(normal_file),
+                "original_name": "normal_restored.txt",
+                "neuer_name": "normal.txt",
+                "zeitstempel": "2024-01-01T12:00:00",
+            },
+            {
+                "original_pfad": str(source_dir / "content_dup_restored.txt"),
+                "neuer_pfad": str(content_dup_source),
+                "original_name": "content_dup_restored.txt",
+                "neuer_name": "content_original.txt",
+                "zeitstempel": "2024-01-01T12:00:01",
+                "content_duplicate": True,
+            },
+            {
+                "original_pfad": str(source_dir / "global_dup_restored.txt"),
+                "neuer_pfad": str(global_dup_source),
+                "original_name": "global_dup_restored.txt",
+                "neuer_name": "global_original.txt",
+                "zeitstempel": "2024-01-01T12:00:02",
+                "global_duplicate": True,
+            },
+        ]
+
+        history_data = {"operationen": operations}
+        self.mock_history_manager.load_history.return_value = history_data
+
+        # Mock ManagedOperation context manager to track update_stats calls
+        mock_operation = Mock()
+        mock_operation.abort_signal = self.abort_signal
+        mock_operation.update_stats = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        # Execute undo with mocked ProgressTracker
+        with patch("folder_extractor.core.extractor.ProgressTracker") as MockProgress:
+            mock_progress = MockProgress.return_value
+
+            with patch(
+                "folder_extractor.core.extractor.ManagedOperation",
+                return_value=mock_operation,
+            ):
+                result = self.extractor.undo_last_operation(tmp_path)
+
+        # Verify all 3 files restored successfully
+        assert result["restored"] == 3, f"Expected 3 restored, got {result}"
+        assert result["errors"] == 0, f"Expected 0 errors, got {result}"
+
+        # Verify ProgressTracker.increment called 3 times (once per entry)
+        assert mock_progress.increment.call_count == 3, (
+            f"Expected 3 increment calls, got {mock_progress.increment.call_count}"
+        )
+
+        # Verify ManagedOperation.update_stats called 3 times with success values
+        assert mock_operation.update_stats.call_count == 3, (
+            f"Expected 3 update_stats calls, got {mock_operation.update_stats.call_count}"
+        )
+
+        # Each call should report files_processed=1 and files_moved=1 (success)
+        for call in mock_operation.update_stats.call_args_list:
+            kwargs = call.kwargs if call.kwargs else {}
+            # Allow positional or keyword args
+            if kwargs:
+                assert kwargs.get("files_processed") == 1
+                assert kwargs.get("files_moved") == 1
+            else:
+                # Positional args
+                args = call.args if call.args else ()
+                assert len(args) == 0 or args == ()
+
+    def test_undo_duplicate_respects_abort_signal_mid_operation(self, tmp_path):
+        """Undo stops processing after abort signal is set during duplicate restore.
+
+        When the abort signal is set during the copy operation for a duplicate,
+        the undo loop should break and only partially restore files.
+        """
+        # Setup: Create test directories and source files
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        dest_dir = tmp_path / "dest"
+        dest_dir.mkdir()
+
+        # Create 3 source files that would be copied
+        file1 = dest_dir / "file1.txt"
+        file1.write_text("content 1")
+        file2 = dest_dir / "file2.txt"
+        file2.write_text("content 2")
+        file3 = dest_dir / "file3.txt"
+        file3.write_text("content 3")
+
+        # Create history with 3 content_duplicate entries
+        operations = [
+            {
+                "original_pfad": str(source_dir / "dup1.txt"),
+                "neuer_pfad": str(file1),
+                "original_name": "dup1.txt",
+                "neuer_name": "file1.txt",
+                "zeitstempel": "2024-01-01T12:00:00",
+                "content_duplicate": True,
+            },
+            {
+                "original_pfad": str(source_dir / "dup2.txt"),
+                "neuer_pfad": str(file2),
+                "original_name": "dup2.txt",
+                "neuer_name": "file2.txt",
+                "zeitstempel": "2024-01-01T12:00:01",
+                "content_duplicate": True,
+            },
+            {
+                "original_pfad": str(source_dir / "dup3.txt"),
+                "neuer_pfad": str(file3),
+                "original_name": "dup3.txt",
+                "neuer_name": "file3.txt",
+                "zeitstempel": "2024-01-01T12:00:02",
+                "content_duplicate": True,
+            },
+        ]
+
+        history_data = {"operationen": operations}
+        self.mock_history_manager.load_history.return_value = history_data
+
+        # Mock ManagedOperation - abort signal NOT set initially
+        mock_operation = Mock()
+        mock_operation.abort_signal = self.abort_signal
+        mock_operation.update_stats = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        # Track copy2 calls and set abort after first successful copy
+        copy_call_count = [0]
+        original_copy2 = __import__("shutil").copy2
+
+        def copy2_with_abort(src, dst):
+            result = original_copy2(src, dst)
+            copy_call_count[0] += 1
+            if copy_call_count[0] == 1:
+                # Set abort signal after first copy completes
+                self.abort_signal.set()
+            return result
+
+        # Execute undo
+        with patch("folder_extractor.core.extractor.ProgressTracker"):
+            with patch(
+                "folder_extractor.core.extractor.ManagedOperation",
+                return_value=mock_operation,
+            ):
+                with patch("shutil.copy2", side_effect=copy2_with_abort):
+                    result = self.extractor.undo_last_operation(tmp_path)
+
+        # Verify: Only 1 file should be restored before abort
+        assert result["restored"] == 1, f"Expected 1 restored (abort after first), got {result}"
+        assert result["aborted"] is True, "Should report aborted=True"
+        assert result["errors"] == 0, "No errors, just aborted"
+
+        # Verify: Only the first file (processed in reverse order: dup3) should exist
+        # Operations are processed in REVERSE, so dup3 is first
+        assert (source_dir / "dup3.txt").exists(), "First (reversed) file should be restored"
+        assert not (source_dir / "dup2.txt").exists(), "Second file should NOT be restored"
+        assert not (source_dir / "dup1.txt").exists(), "Third file should NOT be restored"
+
     def test_extract_files_dry_run_no_history(self, tmp_path):
         """Test that history is not saved in dry run mode."""
         # Setup

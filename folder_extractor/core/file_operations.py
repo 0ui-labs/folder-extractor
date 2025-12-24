@@ -749,12 +749,48 @@ class FileMover:
         # Build hash index for global deduplication
         hash_index: Dict[str, List[Path]] = {}
         if global_dedup:
+            # Sort files by modification time (oldest first) so that when
+            # duplicates are found, the ORIGINAL (older) file is kept and
+            # the newer copy is detected as duplicate
+            try:
+                files = sorted(files, key=lambda f: Path(f).stat().st_mtime)
+            except OSError:
+                pass  # If we can't stat a file, keep original order
+
             try:
                 # Signal indexing start
                 if self.indexing_callback:
                     self.indexing_callback("start")
                 # Get all existing hashes in destination for dedup
                 hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
+
+                # BUGFIX: Remove source files from the hash index to prevent
+                # them from matching each other. Without this, two identical
+                # source files would both be detected as "already exists"
+                # and deleted, resulting in data loss.
+                # IMPORTANT: Only remove files from SUBDIRECTORIES, not from root
+                # or from type folders (when using sort-by-type).
+                dest_resolved = dest_path.resolve()
+                # Get known type folder names for filtering
+                known_type_folders = set(FILE_TYPE_FOLDERS.values())
+                source_paths = set()
+                for f in files:
+                    fp = Path(f).resolve()
+                    parent = fp.parent
+                    # Skip files in root directory
+                    if parent == dest_resolved:
+                        continue
+                    # Skip files already in a type folder (e.g., TEXT/doc.txt)
+                    if parent.parent == dest_resolved and parent.name in known_type_folders:
+                        continue
+                    source_paths.add(fp)
+                for hash_value in list(hash_index.keys()):
+                    hash_index[hash_value] = [
+                        p for p in hash_index[hash_value] if p.resolve() not in source_paths
+                    ]
+                    # Remove empty entries
+                    if not hash_index[hash_value]:
+                        del hash_index[hash_value]
             except FileOperationError:
                 # If we can't build index, continue without global dedup
                 pass
@@ -808,6 +844,7 @@ class FileMover:
                                         "neuer_name": filename,
                                         "zeitstempel": datetime.now().isoformat(),
                                         "content_duplicate": True,
+                                        "duplicate_of": str(existing_dest),
                                     }
                                 )
                             continue
@@ -841,6 +878,7 @@ class FileMover:
                                             "neuer_name": matching_files[0].name,
                                             "zeitstempel": datetime.now().isoformat(),
                                             "global_duplicate": True,
+                                            "duplicate_of": str(matching_files[0]),
                                         }
                                     )
                                 continue
@@ -951,12 +989,48 @@ class FileMover:
         # Build hash index for global deduplication
         hash_index: Dict[str, List[Path]] = {}
         if global_dedup:
+            # Sort files by modification time (oldest first) so that when
+            # duplicates are found, the ORIGINAL (older) file is kept and
+            # the newer copy is detected as duplicate
+            try:
+                files = sorted(files, key=lambda f: Path(f).stat().st_mtime)
+            except OSError:
+                pass  # If we can't stat a file, keep original order
+
             try:
                 # Signal indexing start
                 if self.indexing_callback:
                     self.indexing_callback("start")
                 # Get all existing hashes in destination for dedup
                 hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
+
+                # BUGFIX: Remove source files from the hash index to prevent
+                # them from matching each other. Without this, two identical
+                # source files would both be detected as "already exists"
+                # and deleted, resulting in data loss.
+                # IMPORTANT: Only remove files from SUBDIRECTORIES, not from root
+                # or from type folders (when using sort-by-type).
+                dest_resolved = dest_path.resolve()
+                # Get known type folder names for filtering
+                known_type_folders = set(FILE_TYPE_FOLDERS.values())
+                source_paths = set()
+                for f in files:
+                    fp = Path(f).resolve()
+                    parent = fp.parent
+                    # Skip files in root directory
+                    if parent == dest_resolved:
+                        continue
+                    # Skip files already in a type folder (e.g., TEXT/doc.txt)
+                    if parent.parent == dest_resolved and parent.name in known_type_folders:
+                        continue
+                    source_paths.add(fp)
+                for hash_value in list(hash_index.keys()):
+                    hash_index[hash_value] = [
+                        p for p in hash_index[hash_value] if p.resolve() not in source_paths
+                    ]
+                    # Remove empty entries
+                    if not hash_index[hash_value]:
+                        del hash_index[hash_value]
             except FileOperationError:
                 # If we can't build index, continue without global dedup
                 pass
@@ -1042,6 +1116,7 @@ class FileMover:
                                         "neuer_name": filename,
                                         "zeitstempel": datetime.now().isoformat(),
                                         "content_duplicate": True,
+                                        "duplicate_of": str(existing_dest),
                                     }
                                 )
                             continue
@@ -1075,6 +1150,7 @@ class FileMover:
                                             "neuer_name": matching_files[0].name,
                                             "zeitstempel": datetime.now().isoformat(),
                                             "global_duplicate": True,
+                                            "duplicate_of": str(matching_files[0]),
                                         }
                                     )
                                 continue

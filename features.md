@@ -51,12 +51,15 @@ folder-extractor
 
 ---
 
-### Feature B: Undo für Duplikate (Bugfix)
+### Feature B: Undo für Duplikate ✅
 
-**Status:** Bugfix erforderlich
+**Status:** ✅ Erledigt
+**Implementiert in:** v1.4.0
+
+**Hinweis:** Dieser Bug wurde behoben. Die folgende Beschreibung dokumentiert das ursprüngliche Problem.
 
 **Problem:**
-Bei `--deduplicate` werden Quelldateien mit identischem Inhalt **gelöscht**:
+Bei `--deduplicate` wurden Quelldateien mit identischem Inhalt **gelöscht**:
 
 ```python
 # file_operations.py, Zeile 801
@@ -89,21 +92,21 @@ Nach folder-extractor --undo (FIXED):
 📁 Ordner2/foto.jpg (kopiert aus Zielordner)  ✓
 ```
 
-**Technische Änderungen:**
+**Implementierte Änderungen:**
 
-1. **History erweitern:**
+1. **History erweitert:**
 ```json
 {
   "original_pfad": "/Ordner2/foto.jpg",
   "neuer_pfad": "/Ziel/foto.jpg",
   "content_duplicate": true,
-  "duplicate_of": "/Ziel/foto.jpg"  // NEU: Referenz zur verbleibenden Datei
+  "duplicate_of": "/Ziel/foto.jpg"  // Referenz zur verbleibenden Datei (implementiert)
 }
 ```
 
-2. **Undo-Logik anpassen:**
+2. **Undo-Logik angepasst** (in `EnhancedFileExtractor.undo_last_operation`):
 ```python
-if entry.get("content_duplicate"):
+if entry.get("content_duplicate") or entry.get("global_duplicate"):
     # KOPIEREN statt verschieben
     shutil.copy2(duplicate_source, original_path)
 else:
@@ -111,8 +114,36 @@ else:
 ```
 
 **Betroffene Dateien:**
-- `folder_extractor/core/file_operations.py` – History-Einträge erweitern
-- `folder_extractor/core/extractor.py` – Undo-Logik anpassen
+- `folder_extractor/core/file_operations.py` – History-Einträge erweitert
+- `folder_extractor/core/extractor.py` – Undo-Logik angepasst
+
+**Implementierungsdetails:**
+
+Die Lösung umfasst folgende Komponenten:
+
+| Komponente | Änderung | Datei |
+|------------|----------|-------|
+| History-Erweiterung | `duplicate_of` Feld für `content_duplicate` und `global_duplicate` | `file_operations.py` (Zeilen ~804-813, ~1038-1047) |
+| Undo-Logik | `shutil.copy2` für Duplikate statt `move_file` | `extractor.py` (Zeile ~509-520) |
+| Fehlerbehandlung | Warnung wenn `duplicate_of` Datei nicht existiert | `extractor.py` |
+| Tests | Vollständige Test-Coverage inkl. Edge Cases | `test_core_extractor_enhanced.py` |
+
+**History-Format (erweitert):**
+```json
+{
+  "original_path": "/Ordner2/foto.jpg",
+  "new_path": "/Ziel/foto.jpg",
+  "content_duplicate": true,
+  "duplicate_of": "/Ziel/foto.jpg",
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+**Undo-Verhalten:**
+- Bei `content_duplicate` oder `global_duplicate`: Kopiert die Datei von `duplicate_of` zum `original_path`
+- Bei fehlender `duplicate_of` Datei: Fehler im Undo-Bericht, Operation wird übersprungen
+- Nutzt `shutil.copy2` um Metadaten (Timestamps) zu erhalten
+- Thread-safe durch `ManagedOperation` Kontext
 
 ---
 
@@ -121,7 +152,7 @@ else:
 | Feature | Typ | Aufwand | Status |
 |---------|-----|---------|--------|
 | Persistente Konfiguration | Neu | Mittel | Geplant |
-| Undo für Duplikate | Bugfix | Mittel | Offen |
+| Undo für Duplikate | Bugfix | Mittel | ✅ Erledigt |
 
 ---
 
@@ -319,7 +350,7 @@ def post_move(file_path):
 | Version | Features | Status |
 |---------|----------|--------|
 | **v1.3.3** | SHA256 Dedup, Global Dedup | ✅ Released |
-| **v1.4.0** | Persistente Config, Undo-Bugfix | 🟡 Geplant |
+| **v1.4.0** | Persistente Config, Undo-Bugfix ✅ | 🟡 In Arbeit |
 | **v1.5.0** | Logging, i18n, Dry-Run++, Binaries | 📋 Backlog |
 | **v2.0.0** | Watch Mode, Archive Support, TUI | 🔮 Vision |
 

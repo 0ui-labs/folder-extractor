@@ -1240,6 +1240,39 @@ class TestFileMoverDeduplication:
             assert content_duplicates == 0
             assert (dest_dir / "unique.txt").exists()
 
+    def test_content_duplicate_history_includes_duplicate_of_reference(self):
+        """History for content duplicates includes duplicate_of field for undo.
+
+        When a file is skipped as a content duplicate, the history must include
+        a duplicate_of field pointing to the remaining file. This is essential
+        for undo operations, which need to copy from this reference since the
+        original file was deleted.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            identical_content = "duplicate reference test"
+            source_file = source_dir / "file.txt"
+            source_file.write_text(identical_content)
+            dest_file = dest_dir / "file.txt"
+            dest_file.write_text(identical_content)
+
+            moved, errors, duplicates, content_duplicates, history = (
+                self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
+            )
+
+            assert content_duplicates == 1
+            assert len(history) == 1
+            assert history[0].get("content_duplicate") is True
+            # The duplicate_of field must reference the file that still exists
+            assert history[0].get("duplicate_of") == str(dest_file)
+            # neuer_pfad also points to the remaining file (for consistency)
+            assert history[0].get("neuer_pfad") == str(dest_file)
+
 
 class TestFileMoverGlobalDedup:
     """Test FileMover global deduplication functionality.
@@ -1496,6 +1529,42 @@ class TestFileMoverGlobalDedup:
             assert history[0].get("global_duplicate") is True
             assert history[0]["original_pfad"] == str(source_file)
 
+    def test_global_duplicate_history_includes_duplicate_of_reference(self):
+        """History for global duplicates includes duplicate_of field for undo.
+
+        When a file is skipped as a global duplicate (same content, different name),
+        the history must include a duplicate_of field pointing to the matching file.
+        This is essential for undo operations, which need to copy from this
+        reference since the original file was deleted.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            identical_content = "global duplicate reference test"
+            # Existing file in destination with different name
+            existing_file = dest_dir / "existing.txt"
+            existing_file.write_text(identical_content)
+
+            # Source file with different name but identical content
+            source_file = source_dir / "duplicate.txt"
+            source_file.write_text(identical_content)
+
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files([source_file], dest_dir, global_dedup=True)
+            )
+
+            assert global_dups == 1
+            assert len(history) == 1
+            assert history[0].get("global_duplicate") is True
+            # The duplicate_of field must reference the file that matches
+            assert history[0].get("duplicate_of") == str(existing_file)
+            # neuer_pfad also points to the matching file
+            assert history[0].get("neuer_pfad") == str(existing_file)
+
     def test_move_files_global_dedup_empty_destination(self):
         """With empty destination, all unique files are moved normally."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1538,6 +1607,113 @@ class TestFileMoverGlobalDedup:
             assert len(result) == 4
             moved, errors, duplicates, history = result
             assert moved == 1
+
+    def test_global_dedup_with_duplicate_source_files_moves_one(self):
+        """When source files have identical content, ONE should be moved.
+
+        REGRESSION TEST for bug where global_dedup would delete ALL duplicate
+        source files instead of moving one and deduplicating the rest.
+
+        Scenario: User duplicates a file in Finder (same content, different name)
+        and then runs folder-extractor --global-dedup. Expected behavior:
+        - First file should be MOVED to destination
+        - Second file (duplicate) should be detected and deleted
+        - At least ONE file ends up in destination
+
+        Bug behavior (before fix):
+        - Both files deleted, none moved (data loss!)
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            subfolder = temp_path / "subfolder"
+            subfolder.mkdir()
+
+            # Create two files with IDENTICAL content in subfolder
+            # (simulates user duplicating a file in Finder)
+            identical_content = "This is identical content for dedup test"
+            original = subfolder / "original.txt"
+            original.write_text(identical_content)
+            duplicate = subfolder / "kopie_umbenannt.txt"
+            duplicate.write_text(identical_content)
+
+            # Move from subfolder to parent (temp_path) with global_dedup
+            moved, errors, name_dups, content_dups, global_dups, history = (
+                self.file_mover.move_files(
+                    [original, duplicate], temp_path, global_dedup=True
+                )
+            )
+
+            # CRITICAL: At least ONE file must be moved!
+            # The first file should be moved, the second detected as duplicate
+            assert moved >= 1, (
+                f"At least one file should be moved! "
+                f"moved={moved}, global_dups={global_dups}"
+            )
+            # Together they should account for all source files
+            assert moved + global_dups == 2, (
+                f"All files should be either moved or deduped: "
+                f"moved={moved}, global_dups={global_dups}"
+            )
+
+            # Verify at least one file exists in destination
+            dest_files = list(temp_path.glob("*.txt"))
+            assert len(dest_files) >= 1, (
+                f"At least one file should exist in destination! "
+                f"Found: {dest_files}"
+            )
+
+            # Source files should no longer exist
+            assert not original.exists(), "Original should be moved or deleted"
+            assert not duplicate.exists(), "Duplicate should be moved or deleted"
+
+    def test_global_dedup_sorted_with_duplicate_source_files_moves_one(self):
+        """Same test as above but with sorted move (by file type).
+
+        REGRESSION TEST for the same bug in move_files_sorted().
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            subfolder = temp_path / "subfolder"
+            subfolder.mkdir()
+
+            # Create two files with IDENTICAL content in subfolder
+            identical_content = "Identical content for sorted dedup test"
+            original = subfolder / "original.txt"
+            original.write_text(identical_content)
+            duplicate = subfolder / "kopie_umbenannt.txt"
+            duplicate.write_text(identical_content)
+
+            # Move from subfolder to parent with global_dedup and sorting
+            (
+                moved,
+                errors,
+                name_dups,
+                content_dups,
+                global_dups,
+                history,
+                created,
+            ) = self.file_mover.move_files_sorted(
+                [original, duplicate], temp_path, global_dedup=True
+            )
+
+            # CRITICAL: At least ONE file must be moved!
+            assert moved >= 1, (
+                f"At least one file should be moved! "
+                f"moved={moved}, global_dups={global_dups}"
+            )
+            assert moved + global_dups == 2, (
+                f"All files should be either moved or deduped: "
+                f"moved={moved}, global_dups={global_dups}"
+            )
+
+            # Verify at least one file exists in TEXT folder (.txt -> TEXT)
+            text_folder = temp_path / "TEXT"
+            assert text_folder.exists(), "TEXT folder should be created"
+            dest_files = list(text_folder.glob("*.txt"))
+            assert len(dest_files) >= 1, (
+                f"At least one file should exist in TEXT folder! "
+                f"Found: {dest_files}"
+            )
 
 
 class TestFileMoverGlobalDedupSorted:
@@ -1753,6 +1929,73 @@ class TestFileMoverGlobalDedupSorted:
 
             assert len(history) == 1
             assert history[0].get("global_duplicate") is True
+
+    def test_sorted_global_duplicate_history_includes_duplicate_of_reference(self):
+        """Sorted history for global duplicates includes duplicate_of field.
+
+        When a file is skipped as a global duplicate in sorted mode,
+        the history must include a duplicate_of field for undo operations.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            text_folder = dest_dir / "TEXT"
+            text_folder.mkdir()
+            existing_file = text_folder / "existing.txt"
+            existing_file.write_text("sorted global dedup reference test")
+
+            source = source_dir / "new.txt"
+            source.write_text("sorted global dedup reference test")
+
+            moved, errors, name_dups, content_dups, global_dups, history, created = (
+                self.file_mover.move_files_sorted([source], dest_dir, global_dedup=True)
+            )
+
+            assert global_dups == 1
+            assert len(history) == 1
+            assert history[0].get("global_duplicate") is True
+            # duplicate_of must reference the matching file
+            assert history[0].get("duplicate_of") == str(existing_file)
+            assert history[0].get("neuer_pfad") == str(existing_file)
+
+    def test_sorted_content_duplicate_history_includes_duplicate_of_reference(self):
+        """Sorted history for content duplicates includes duplicate_of field.
+
+        When a file is skipped as a content duplicate in sorted mode
+        (same name and content in the type folder), the history must
+        include a duplicate_of field for undo operations.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            source_dir = temp_path / "source"
+            source_dir.mkdir()
+            dest_dir = temp_path / "dest"
+            dest_dir.mkdir()
+
+            text_folder = dest_dir / "TEXT"
+            text_folder.mkdir()
+            existing_file = text_folder / "samename.txt"
+            existing_file.write_text("sorted content dedup reference test")
+
+            source = source_dir / "samename.txt"
+            source.write_text("sorted content dedup reference test")
+
+            moved, errors, duplicates, content_dups, history, created = (
+                self.file_mover.move_files_sorted(
+                    [source], dest_dir, deduplicate=True
+                )
+            )
+
+            assert content_dups == 1
+            assert len(history) == 1
+            assert history[0].get("content_duplicate") is True
+            # duplicate_of must reference the remaining file
+            assert history[0].get("duplicate_of") == str(existing_file)
+            assert history[0].get("neuer_pfad") == str(existing_file)
 
     def test_move_files_sorted_without_global_dedup_returns_5_tuple(self):
         """Without global_dedup, move_files_sorted returns 5-tuple."""
