@@ -26,7 +26,6 @@ from folder_extractor.core.archives import (
 from folder_extractor.core.extractor import SecurityError
 from folder_extractor.core.file_operations import FileOperationError
 
-
 # =============================================================================
 # Test Fixtures
 # =============================================================================
@@ -168,14 +167,14 @@ class TestZipHandler:
         handler.extract(zip_path, extraction_dir)
 
         assert (extraction_dir / "root.txt").exists()
-        assert (extraction_dir / "subdir" / "nested.txt").read_text() == "nested content"
+        assert (
+            extraction_dir / "subdir" / "nested.txt"
+        ).read_text() == "nested content"
         assert (
             extraction_dir / "subdir" / "deep" / "deeper.txt"
         ).read_text() == "deep content"
 
-    def test_extract_handles_empty_directories(
-        self, tmp_path, extraction_dir
-    ):
+    def test_extract_handles_empty_directories(self, tmp_path, extraction_dir):
         """Extracting a ZIP with empty directories creates those directories."""
         zip_path = tmp_path / "with_empty_dir.zip"
         with zipfile.ZipFile(zip_path, "w") as zf:
@@ -331,9 +330,7 @@ class TestTarHandler:
         assert (extraction_dir / "file1.txt").read_text() == "Hello TAR"
         assert (extraction_dir / "file2.log").read_text() == "Log content"
 
-    def test_extract_handles_gzip_compression(
-        self, create_tar_archive, extraction_dir
-    ):
+    def test_extract_handles_gzip_compression(self, create_tar_archive, extraction_dir):
         """TAR.GZ archives are correctly decompressed and extracted."""
         tar_path = create_tar_archive(
             {"compressed.txt": "This was compressed"},

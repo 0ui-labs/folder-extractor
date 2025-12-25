@@ -14,14 +14,12 @@ import io
 import tarfile
 import zipfile
 from pathlib import Path
-from typing import List
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from folder_extractor.config.settings import settings
 from folder_extractor.core.extractor import EnhancedFileExtractor
-
 
 # =============================================================================
 # Test Fixtures
@@ -241,9 +239,7 @@ class TestProcessArchives:
 
         files = [str(zip_path)]
 
-        with patch(
-            "folder_extractor.core.extractor.is_safe_path", return_value=True
-        ):
+        with patch("folder_extractor.core.extractor.is_safe_path", return_value=True):
             result_files, archive_results = extractor._process_archives(
                 files=files,
                 destination=destination,
@@ -273,9 +269,7 @@ class TestProcessArchives:
 
         files = [str(zip_path), str(pdf_path)]
 
-        with patch(
-            "folder_extractor.core.extractor.is_safe_path", return_value=True
-        ):
+        with patch("folder_extractor.core.extractor.is_safe_path", return_value=True):
             result_files, _ = extractor._process_archives(
                 files=files,
                 destination=destination,
@@ -302,9 +296,7 @@ class TestProcessArchives:
         destination = tmp_path / "dest"
         destination.mkdir()
 
-        with patch(
-            "folder_extractor.core.extractor.is_safe_path", return_value=True
-        ):
+        with patch("folder_extractor.core.extractor.is_safe_path", return_value=True):
             extractor._process_archives(
                 files=[str(zip_path)],
                 destination=destination,
@@ -328,9 +320,7 @@ class TestProcessArchives:
         destination = tmp_path / "dest"
         destination.mkdir()
 
-        with patch(
-            "folder_extractor.core.extractor.is_safe_path", return_value=True
-        ):
+        with patch("folder_extractor.core.extractor.is_safe_path", return_value=True):
             extractor._process_archives(
                 files=[str(zip_path)],
                 destination=destination,
@@ -353,9 +343,7 @@ class TestProcessArchives:
         destination = tmp_path / "dest"
         destination.mkdir()
 
-        with patch(
-            "folder_extractor.core.extractor.is_safe_path", return_value=True
-        ):
+        with patch("folder_extractor.core.extractor.is_safe_path", return_value=True):
             result_files, archive_results = extractor._process_archives(
                 files=[str(corrupted_zip)],
                 destination=destination,
@@ -382,9 +370,7 @@ class TestProcessArchives:
         def progress_callback(current, total, filename, error):
             progress_calls.append((current, total, filename, error))
 
-        with patch(
-            "folder_extractor.core.extractor.is_safe_path", return_value=True
-        ):
+        with patch("folder_extractor.core.extractor.is_safe_path", return_value=True):
             extractor._process_archives(
                 files=[str(zip_path)],
                 destination=destination,
@@ -410,9 +396,7 @@ class TestProcessArchives:
         # Set abort signal before processing using the correct method
         extractor.state_manager.request_abort()
 
-        with patch(
-            "folder_extractor.core.extractor.is_safe_path", return_value=True
-        ):
+        with patch("folder_extractor.core.extractor.is_safe_path", return_value=True):
             _, archive_results = extractor._process_archives(
                 files=[str(zip1), str(zip2)],
                 destination=destination,

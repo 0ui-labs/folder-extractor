@@ -201,12 +201,14 @@ class TestArgumentParser:
 
     def test_archive_flags_with_other_options(self):
         """Test archive flags work alongside other extraction options."""
-        args = self.parser.parse_args([
-            "--extract-archives",
-            "--delete-archives",
-            "--deduplicate",
-            "--sort-by-type",
-        ])
+        args = self.parser.parse_args(
+            [
+                "--extract-archives",
+                "--delete-archives",
+                "--deduplicate",
+                "--sort-by-type",
+            ]
+        )
         assert args.extract_archives is True
         assert args.delete_archives is True
         assert args.deduplicate is True

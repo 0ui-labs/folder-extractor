@@ -265,7 +265,7 @@ Zusammenfassung:
     "ARCHIVE_EXTRACT_ERROR": "✗ Fehler beim Entpacken von {archive}: {error}",
     "ARCHIVE_DELETED": "✓ Archiv {archive} gelöscht",
     "ARCHIVE_DELETE_ERROR": "✗ Fehler beim Löschen von {archive}: {error}",
-    "ARCHIVE_SECURITY_ERROR": "⚠ SICHERHEITSWARNUNG: Archiv {archive} enthält unsichere Pfade (Zip Slip Angriff)",
+    "ARCHIVE_SECURITY_ERROR": "⚠ SICHERHEIT: {archive} hat unsichere Pfade",
 }
 
 

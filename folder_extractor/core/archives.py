@@ -17,7 +17,7 @@ import tarfile
 import zipfile
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from folder_extractor.core.file_operations import FileOperationError
 
@@ -113,7 +113,7 @@ class ZipHandler(IArchiveHandler):
     Supports: .zip files (case-insensitive)
     """
 
-    SUPPORTED_EXTENSIONS: List[str] = [".zip"]
+    SUPPORTED_EXTENSIONS: list[str] = [".zip"]
 
     def is_supported(self, file_path: Path) -> bool:
         """Check if file is a ZIP archive based on extension."""
@@ -164,14 +164,14 @@ class ZipHandler(IArchiveHandler):
 
 class TarHandler(IArchiveHandler):
     """
-    Handler for TAR archives (including compressed variants) with path traversal protection.
+    Handler for TAR archives (compressed variants) with path traversal protection.
 
     Supports: .tar, .tar.gz, .tgz, .tar.bz2 (case-insensitive)
     """
 
-    SUPPORTED_EXTENSIONS: List[str] = [".tar"]
-    SUPPORTED_COMPOUND_EXTENSIONS: List[str] = [".tar.gz", ".tar.bz2"]
-    SUPPORTED_ALIASES: List[str] = [".tgz"]
+    SUPPORTED_EXTENSIONS: list[str] = [".tar"]
+    SUPPORTED_COMPOUND_EXTENSIONS: list[str] = [".tar.gz", ".tar.bz2"]
+    SUPPORTED_ALIASES: list[str] = [".tgz"]
 
     def is_supported(self, file_path: Path) -> bool:
         """Check if file is a TAR archive based on extension."""
@@ -245,7 +245,7 @@ def get_archive_handler(file_path: Path) -> Optional[IArchiveHandler]:
         if handler:
             handler.extract(archive_path, target_dir)
     """
-    handlers: List[IArchiveHandler] = [
+    handlers: list[IArchiveHandler] = [
         ZipHandler(),
         TarHandler(),
     ]

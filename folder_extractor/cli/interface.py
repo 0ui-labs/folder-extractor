@@ -235,7 +235,8 @@ class ConsoleInterface(IUserInterface):
 
         Args:
             archive_name: Name of the archive being processed
-            status: Current status (extracting, extracted, error, finish, security_error)
+            status: Current status (extracting, extracted, error,
+                finish, security_error)
             count: Number of files extracted (for extracted status)
             error: Error message (for error status)
         """
@@ -328,16 +329,18 @@ class ConsoleInterface(IUserInterface):
                     f"[green][+][/green] Verschoben: [green]{moved}[/green]"
                 )
 
-                # Show archive extraction statistics (after Verschoben, before duplicates)
+                # Show archive extraction statistics
                 archives_extracted = results.get("archives_extracted", 0)
                 archives_deleted = results.get("archives_deleted", 0)
                 if archives_extracted > 0:
                     self.console.print(
-                        f"[blue][↓][/blue] Entpackt:   [blue]{archives_extracted}[/blue]"
+                        f"[blue][↓][/blue] Entpackt:   "
+                        f"[blue]{archives_extracted}[/blue]"
                     )
                 if archives_deleted > 0:
                     self.console.print(
-                        f"[yellow][−][/yellow] Archive gelöscht: [yellow]{archives_deleted}[/yellow]"
+                        f"[yellow][−][/yellow] Archive gelöscht: "
+                        f"[yellow]{archives_deleted}[/yellow]"
                     )
 
                 # Get duplicate counts - prefer new granular keys

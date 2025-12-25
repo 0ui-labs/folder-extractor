@@ -133,10 +133,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 return True
 
         # Check plain TAR files
-        if suffix_lower in self._TAR_EXTENSIONS:
-            return True
-
-        return False
+        return suffix_lower in self._TAR_EXTENSIONS
 
     def _get_archive_handler(self, filepath: Union[str, Path]):
         """
@@ -256,8 +253,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 if extracted_files:
                     archive_results["files_extracted"] += len(extracted_files)
 
-                    # Recursively process extracted files (they go directly to destination)
-                    # This applies all the same filters, deduplication, etc.
+                    # Recursively process extracted files (to destination)
+                    # Applies same filters, deduplication, etc.
                     recursive_results = self.extract_files(
                         files=extracted_files,
                         destination=destination,
@@ -406,7 +403,9 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             results["errors"] += archive_results.get("errors", 0)
             results["duplicates"] += archive_results.get("duplicates", 0)
             results["name_duplicates"] += archive_results.get("name_duplicates", 0)
-            results["content_duplicates"] += archive_results.get("content_duplicates", 0)
+            results["content_duplicates"] += archive_results.get(
+                "content_duplicates", 0
+            )
             results["global_duplicates"] += archive_results.get("global_duplicates", 0)
             # Extend history with entries from archive processing
             results["history"].extend(archive_results.get("history", []))

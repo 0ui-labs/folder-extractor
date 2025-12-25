@@ -20,25 +20,19 @@ import shutil
 import tarfile
 import zipfile
 from pathlib import Path
-from typing import Dict
 
 import pytest
 
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI
 from folder_extractor.config.settings import settings
-from folder_extractor.core.extractor import (
-    EnhancedExtractionOrchestrator,
-    EnhancedFileExtractor,
-)
 from folder_extractor.core.state_manager import reset_state_manager
-
 
 # =============================================================================
 # Helper Functions for Archive Creation
 # =============================================================================
 
 
-def create_zip_archive(archive_path: Path, files: Dict[str, str | bytes]) -> Path:
+def create_zip_archive(archive_path: Path, files: dict[str, str | bytes]) -> Path:
     """
     Create a ZIP archive with specified files.
 
@@ -61,7 +55,7 @@ def create_zip_archive(archive_path: Path, files: Dict[str, str | bytes]) -> Pat
     return archive_path
 
 
-def create_tar_archive(archive_path: Path, files: Dict[str, str | bytes]) -> Path:
+def create_tar_archive(archive_path: Path, files: dict[str, str | bytes]) -> Path:
     """
     Create a TAR archive with specified files.
 
@@ -82,7 +76,7 @@ def create_tar_archive(archive_path: Path, files: Dict[str, str | bytes]) -> Pat
     return archive_path
 
 
-def create_tar_gz_archive(archive_path: Path, files: Dict[str, str | bytes]) -> Path:
+def create_tar_gz_archive(archive_path: Path, files: dict[str, str | bytes]) -> Path:
     """
     Create a TAR.GZ (gzipped tar) archive with specified files.
 
@@ -246,9 +240,9 @@ class TestBasicArchiveExtraction:
         # Assertions
         assert result == 0, "CLI should exit successfully"
         assert (root / "dok.pdf").exists(), "Extracted file should be in root"
-        assert (
-            root / "dok.pdf"
-        ).read_text() == "PDF content", "Content should be correct"
+        assert (root / "dok.pdf").read_text() == "PDF content", (
+            "Content should be correct"
+        )
         # Archive should still exist (delete-archives not set)
         assert (downloads / "simple.zip").exists(), "Archive should still exist"
 
@@ -640,7 +634,7 @@ class TestArchiveSecurityAndErrors:
         cli = EnhancedFolderExtractorCLI()
         cli.interface.confirm_operation = lambda x: True
 
-        result = cli.run(["--extract-archives"])
+        cli.run(["--extract-archives"])
 
         # The CLI should handle the error gracefully
         # The malicious files should NOT exist outside the target
@@ -698,7 +692,7 @@ class TestArchiveSecurityAndErrors:
 
         # Create empty ZIP
         empty_zip = downloads / "empty.zip"
-        with zipfile.ZipFile(empty_zip, "w") as zf:
+        with zipfile.ZipFile(empty_zip, "w"):
             pass  # Create empty archive
 
         # Remove other archives
@@ -893,9 +887,7 @@ class TestArchiveExtractionIntegration:
 
         # Archive 2: TXT and MP3
         tar_gz = downloads / "archive2.tar.gz"
-        create_tar_gz_archive(
-            tar_gz, {"notes.txt": "Notes", "song.mp3": b"MP3 data"}
-        )
+        create_tar_gz_archive(tar_gz, {"notes.txt": "Notes", "song.mp3": b"MP3 data"})
 
         # Regular file (not in archive)
         (downloads / "normal.pdf").write_text("Normal PDF")
@@ -910,9 +902,7 @@ class TestArchiveExtractionIntegration:
         cli = EnhancedFolderExtractorCLI()
         cli.interface.confirm_operation = lambda x: True
 
-        result = cli.run(
-            ["--extract-archives", "--sort-by-type", "--deduplicate"]
-        )
+        result = cli.run(["--extract-archives", "--sort-by-type", "--deduplicate"])
 
         # Assertions
         assert result == 0
@@ -1050,7 +1040,7 @@ class TestArchiveExtractionMarkers:
         cli = EnhancedFolderExtractorCLI()
         cli.interface.confirm_operation = lambda x: True
 
-        result = cli.run(["--extract-archives"])
+        cli.run(["--extract-archives"])
 
         # The absolute path entry should be blocked
         assert not Path("/tmp/escape.txt").exists(), (

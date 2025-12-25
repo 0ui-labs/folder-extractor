@@ -1191,9 +1191,7 @@ class TestArchiveProgress:
         mock_console_class.return_value = mock_console
 
         interface = ConsoleInterface()
-        interface.show_archive_progress(
-            "test.zip", "error", error="Permission denied"
-        )
+        interface.show_archive_progress("test.zip", "error", error="Permission denied")
 
         mock_console.print.assert_called()
         call_args = mock_console.print.call_args

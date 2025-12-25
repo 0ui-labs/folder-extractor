@@ -499,10 +499,12 @@ class TestEnhancedFileExtractor:
 
         # Critical assertion: The file should exist and have correct content
         restored_file = source_dir / "duplicate.txt"
-        assert restored_file.exists(), "Deduplizierte Datei wurde nicht wiederhergestellt"
-        assert (
-            restored_file.read_text() == "test content"
-        ), "Dateiinhalt stimmt nicht überein"
+        assert restored_file.exists(), (
+            "Deduplizierte Datei wurde nicht wiederhergestellt"
+        )
+        assert restored_file.read_text() == "test content", (
+            "Dateiinhalt stimmt nicht überein"
+        )
 
         # Verify: The original file in dest should still exist (copied, not moved)
         assert original_file.exists(), "Original file should still exist after copy"
@@ -560,13 +562,17 @@ class TestEnhancedFileExtractor:
                 result = self.extractor.undo_last_operation(tmp_path)
 
         # Verify: Operation should fail gracefully with error count
-        assert result["restored"] == 0, "No files should be restored when source missing"
+        assert result["restored"] == 0, (
+            "No files should be restored when source missing"
+        )
         assert result["errors"] == 1, "Should report one error for missing source"
         assert result["aborted"] is False, "Should not abort, just report error"
 
         # The file should NOT exist since source was missing
         restored_file = source_dir / "duplicate.txt"
-        assert not restored_file.exists(), "File should not be created when source missing"
+        assert not restored_file.exists(), (
+            "File should not be created when source missing"
+        )
 
     def test_undo_global_duplicate_by_copying(self, tmp_path):
         """Global duplicates are restored by copying, same as content duplicates.
@@ -621,9 +627,9 @@ class TestEnhancedFileExtractor:
         # Critical assertion: The file should exist with correct content
         restored_file = source_dir / "global_dup.txt"
         assert restored_file.exists(), "Global duplicate should be restored"
-        assert (
-            restored_file.read_text() == "global duplicate content"
-        ), "Content should match original"
+        assert restored_file.read_text() == "global duplicate content", (
+            "Content should match original"
+        )
 
         # Verify: Original file at dest should still exist (copied, not moved)
         assert original_file.exists(), "Original should still exist after copy"
@@ -804,15 +810,23 @@ class TestEnhancedFileExtractor:
                     result = self.extractor.undo_last_operation(tmp_path)
 
         # Verify: Only 1 file should be restored before abort
-        assert result["restored"] == 1, f"Expected 1 restored (abort after first), got {result}"
+        assert result["restored"] == 1, (
+            f"Expected 1 restored (abort after first), got {result}"
+        )
         assert result["aborted"] is True, "Should report aborted=True"
         assert result["errors"] == 0, "No errors, just aborted"
 
         # Verify: Only the first file (processed in reverse order: dup3) should exist
         # Operations are processed in REVERSE, so dup3 is first
-        assert (source_dir / "dup3.txt").exists(), "First (reversed) file should be restored"
-        assert not (source_dir / "dup2.txt").exists(), "Second file should NOT be restored"
-        assert not (source_dir / "dup1.txt").exists(), "Third file should NOT be restored"
+        assert (source_dir / "dup3.txt").exists(), (
+            "First (reversed) file should be restored"
+        )
+        assert not (source_dir / "dup2.txt").exists(), (
+            "Second file should NOT be restored"
+        )
+        assert not (source_dir / "dup1.txt").exists(), (
+            "Third file should NOT be restored"
+        )
 
     def test_extract_files_dry_run_no_history(self, tmp_path):
         """Test that history is not saved in dry run mode."""

@@ -116,7 +116,7 @@ class ArgumentParser:
         parser.add_argument(
             "--delete-archives",
             action="store_true",
-            help="Original-Archive nach erfolgreichem Entpacken löschen (nur mit --extract-archives)",
+            help="Original-Archive nach Entpacken löschen (nur mit --extract-archives)",
         )
 
         return parser
