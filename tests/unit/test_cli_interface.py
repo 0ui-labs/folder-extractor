@@ -1144,6 +1144,234 @@ def test_create_console_interface(mock_console_class):
 
 
 @patch("folder_extractor.cli.interface.Console")
+class TestArchiveProgress:
+    """Tests for archive extraction progress functionality."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        settings.reset_to_defaults()
+
+    def test_show_archive_progress_extracting_shows_spinner(self, mock_console_class):
+        """Test extracting status shows spinner with archive name."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+            interface.show_archive_progress("test.zip", "extracting")
+
+            # Should create Progress with spinner
+            mock_progress_class.assert_called_once()
+            mock_progress.start.assert_called_once()
+            # Should add task with extracting message
+            mock_progress.add_task.assert_called_once()
+            call_args = mock_progress.add_task.call_args
+            assert "test.zip" in str(call_args) or "Entpacke" in str(call_args)
+
+    def test_show_archive_progress_extracted_shows_success(self, mock_console_class):
+        """Test extracted status shows success message with file count."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_archive_progress("test.zip", "extracted", count=5)
+
+        mock_console.print.assert_called()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "test.zip" in output
+        assert "5" in output
+
+    def test_show_archive_progress_error_shows_error_message(self, mock_console_class):
+        """Test error status shows error message with details."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_archive_progress(
+            "test.zip", "error", error="Permission denied"
+        )
+
+        mock_console.print.assert_called()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "test.zip" in output
+        assert "Permission denied" in output
+        # Should use error style
+        assert call_args.kwargs.get("style") == interface.error_style
+
+    def test_show_archive_progress_quiet_mode_no_output(self, mock_console_class):
+        """Test archive progress is suppressed in quiet mode."""
+        settings.set("quiet", True)
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_archive_progress("test.zip", "extracting")
+
+        mock_console.print.assert_not_called()
+
+    def test_show_archive_progress_finish_stops_spinner(self, mock_console_class):
+        """Test finish status stops the spinner."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        with patch("folder_extractor.cli.interface.Progress") as mock_progress_class:
+            mock_progress = MagicMock()
+            mock_progress_class.return_value = mock_progress
+
+            interface = ConsoleInterface()
+            interface.show_archive_progress("test.zip", "extracting")
+            interface.show_archive_progress("test.zip", "finish")
+
+            mock_progress.stop.assert_called()
+
+    def test_show_archive_progress_security_error_shows_warning(
+        self, mock_console_class
+    ):
+        """Test security error shows warning message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_archive_progress("test.zip", "security_error")
+
+        mock_console.print.assert_called()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "test.zip" in output
+        # Should mention security or Zip Slip
+        assert "SICHERHEIT" in output.upper() or "Zip Slip" in output
+
+
+@patch("folder_extractor.cli.interface.Console")
+class TestArchiveSummary:
+    """Tests for archive statistics in show_summary."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        settings.reset_to_defaults()
+
+    def test_show_summary_shows_archives_extracted_count(self, mock_console_class):
+        """Test summary displays number of archives extracted."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "errors": 0,
+            "archives_extracted": 3,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show archives extracted count
+        assert "3" in call_args_str
+        assert "Entpackt" in call_args_str
+
+    def test_show_summary_shows_archives_deleted_count(self, mock_console_class):
+        """Test summary displays number of archives deleted after extraction."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "errors": 0,
+            "archives_extracted": 3,
+            "archives_deleted": 2,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show archives deleted count
+        assert "2" in call_args_str
+        assert "gelöscht" in call_args_str.lower() or "Archive" in call_args_str
+
+    def test_show_summary_hides_archives_when_zero(self, mock_console_class):
+        """Test summary hides archive lines when counts are zero."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "errors": 0,
+            "archives_extracted": 0,
+            "archives_deleted": 0,
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show archive lines when count is 0
+        assert "Entpackt" not in call_args_str
+
+    def test_show_summary_hides_archives_when_key_missing(self, mock_console_class):
+        """Test summary handles missing archive keys gracefully."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "errors": 0,
+            # No archive keys
+        }
+        interface.show_summary(results)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show archive lines when keys missing
+        assert "Entpackt" not in call_args_str
+
+    def test_show_summary_archive_order_after_moved(self, mock_console_class):
+        """Test archives appear after 'Verschoben' in summary."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        results = {
+            "status": "success",
+            "moved": 10,
+            "errors": 0,
+            "archives_extracted": 3,
+        }
+        interface.show_summary(results)
+
+        # Get all print calls in order
+        print_calls = mock_console.print.call_args_list
+        printed_strings = [str(call.args[0]) for call in print_calls if call.args]
+
+        # Find positions
+        moved_idx = None
+        archives_idx = None
+        fehler_idx = None
+
+        for idx, line in enumerate(printed_strings):
+            if "Verschoben" in line:
+                moved_idx = idx
+            if "Entpackt" in line:
+                archives_idx = idx
+            if "Fehler:" in line:
+                fehler_idx = idx
+
+        # Archives should appear after Verschoben and before Fehler
+        assert moved_idx is not None, "Verschoben line not found"
+        assert archives_idx is not None, "Entpackt line not found"
+        assert fehler_idx is not None, "Fehler line not found"
+        assert moved_idx < archives_idx < fehler_idx, (
+            f"Wrong order: Verschoben@{moved_idx}, Entpackt@{archives_idx}, Fehler@{fehler_idx}"
+        )
+
+
+@patch("folder_extractor.cli.interface.Console")
 class TestConsoleInterfaceStyles:
     """Test style attributes are correctly initialized."""
 

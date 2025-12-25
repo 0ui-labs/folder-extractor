@@ -187,6 +187,20 @@ FILE_TYPE_FOLDERS = {
 NO_EXTENSION_FOLDER = "OHNE_ERWEITERUNG"
 
 
+# Archive extensions that can be extracted
+ARCHIVE_EXTENSIONS = {
+    ".zip",
+    ".tar",
+    ".gz",
+    ".tar.gz",
+    ".tgz",
+    ".bz2",
+    ".tar.bz2",
+    ".xz",
+    ".tar.xz",
+}
+
+
 # Progress Bar Configuration
 PROGRESS_BAR_WIDTH = 50
 
@@ -245,6 +259,13 @@ Zusammenfassung:
     "DEDUP_NAME_DUPLICATES": "Namens-Duplikate",
     "DEDUP_CONTENT_DUPLICATES": "Lokale Inhalts-Duplikate",
     "DEDUP_GLOBAL_DUPLICATES": "Globale Inhalts-Duplikate",
+    # Archive extraction messages
+    "EXTRACTING_ARCHIVE": "Entpacke {archive}...",
+    "ARCHIVE_EXTRACTED": "✓ {archive} entpackt ({count} Dateien)",
+    "ARCHIVE_EXTRACT_ERROR": "✗ Fehler beim Entpacken von {archive}: {error}",
+    "ARCHIVE_DELETED": "✓ Archiv {archive} gelöscht",
+    "ARCHIVE_DELETE_ERROR": "✗ Fehler beim Löschen von {archive}: {error}",
+    "ARCHIVE_SECURITY_ERROR": "⚠ SICHERHEITSWARNUNG: Archiv {archive} enthält unsichere Pfade (Zip Slip Angriff)",
 }
 
 
@@ -268,6 +289,9 @@ Optionen:
     --global-dedup          Globale Deduplizierung über gesamten Zielordner
                             ⚠ WARNUNG: Kann bei großen Ordnern langsam sein!
     --domain DOMAINS        Nur Weblinks von bestimmten Domains (z.B. youtube.com)
+    --extract-archives      Archive (ZIP, TAR, GZ) entpacken und Inhalt extrahieren
+    --delete-archives       Original-Archive nach erfolgreichem Entpacken löschen
+                            (nur wirksam mit --extract-archives)
 
 Beispiele:
     # Alle Dateien aus Unterordnern extrahieren
@@ -295,6 +319,11 @@ Beispiele:
     # Globale Deduplizierung (prüft ALLE Dateien im Zielordner)
     folder-extractor --global-dedup
     # Findet Duplikate auch wenn Dateinamen unterschiedlich sind
+
+    # Archive entpacken und Inhalt extrahieren
+    folder-extractor --extract-archives
+    # Archive nach dem Entpacken löschen
+    folder-extractor --extract-archives --delete-archives
 
     # Letzte Operation rückgängig machen
     folder-extractor --undo

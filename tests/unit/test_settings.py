@@ -306,3 +306,96 @@ class TestConfigureFromArgs:
 
         assert settings.get("deduplicate") is True
         assert settings.get("global_dedup") is True
+
+    def test_with_extract_archives_flag(self):
+        """Test configuration with extract_archives flag enabled."""
+        args = MagicMock()
+        args.dry_run = False
+        args.depth = 0
+        args.include_hidden = False
+        args.sort_by_type = False
+        args.type = None
+        args.domain = None
+        args.deduplicate = False
+        args.global_dedup = False
+        args.extract_archives = True
+        args.delete_archives = False
+
+        configure_from_args(args)
+
+        assert settings.get("extract_archives") is True
+        assert settings.get("delete_archives") is False
+
+    def test_delete_archives_ignored_without_extract_archives(self):
+        """Test that delete_archives is ignored when extract_archives is False.
+
+        The --delete-archives flag only makes sense in combination with
+        --extract-archives. If a user specifies --delete-archives without
+        --extract-archives, delete_archives should be set to False.
+        """
+        args = MagicMock()
+        args.dry_run = False
+        args.depth = 0
+        args.include_hidden = False
+        args.sort_by_type = False
+        args.type = None
+        args.domain = None
+        args.deduplicate = False
+        args.global_dedup = False
+        args.extract_archives = False  # extract_archives is OFF
+        args.delete_archives = True  # but delete_archives is requested
+
+        configure_from_args(args)
+
+        # delete_archives should be False because extract_archives is False
+        assert settings.get("extract_archives") is False
+        assert settings.get("delete_archives") is False
+
+    def test_with_both_archive_flags(self):
+        """Test configuration with both archive flags enabled together."""
+        args = MagicMock()
+        args.dry_run = False
+        args.depth = 0
+        args.include_hidden = False
+        args.sort_by_type = False
+        args.type = None
+        args.domain = None
+        args.deduplicate = False
+        args.global_dedup = False
+        args.extract_archives = True
+        args.delete_archives = True
+
+        configure_from_args(args)
+
+        assert settings.get("extract_archives") is True
+        assert settings.get("delete_archives") is True
+
+
+class TestSettingsArchiveProperties:
+    """Tests for archive-related Settings properties."""
+
+    def setup_method(self):
+        """Reset settings before each test."""
+        settings.reset_to_defaults()
+
+    def test_extract_archives_property_default_is_false(self):
+        """Test extract_archives property defaults to False."""
+        s = Settings()
+        assert s.extract_archives is False
+
+    def test_extract_archives_property_reflects_set_value(self):
+        """Test extract_archives property reflects the set value."""
+        s = Settings()
+        s.set("extract_archives", True)
+        assert s.extract_archives is True
+
+    def test_delete_archives_property_default_is_false(self):
+        """Test delete_archives property defaults to False."""
+        s = Settings()
+        assert s.delete_archives is False
+
+    def test_delete_archives_property_reflects_set_value(self):
+        """Test delete_archives property reflects the set value."""
+        s = Settings()
+        s.set("delete_archives", True)
+        assert s.delete_archives is True
