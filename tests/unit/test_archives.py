@@ -254,7 +254,9 @@ class TestZipHandler:
 
         # Verify extraction worked correctly
         assert (extraction_dir / "normal.txt").read_text() == "normal content"
-        assert (extraction_dir / "subdir" / "nested.txt").read_text() == "nested content"
+        assert (
+            extraction_dir / "subdir" / "nested.txt"
+        ).read_text() == "nested content"
 
         # Verify the outside file was not touched
         assert outside_file.read_text() == "sensitive data"
