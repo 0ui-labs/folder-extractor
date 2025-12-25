@@ -227,37 +227,40 @@ class TestZipHandler:
         with pytest.raises(SecurityError):
             handler.extract(evil_zip, extraction_dir)
 
-    def test_extract_blocks_symlink_escape_attempt(self, tmp_path, extraction_dir):
+    def test_extract_isolates_to_target_directory(self, tmp_path, extraction_dir):
         """
-        Symlinks in ZIP archives don't escape the extraction directory.
+        Extraction is properly isolated to the target directory.
 
-        ZIP files can contain symlink entries. Our implementation reads symlinks
-        as regular files (the target path becomes the file content), so they
-        don't create actual symlinks. This test verifies that behavior and
-        ensures no file escapes the extraction directory.
+        This test verifies that extraction doesn't create files outside
+        the designated extraction directory, protecting against any
+        potential directory escape attempts.
+
+        Note: Symlink handling in ZIP files is platform-specific and
+        our implementation converts symlinks to regular files containing
+        the target path, rather than creating actual symlinks.
         """
         # Create a file outside the extraction directory
         outside_file = tmp_path / "secret.txt"
         outside_file.write_text("sensitive data")
 
-        # Create a ZIP with a "symlink-like" entry
-        # (In reality, we're just testing that nothing escapes)
-        evil_zip = tmp_path / "symlink_attack.zip"
-        with zipfile.ZipFile(evil_zip, "w") as zf:
-            # Normal file that should extract fine
+        # Create a ZIP with normal content
+        test_zip = tmp_path / "test.zip"
+        with zipfile.ZipFile(test_zip, "w") as zf:
             zf.writestr("normal.txt", "normal content")
+            zf.writestr("subdir/nested.txt", "nested content")
 
         handler = ZipHandler()
-        handler.extract(evil_zip, extraction_dir)
+        handler.extract(test_zip, extraction_dir)
 
-        # Verify normal extraction worked
+        # Verify extraction worked correctly
         assert (extraction_dir / "normal.txt").read_text() == "normal content"
+        assert (extraction_dir / "subdir" / "nested.txt").read_text() == "nested content"
 
         # Verify the outside file was not touched
         assert outside_file.read_text() == "sensitive data"
 
         # Verify no unexpected files were created outside extraction_dir
-        expected_files = {"symlink_attack.zip", "secret.txt", "extracted"}
+        expected_files = {"test.zip", "secret.txt", "extracted"}
         actual_files = {f.name for f in tmp_path.iterdir()}
         assert actual_files == expected_files
 
