@@ -70,6 +70,7 @@ class ConsoleInterface(IUserInterface):
         self.progress = None
         self.task_id = None
         self.indexing_spinner = None
+        self._archive_spinner = None
 
         # Theme styles (minimalist - no bold/dim modifiers)
         self.success_style = Style(color="green")
@@ -339,7 +340,7 @@ class ConsoleInterface(IUserInterface):
                     )
                 if archives_deleted > 0:
                     self.console.print(
-                        f"[yellow][−][/yellow] Archive gelöscht: "
+                        f"[yellow][-][/yellow] Archive gelöscht: "
                         f"[yellow]{archives_deleted}[/yellow]"
                     )
 

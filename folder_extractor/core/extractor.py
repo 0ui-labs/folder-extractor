@@ -135,7 +135,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         # Check plain TAR files
         return suffix_lower in self._TAR_EXTENSIONS
 
-    def _get_archive_handler(self, filepath: Union[str, Path]):
+    def _get_archive_handler(self, filepath: Union[str, Path]) -> Optional[Any]:
         """
         Get the appropriate handler for an archive file.
 
