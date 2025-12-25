@@ -166,12 +166,12 @@ class TarHandler(IArchiveHandler):
     """
     Handler for TAR archives (compressed variants) with path traversal protection.
 
-    Supports: .tar, .tar.gz, .tgz, .tar.bz2 (case-insensitive)
+    Supports: .tar, .tar.gz, .tgz, .tar.bz2, .tar.xz (case-insensitive)
     """
 
     SUPPORTED_EXTENSIONS: list[str] = [".tar"]
-    SUPPORTED_COMPOUND_EXTENSIONS: list[str] = [".tar.gz", ".tar.bz2"]
-    SUPPORTED_ALIASES: list[str] = [".tgz"]
+    SUPPORTED_COMPOUND_EXTENSIONS: list[str] = [".tar.gz", ".tar.bz2", ".tar.xz"]
+    SUPPORTED_ALIASES: list[str] = [".tgz", ".txz"]
 
     def is_supported(self, file_path: Path) -> bool:
         """Check if file is a TAR archive based on extension."""

@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from folder_extractor.config.constants import HISTORY_FILE_NAME, MESSAGES
 from folder_extractor.config.settings import settings
+from folder_extractor.core.archives import SecurityError
 from folder_extractor.core.file_discovery import FileDiscovery, IFileDiscovery
 from folder_extractor.core.file_operations import (
     FileMover,
@@ -37,11 +38,6 @@ class ExtractionError(Exception):
     """Base exception for extraction errors."""
 
     pass
-
-
-# Import SecurityError from archives module to avoid circular imports
-# Re-export for backward compatibility
-from folder_extractor.core.archives import SecurityError  # noqa: E402
 
 
 class IEnhancedExtractor(ABC):
@@ -103,7 +99,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
     _ARCHIVE_EXTENSIONS = frozenset([".zip"])
     _TAR_EXTENSIONS = frozenset([".tar"])
     _COMPRESSED_TAR_SUFFIXES = [".tar.gz", ".tar.bz2", ".tar.xz"]
-    _TAR_ALIASES = frozenset([".tgz"])
+    _TAR_ALIASES = frozenset([".tgz", ".txz"])
 
     def _is_archive(self, filepath: Union[str, Path]) -> bool:
         """
