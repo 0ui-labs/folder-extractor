@@ -5,6 +5,7 @@ Handles all file system operations including moving files,
 generating unique names, and managing directories.
 """
 
+import contextlib
 import hashlib
 import json
 import os
@@ -752,10 +753,8 @@ class FileMover:
             # Sort files by modification time (oldest first) so that when
             # duplicates are found, the ORIGINAL (older) file is kept and
             # the newer copy is detected as duplicate
-            try:
+            with contextlib.suppress(OSError):
                 files = sorted(files, key=lambda f: Path(f).stat().st_mtime)
-            except OSError:
-                pass  # If we can't stat a file, keep original order
 
             try:
                 # Signal indexing start
@@ -781,12 +780,17 @@ class FileMover:
                     if parent == dest_resolved:
                         continue
                     # Skip files already in a type folder (e.g., TEXT/doc.txt)
-                    if parent.parent == dest_resolved and parent.name in known_type_folders:
+                    if (
+                        parent.parent == dest_resolved
+                        and parent.name in known_type_folders
+                    ):
                         continue
                     source_paths.add(fp)
                 for hash_value in list(hash_index.keys()):
                     hash_index[hash_value] = [
-                        p for p in hash_index[hash_value] if p.resolve() not in source_paths
+                        p
+                        for p in hash_index[hash_value]
+                        if p.resolve() not in source_paths
                     ]
                     # Remove empty entries
                     if not hash_index[hash_value]:
@@ -992,10 +996,8 @@ class FileMover:
             # Sort files by modification time (oldest first) so that when
             # duplicates are found, the ORIGINAL (older) file is kept and
             # the newer copy is detected as duplicate
-            try:
+            with contextlib.suppress(OSError):
                 files = sorted(files, key=lambda f: Path(f).stat().st_mtime)
-            except OSError:
-                pass  # If we can't stat a file, keep original order
 
             try:
                 # Signal indexing start
@@ -1021,12 +1023,17 @@ class FileMover:
                     if parent == dest_resolved:
                         continue
                     # Skip files already in a type folder (e.g., TEXT/doc.txt)
-                    if parent.parent == dest_resolved and parent.name in known_type_folders:
+                    if (
+                        parent.parent == dest_resolved
+                        and parent.name in known_type_folders
+                    ):
                         continue
                     source_paths.add(fp)
                 for hash_value in list(hash_index.keys()):
                     hash_index[hash_value] = [
-                        p for p in hash_index[hash_value] if p.resolve() not in source_paths
+                        p
+                        for p in hash_index[hash_value]
+                        if p.resolve() not in source_paths
                     ]
                     # Remove empty entries
                     if not hash_index[hash_value]:

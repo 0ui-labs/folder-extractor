@@ -42,6 +42,11 @@ addopts = "-v --tb=short -n auto"
 filterwarnings = [
     "error::DeprecationWarning",
 ]
+markers = [
+    "integration: Integration tests that test complete workflows",
+    "slow: Tests that are slow to execute",
+    "security: Security-related tests (Zip Slip, path traversal, etc.)",
+]
 
 [tool.ruff]
 # Line length matching Black's default

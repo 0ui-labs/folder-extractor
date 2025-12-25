@@ -1658,8 +1658,7 @@ class TestFileMoverGlobalDedup:
             # Verify at least one file exists in destination
             dest_files = list(temp_path.glob("*.txt"))
             assert len(dest_files) >= 1, (
-                f"At least one file should exist in destination! "
-                f"Found: {dest_files}"
+                f"At least one file should exist in destination! Found: {dest_files}"
             )
 
             # Source files should no longer exist
@@ -1711,8 +1710,7 @@ class TestFileMoverGlobalDedup:
             assert text_folder.exists(), "TEXT folder should be created"
             dest_files = list(text_folder.glob("*.txt"))
             assert len(dest_files) >= 1, (
-                f"At least one file should exist in TEXT folder! "
-                f"Found: {dest_files}"
+                f"At least one file should exist in TEXT folder! Found: {dest_files}"
             )
 
 
@@ -1985,9 +1983,7 @@ class TestFileMoverGlobalDedupSorted:
             source.write_text("sorted content dedup reference test")
 
             moved, errors, duplicates, content_dups, history, created = (
-                self.file_mover.move_files_sorted(
-                    [source], dest_dir, deduplicate=True
-                )
+                self.file_mover.move_files_sorted([source], dest_dir, deduplicate=True)
             )
 
             assert content_dups == 1

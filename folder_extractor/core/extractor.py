@@ -6,13 +6,15 @@ with integrated progress tracking and state management.
 """
 
 import shutil
+import tempfile
 from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from folder_extractor.config.constants import HISTORY_FILE_NAME, MESSAGES
 from folder_extractor.config.settings import settings
+from folder_extractor.core.archives import SecurityError
 from folder_extractor.core.file_discovery import FileDiscovery, IFileDiscovery
 from folder_extractor.core.file_operations import (
     FileMover,
@@ -34,12 +36,6 @@ ProgressCallback = Optional[Callable[[int, int, str, Optional[str]], None]]
 
 class ExtractionError(Exception):
     """Base exception for extraction errors."""
-
-    pass
-
-
-class SecurityError(ExtractionError):
-    """Raised when security validation fails."""
 
     pass
 
@@ -94,6 +90,218 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         self.file_operations = file_operations or FileOperations()
         self.state_manager = state_manager or get_state_manager()
         self.history_manager = HistoryManager()
+
+    # -------------------------------------------------------------------------
+    # Archive Detection and Handling
+    # -------------------------------------------------------------------------
+
+    # Supported archive extensions
+    _ARCHIVE_EXTENSIONS = frozenset([".zip"])
+    _TAR_EXTENSIONS = frozenset([".tar"])
+    _COMPRESSED_TAR_SUFFIXES = [".tar.gz", ".tar.bz2", ".tar.xz"]
+    _TAR_ALIASES = frozenset([".tgz", ".txz"])
+
+    def _is_archive(self, filepath: Union[str, Path]) -> bool:
+        """
+        Check if a file is a supported archive based on its extension.
+
+        Args:
+            filepath: Path to the file to check
+
+        Returns:
+            True if the file is a supported archive format
+        """
+        path = Path(filepath)
+        name_lower = path.name.lower()
+        suffix_lower = path.suffix.lower()
+
+        # Check ZIP files
+        if suffix_lower in self._ARCHIVE_EXTENSIONS:
+            return True
+
+        # Check TAR aliases (e.g., .tgz)
+        if suffix_lower in self._TAR_ALIASES:
+            return True
+
+        # Check compressed TAR files (e.g., .tar.gz, .tar.bz2)
+        for compound_ext in self._COMPRESSED_TAR_SUFFIXES:
+            if name_lower.endswith(compound_ext):
+                return True
+
+        # Check plain TAR files
+        return suffix_lower in self._TAR_EXTENSIONS
+
+    def _get_archive_handler(self, filepath: Union[str, Path]) -> Optional[Any]:
+        """
+        Get the appropriate handler for an archive file.
+
+        Args:
+            filepath: Path to the archive file
+
+        Returns:
+            An IArchiveHandler instance if supported, None otherwise
+        """
+        from folder_extractor.core.archives import get_archive_handler
+
+        path = Path(filepath)
+        return get_archive_handler(path)
+
+    def _process_archives(
+        self,
+        files: List[str],
+        destination: Path,
+        operation_id: Optional[str],
+        progress_callback: ProgressCallback,
+        indexing_callback: Optional[Callable[[str], None]],
+    ) -> Tuple[List[str], Dict[str, Any]]:
+        """
+        Process archive files: extract contents and prepare for normal processing.
+
+        Args:
+            files: List of file paths to process
+            destination: Target directory for extracted files
+            operation_id: Optional operation ID for tracking
+            progress_callback: Callback for progress updates
+            indexing_callback: Callback for indexing events
+
+        Returns:
+            Tuple of (remaining_files, archive_results)
+            - remaining_files: Files that were not archives (to be processed normally)
+            - archive_results: Statistics about archive processing
+        """
+        # Check if archive extraction is enabled
+        if not settings.get("extract_archives", False):
+            return files, {}
+
+        archive_results = {
+            "archives_processed": 0,
+            "archive_errors": 0,
+            "files_extracted": 0,
+            "aborted": False,
+            # Aggregated stats from recursive processing
+            "moved": 0,
+            "errors": 0,
+            "duplicates": 0,
+            "name_duplicates": 0,
+            "content_duplicates": 0,
+            "global_duplicates": 0,
+            "history": [],
+        }
+
+        # Get abort signal
+        abort_signal = self.state_manager.get_abort_signal()
+
+        # Separate archives from regular files
+        remaining_files = []
+        archives_to_process = []
+
+        for filepath in files:
+            if self._is_archive(filepath):
+                archives_to_process.append(filepath)
+            else:
+                remaining_files.append(filepath)
+
+        # Process each archive
+        for archive_path in archives_to_process:
+            # Check abort signal
+            if abort_signal.is_set():
+                archive_results["aborted"] = True
+                # Add remaining archives back to files list
+                remaining_files.extend(
+                    archives_to_process[archives_to_process.index(archive_path) :]
+                )
+                break
+
+            archive_name = Path(archive_path).name
+
+            # Notify progress
+            if progress_callback:
+                progress_callback(
+                    archive_results["archives_processed"],
+                    len(archives_to_process),
+                    f"Entpacke {archive_name}...",
+                    None,
+                )
+
+            # Create temporary directory for extraction
+            temp_dir = None
+            try:
+                temp_dir = tempfile.mkdtemp(prefix="folder_extractor_archive_")
+                temp_path = Path(temp_dir)
+
+                # Get appropriate handler
+                handler = self._get_archive_handler(archive_path)
+                if handler is None:
+                    # Should not happen since we checked _is_archive, but be safe
+                    remaining_files.append(archive_path)
+                    continue
+
+                # Extract archive
+                handler.extract(Path(archive_path), temp_path)
+
+                # Discover extracted files
+                extracted_files = self.file_discovery.find_files(
+                    directory=str(temp_path),
+                    max_depth=0,  # Unlimited depth within archive
+                    include_hidden=settings.get("include_hidden", False),
+                )
+
+                if extracted_files:
+                    archive_results["files_extracted"] += len(extracted_files)
+
+                    # Recursively process extracted files (to destination)
+                    # Applies same filters, deduplication, etc.
+                    recursive_results = self.extract_files(
+                        files=extracted_files,
+                        destination=destination,
+                        operation_id=operation_id,
+                        progress_callback=progress_callback,
+                        indexing_callback=indexing_callback,
+                    )
+
+                    # Aggregate results - ADD to existing values, don't overwrite
+                    archive_results["moved"] += recursive_results.get("moved", 0)
+                    archive_results["errors"] += recursive_results.get("errors", 0)
+                    archive_results["duplicates"] += recursive_results.get(
+                        "duplicates", 0
+                    )
+                    archive_results["name_duplicates"] += recursive_results.get(
+                        "name_duplicates", 0
+                    )
+                    archive_results["content_duplicates"] += recursive_results.get(
+                        "content_duplicates", 0
+                    )
+                    archive_results["global_duplicates"] += recursive_results.get(
+                        "global_duplicates", 0
+                    )
+                    # Extend history list with entries from recursive processing
+                    archive_results["history"].extend(
+                        recursive_results.get("history", [])
+                    )
+
+                archive_results["archives_processed"] += 1
+
+                # Delete archive if setting is enabled
+                if settings.get("delete_archives", False):
+                    Path(archive_path).unlink(missing_ok=True)
+
+            except Exception as e:
+                # Log error but continue with next archive
+                archive_results["archive_errors"] += 1
+                if progress_callback:
+                    progress_callback(
+                        archive_results["archives_processed"],
+                        len(archives_to_process),
+                        archive_name,
+                        str(e),
+                    )
+
+            finally:
+                # Always cleanup temp directory
+                if temp_dir:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+
+        return remaining_files, archive_results
 
     def validate_security(self, path: Union[str, Path]) -> None:
         """Validate that the path is safe for operations."""
@@ -167,6 +375,40 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             "created_folders": [],
             "history": [],
         }
+
+        # Process archives first (if enabled) - extract and recursively process contents
+        files, archive_results = self._process_archives(
+            files=files,
+            destination=destination,
+            operation_id=operation_id,
+            progress_callback=progress_callback,
+            indexing_callback=indexing_callback,
+        )
+
+        # Merge archive results into main results
+        if archive_results:
+            # Archive-specific stats
+            results["archives_processed"] = archive_results.get("archives_processed", 0)
+            results["archive_errors"] = archive_results.get("archive_errors", 0)
+            results["files_extracted"] = archive_results.get("files_extracted", 0)
+            if archive_results.get("aborted"):
+                results["aborted"] = True
+
+            # Add aggregated stats from archive extraction to main results
+            results["moved"] += archive_results.get("moved", 0)
+            results["errors"] += archive_results.get("errors", 0)
+            results["duplicates"] += archive_results.get("duplicates", 0)
+            results["name_duplicates"] += archive_results.get("name_duplicates", 0)
+            results["content_duplicates"] += archive_results.get(
+                "content_duplicates", 0
+            )
+            results["global_duplicates"] += archive_results.get("global_duplicates", 0)
+            # Extend history with entries from archive processing
+            results["history"].extend(archive_results.get("history", []))
+
+        # If all files were archives and processed, we might have an empty list
+        if not files:
+            return results
 
         # Get abort signal from state manager
         abort_signal = self.state_manager.get_abort_signal()

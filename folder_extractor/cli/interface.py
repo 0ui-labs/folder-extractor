@@ -70,6 +70,7 @@ class ConsoleInterface(IUserInterface):
         self.progress = None
         self.task_id = None
         self.indexing_spinner = None
+        self._archive_spinner = None
 
         # Theme styles (minimalist - no bold/dim modifiers)
         self.success_style = Style(color="green")
@@ -224,6 +225,71 @@ class ConsoleInterface(IUserInterface):
             self.indexing_spinner.stop()
             self.indexing_spinner = None
 
+    def show_archive_progress(
+        self,
+        archive_name: str,
+        status: str,
+        count: int = 0,
+        error: Optional[str] = None,
+    ) -> None:
+        """Show archive extraction progress.
+
+        Args:
+            archive_name: Name of the archive being processed
+            status: Current status (extracting, extracted, error,
+                finish, security_error)
+            count: Number of files extracted (for extracted status)
+            error: Error message (for error status)
+        """
+        if settings.get("quiet", False):
+            return
+
+        if status == "extracting":
+            # Start spinner for extraction
+            self._archive_spinner = Progress(
+                SpinnerColumn("arc", style="blue"),
+                TextColumn("{task.description}"),
+                console=self.console,
+                transient=True,
+            )
+            self._archive_spinner.start()
+            message = MESSAGES["EXTRACTING_ARCHIVE"].format(archive=archive_name)
+            self._archive_spinner.add_task(message, total=None)
+
+        elif status == "finish":
+            # Stop the archive spinner
+            if hasattr(self, "_archive_spinner") and self._archive_spinner is not None:
+                self._archive_spinner.stop()
+                self._archive_spinner = None
+
+        elif status == "extracted":
+            # Stop spinner and show success
+            if hasattr(self, "_archive_spinner") and self._archive_spinner is not None:
+                self._archive_spinner.stop()
+                self._archive_spinner = None
+            message = MESSAGES["ARCHIVE_EXTRACTED"].format(
+                archive=archive_name, count=count
+            )
+            self._print(message, style=self.success_style)
+
+        elif status == "error":
+            # Stop spinner and show error
+            if hasattr(self, "_archive_spinner") and self._archive_spinner is not None:
+                self._archive_spinner.stop()
+                self._archive_spinner = None
+            message = MESSAGES["ARCHIVE_EXTRACT_ERROR"].format(
+                archive=archive_name, error=error or "Unbekannter Fehler"
+            )
+            self._print(message, style=self.error_style)
+
+        elif status == "security_error":
+            # Stop spinner and show security warning
+            if hasattr(self, "_archive_spinner") and self._archive_spinner is not None:
+                self._archive_spinner.stop()
+                self._archive_spinner = None
+            message = MESSAGES["ARCHIVE_SECURITY_ERROR"].format(archive=archive_name)
+            self._print(message, style=self.warning_style)
+
     def show_summary(self, results: dict) -> None:
         """Show operation summary.
 
@@ -263,6 +329,20 @@ class ConsoleInterface(IUserInterface):
                 self.console.print(
                     f"[green][+][/green] Verschoben: [green]{moved}[/green]"
                 )
+
+                # Show archive extraction statistics
+                archives_extracted = results.get("archives_extracted", 0)
+                archives_deleted = results.get("archives_deleted", 0)
+                if archives_extracted > 0:
+                    self.console.print(
+                        f"[blue][↓][/blue] Entpackt:   "
+                        f"[blue]{archives_extracted}[/blue]"
+                    )
+                if archives_deleted > 0:
+                    self.console.print(
+                        f"[yellow][-][/yellow] Archive gelöscht: "
+                        f"[yellow]{archives_deleted}[/yellow]"
+                    )
 
                 # Get duplicate counts - prefer new granular keys
                 name_dupes = results.get("name_duplicates", 0)

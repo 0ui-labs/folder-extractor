@@ -172,3 +172,44 @@ class TestArgumentParser:
         assert args1.dry_run == args2.dry_run
         assert args1.sort_by_type == args2.sort_by_type
         assert args1.undo == args2.undo
+
+    def test_extract_archives_flag_default_is_false(self):
+        """Test extract-archives flag defaults to False when not specified."""
+        args = self.parser.parse_args([])
+        assert args.extract_archives is False
+
+    def test_extract_archives_flag_enables_archive_extraction(self):
+        """Test --extract-archives flag enables archive extraction mode."""
+        args = self.parser.parse_args(["--extract-archives"])
+        assert args.extract_archives is True
+
+    def test_delete_archives_flag_default_is_false(self):
+        """Test delete-archives flag defaults to False when not specified."""
+        args = self.parser.parse_args([])
+        assert args.delete_archives is False
+
+    def test_delete_archives_flag_enables_archive_deletion(self):
+        """Test --delete-archives flag enables deletion of extracted archives."""
+        args = self.parser.parse_args(["--delete-archives"])
+        assert args.delete_archives is True
+
+    def test_extract_and_delete_archives_flags_together(self):
+        """Test both archive flags can be used together."""
+        args = self.parser.parse_args(["--extract-archives", "--delete-archives"])
+        assert args.extract_archives is True
+        assert args.delete_archives is True
+
+    def test_archive_flags_with_other_options(self):
+        """Test archive flags work alongside other extraction options."""
+        args = self.parser.parse_args(
+            [
+                "--extract-archives",
+                "--delete-archives",
+                "--deduplicate",
+                "--sort-by-type",
+            ]
+        )
+        assert args.extract_archives is True
+        assert args.delete_archives is True
+        assert args.deduplicate is True
+        assert args.sort_by_type is True

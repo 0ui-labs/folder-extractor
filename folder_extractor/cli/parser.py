@@ -107,6 +107,18 @@ class ArgumentParser:
             help="Globale Deduplizierung (kann bei großen Ordnern langsam sein)",
         )
 
+        parser.add_argument(
+            "--extract-archives",
+            action="store_true",
+            help="Archive (ZIP, TAR, GZ) entpacken und Inhalt extrahieren",
+        )
+
+        parser.add_argument(
+            "--delete-archives",
+            action="store_true",
+            help="Original-Archive nach Entpacken löschen (nur mit --extract-archives)",
+        )
+
         return parser
 
     def parse_args(self, args: Optional[List[str]] = None) -> argparse.Namespace:

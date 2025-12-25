@@ -27,6 +27,9 @@ class Settings:
             "sort_by_type": False,
             "deduplicate": False,
             "global_dedup": False,
+            # Archive settings
+            "extract_archives": False,
+            "delete_archives": False,
             # Filtering
             "file_type_filter": None,
             "domain_filter": None,
@@ -106,6 +109,14 @@ class Settings:
     def domain_filter(self) -> Optional[list]:
         return self._settings["domain_filter"]
 
+    @property
+    def extract_archives(self) -> bool:
+        return self._settings["extract_archives"]
+
+    @property
+    def delete_archives(self) -> bool:
+        return self._settings["delete_archives"]
+
 
 # Global settings instance
 settings = Settings()
@@ -132,3 +143,11 @@ def configure_from_args(args) -> None:
         from folder_extractor.utils.parsers import parse_domains
 
         settings.set("domain_filter", parse_domains(args.domain))
+
+    # Archive settings
+    extract_archives = getattr(args, "extract_archives", False)
+    delete_archives = getattr(args, "delete_archives", False)
+
+    settings.set("extract_archives", extract_archives)
+    # delete_archives only makes sense with extract_archives enabled
+    settings.set("delete_archives", delete_archives and extract_archives)
