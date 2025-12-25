@@ -329,6 +329,10 @@ class TestEnhancedExtractionOrchestrator:
 class TestIntegration:
     """Integration tests with real components."""
 
+    @pytest.mark.skipif(
+        not (Path.home() / "Desktop").exists(),
+        reason="Desktop directory not available (CI environment)",
+    )
     def test_full_extraction_workflow(self):
         """Test complete extraction workflow."""
         # Use safe test directory
