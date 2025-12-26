@@ -173,8 +173,8 @@ class TestAsyncGeminiClient:
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ) as mock_model_class, patch(
-            "folder_extractor.core.ai_async.asyncio.to_thread",
-            new=AsyncMock(return_value=mock_uploaded_file),
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
         ):
             # Setup mock model
             mock_model = Mock()
@@ -217,13 +217,12 @@ class TestAsyncGeminiClient:
         test_file = Path(temp_dir) / f"test{file_extension}"
         test_file.write_bytes(b"test content")
 
-        mock_to_thread = AsyncMock(return_value=mock_uploaded_file)
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ) as mock_model_class, patch(
-            "folder_extractor.core.ai_async.asyncio.to_thread",
-            new=mock_to_thread,
-        ):
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
+        ) as mock_upload:
             mock_model = Mock()
             mock_model.generate_content_async = AsyncMock(
                 return_value=mock_gemini_response({"type": mime_type})
@@ -235,11 +234,10 @@ class TestAsyncGeminiClient:
                 filepath=test_file, mime_type=mime_type, prompt="Analyze"
             )
 
-            # Verify asyncio.to_thread was called (which wraps genai.upload_file)
-            mock_to_thread.assert_called_once()
-            # Check the call arguments contain the mime_type
-            call_args = mock_to_thread.call_args
-            assert call_args.kwargs["mime_type"] == mime_type
+            # Verify genai.upload_file was called with correct mime_type
+            mock_upload.assert_called_once()
+            call_kwargs = mock_upload.call_args.kwargs
+            assert call_kwargs["mime_type"] == mime_type
             assert result["type"] == mime_type
 
     # -------------------------------------------------------------------------
@@ -262,8 +260,8 @@ class TestAsyncGeminiClient:
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ) as mock_model_class, patch(
-            "folder_extractor.core.ai_async.asyncio.to_thread",
-            new=AsyncMock(return_value=mock_uploaded_file),
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
         ):
             # Setup mock model with side_effect: first call raises, second succeeds
             mock_model = Mock()
@@ -304,8 +302,8 @@ class TestAsyncGeminiClient:
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ) as mock_model_class, patch(
-            "folder_extractor.core.ai_async.asyncio.to_thread",
-            new=AsyncMock(return_value=mock_uploaded_file),
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
         ):
             mock_model = Mock()
             mock_model.generate_content_async = AsyncMock(
@@ -329,8 +327,8 @@ class TestAsyncGeminiClient:
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ) as mock_model_class, patch(
-            "folder_extractor.core.ai_async.asyncio.to_thread",
-            new=AsyncMock(return_value=mock_uploaded_file),
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
         ):
             # Always raise ResourceExhausted
             mock_model = Mock()
@@ -394,8 +392,8 @@ class TestAsyncGeminiClient:
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ) as mock_model_class, patch(
-            "folder_extractor.core.ai_async.asyncio.to_thread",
-            new=AsyncMock(return_value=mock_uploaded_file),
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
         ):
             # Mock response with invalid JSON
             mock_response = Mock()
@@ -459,8 +457,8 @@ class TestRetryConfiguration:
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ) as mock_model_class, patch(
-            "folder_extractor.core.ai_async.asyncio.to_thread",
-            new=AsyncMock(return_value=mock_uploaded_file),
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
         ):
             mock_model = Mock()
             mock_model.generate_content_async = AsyncMock(

@@ -130,10 +130,11 @@ class AsyncGeminiClient(IAIClient):
 
         try:
             # Upload file in thread pool (blocking operation)
-            uploaded_file = await asyncio.to_thread(
-                genai.upload_file,
-                path=str(filepath),
-                mime_type=mime_type,
+            # Use run_in_executor for Python 3.8 compatibility (to_thread requires 3.9+)
+            loop = asyncio.get_running_loop()
+            uploaded_file = await loop.run_in_executor(
+                None,  # Use default executor
+                lambda: genai.upload_file(path=str(filepath), mime_type=mime_type),
             )
 
             # Generate content with JSON response format
