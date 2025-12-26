@@ -41,6 +41,10 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short -n auto"
 filterwarnings = [
     "error::DeprecationWarning",
+    # Ignore DeprecationWarnings from third-party packages (httplib2/pyparsing)
+    # These are triggered by google-generativeai dependencies and not our code
+    "ignore::DeprecationWarning:httplib2",
+    "ignore::DeprecationWarning:pyparsing",
 ]
 markers = [
     "integration: Integration tests that test complete workflows",
