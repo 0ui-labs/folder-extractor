@@ -12,7 +12,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import google.generativeai as genai
 from google.api_core.exceptions import (
@@ -47,7 +47,7 @@ class IAIClient(ABC):
         filepath: Path,
         mime_type: str,
         prompt: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Analyze a file using AI model.
 
@@ -103,7 +103,7 @@ class AsyncGeminiClient(IAIClient):
         filepath: Path,
         mime_type: str,
         prompt: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Analyze file using Gemini model with automatic retry.
 
@@ -149,7 +149,7 @@ class AsyncGeminiClient(IAIClient):
                 raise AIClientError(
                     f"Failed to parse JSON response: {e}. "
                     f"Response was: {response.text[:200]}..."
-                )
+                ) from e
 
         except (ResourceExhausted, InternalServerError, ServiceUnavailable):
             # Re-raise retriable exceptions for @ai_retry decorator to handle

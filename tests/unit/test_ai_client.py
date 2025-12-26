@@ -30,7 +30,6 @@ from folder_extractor.core.ai_async import (
 from folder_extractor.core.ai_resilience import ai_retry, create_ai_retry_decorator
 from folder_extractor.core.security import APIKeyError
 
-
 # Note: Individual async tests are marked with @pytest.mark.asyncio
 # We don't use module-level pytestmark to avoid warnings on sync tests
 
@@ -49,7 +48,9 @@ def mock_uploaded_file():
     """
     mock_file = Mock()
     mock_file.name = "files/test-file-id-12345"
-    mock_file.uri = "https://generativelanguage.googleapis.com/v1beta/files/test-file-id-12345"
+    mock_file.uri = (
+        "https://generativelanguage.googleapis.com/v1beta/files/test-file-id-12345"
+    )
     mock_file.mime_type = "image/jpeg"
     return mock_file
 
@@ -94,7 +95,9 @@ def test_image_file(temp_dir):
     """
     image_path = Path(temp_dir) / "test_image.jpg"
     # Create a minimal valid JPEG header (for file existence tests)
-    image_path.write_bytes(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00")
+    image_path.write_bytes(
+        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+    )
     return image_path
 
 
@@ -112,10 +115,12 @@ class TestAsyncGeminiClient:
 
     def test_init_with_explicit_api_key(self):
         """Client initializes successfully with explicit API key."""
-        with patch("folder_extractor.core.ai_async.genai.configure") as mock_configure, patch(
+        with patch(
+            "folder_extractor.core.ai_async.genai.configure"
+        ) as mock_configure, patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ) as mock_model:
-            client = AsyncGeminiClient(api_key="test-api-key-12345")
+            AsyncGeminiClient(api_key="test-api-key-12345")
 
             mock_configure.assert_called_once_with(api_key="test-api-key-12345")
             mock_model.assert_called_once_with("gemini-1.5-flash")
@@ -124,10 +129,12 @@ class TestAsyncGeminiClient:
         """Client loads API key from environment when not provided."""
         monkeypatch.setenv("GOOGLE_API_KEY", "env-api-key-67890")
 
-        with patch("folder_extractor.core.ai_async.genai.configure") as mock_configure, patch(
+        with patch(
+            "folder_extractor.core.ai_async.genai.configure"
+        ) as mock_configure, patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ):
-            client = AsyncGeminiClient()
+            AsyncGeminiClient()
 
             mock_configure.assert_called_once_with(api_key="env-api-key-67890")
 
@@ -144,7 +151,7 @@ class TestAsyncGeminiClient:
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
         ) as mock_model:
-            client = AsyncGeminiClient(api_key="test-key", model_name="gemini-1.5-pro")
+            AsyncGeminiClient(api_key="test-key", model_name="gemini-1.5-pro")
 
             mock_model.assert_called_once_with("gemini-1.5-pro")
 
@@ -157,7 +164,11 @@ class TestAsyncGeminiClient:
         self, test_image_file, mock_uploaded_file, mock_gemini_response
     ):
         """analyze_file returns parsed JSON from Gemini response."""
-        expected_result = {"category": "image", "objects": ["cat", "tree"], "confidence": 0.92}
+        expected_result = {
+            "category": "image",
+            "objects": ["cat", "tree"],
+            "confidence": 0.92,
+        }
 
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
@@ -174,7 +185,9 @@ class TestAsyncGeminiClient:
 
             client = AsyncGeminiClient(api_key="test-key")
             result = await client.analyze_file(
-                filepath=test_image_file, mime_type="image/jpeg", prompt="Analyze this image"
+                filepath=test_image_file,
+                mime_type="image/jpeg",
+                prompt="Analyze this image",
             )
 
             assert result == expected_result
@@ -193,7 +206,12 @@ class TestAsyncGeminiClient:
         ],
     )
     async def test_analyze_file_handles_different_mime_types(
-        self, temp_dir, mime_type, file_extension, mock_uploaded_file, mock_gemini_response
+        self,
+        temp_dir,
+        mime_type,
+        file_extension,
+        mock_uploaded_file,
+        mock_gemini_response,
     ):
         """analyze_file correctly handles various MIME types."""
         test_file = Path(temp_dir) / f"test{file_extension}"
@@ -213,7 +231,9 @@ class TestAsyncGeminiClient:
             mock_model_class.return_value = mock_model
 
             client = AsyncGeminiClient(api_key="test-key")
-            result = await client.analyze_file(filepath=test_file, mime_type=mime_type, prompt="Analyze")
+            result = await client.analyze_file(
+                filepath=test_file, mime_type=mime_type, prompt="Analyze"
+            )
 
             # Verify asyncio.to_thread was called (which wraps genai.upload_file)
             mock_to_thread.assert_called_once()
@@ -302,7 +322,9 @@ class TestAsyncGeminiClient:
             assert result["recovered"] is True
 
     @pytest.mark.asyncio
-    async def test_analyze_file_fails_after_max_retries(self, test_image_file, mock_uploaded_file):
+    async def test_analyze_file_fails_after_max_retries(
+        self, test_image_file, mock_uploaded_file
+    ):
         """analyze_file raises exception after exhausting all retry attempts."""
         with patch("folder_extractor.core.ai_async.genai.configure"), patch(
             "folder_extractor.core.ai_async.genai.GenerativeModel"
@@ -341,7 +363,9 @@ class TestAsyncGeminiClient:
         ):
             client = AsyncGeminiClient(api_key="test-key")
 
-            with pytest.raises(AIClientError, match="[Ff]ile.*not.*exist|does not exist"):
+            with pytest.raises(
+                AIClientError, match="[Ff]ile.*not.*exist|does not exist"
+            ):
                 await client.analyze_file(
                     filepath=nonexistent_file, mime_type="image/jpeg", prompt="Test"
                 )
@@ -399,7 +423,9 @@ class TestRetryConfiguration:
 
     def test_create_ai_retry_decorator_with_custom_parameters(self):
         """create_ai_retry_decorator accepts custom retry parameters."""
-        custom_retry = create_ai_retry_decorator(max_attempts=3, multiplier=2, min_wait=1, max_wait=10)
+        custom_retry = create_ai_retry_decorator(
+            max_attempts=3, multiplier=2, min_wait=1, max_wait=10
+        )
 
         # Verify decorator is callable
         assert callable(custom_retry)
@@ -438,12 +464,17 @@ class TestRetryConfiguration:
         ):
             mock_model = Mock()
             mock_model.generate_content_async = AsyncMock(
-                side_effect=[ResourceExhausted("Rate limit"), Mock(text='{"success": true}')]
+                side_effect=[
+                    ResourceExhausted("Rate limit"),
+                    Mock(text='{"success": true}'),
+                ]
             )
             mock_model_class.return_value = mock_model
 
             client = AsyncGeminiClient(api_key="test-key")
-            await client.analyze_file(filepath=test_image_file, mime_type="image/jpeg", prompt="Test")
+            await client.analyze_file(
+                filepath=test_image_file, mime_type="image/jpeg", prompt="Test"
+            )
 
             # Verify warning was logged (tenacity logs before retry)
             assert any("Retrying" in record.message for record in caplog.records)
