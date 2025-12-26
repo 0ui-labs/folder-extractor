@@ -69,11 +69,11 @@ class AsyncGeminiClient(IAIClient):
     """
     Async client for Google Gemini API.
 
-    Supports: gemini-1.5-flash model with JSON response format
+    Supports: gemini-3-flash-preview model with JSON response format
     Features: Automatic retry on rate limits and server errors
     """
 
-    DEFAULT_MODEL: str = "gemini-1.5-flash"
+    DEFAULT_MODEL: str = "gemini-3-flash-preview"
 
     def __init__(
         self,
