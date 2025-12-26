@@ -6,16 +6,29 @@ These tests verify:
 2. Retry mechanism for rate limits (429) and server errors (5xx)
 3. API key loading and security
 4. Error handling for invalid files and API failures
+
+Note: These tests require google-generativeai which needs Python 3.9+.
+The module will be skipped on Python 3.8 and earlier.
 """
 
 from __future__ import annotations
+
+import sys
+
+import pytest
+
+# Skip entire module on Python < 3.9 (google-generativeai requires 3.9+)
+if sys.version_info < (3, 9):
+    pytest.skip(
+        "google-generativeai requires Python 3.9+",
+        allow_module_level=True,
+    )
 
 import asyncio
 import json
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
-import pytest
 from google.api_core.exceptions import (
     InternalServerError,
     ResourceExhausted,
