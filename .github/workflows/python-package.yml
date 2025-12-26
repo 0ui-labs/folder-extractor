@@ -21,7 +21,15 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-cov
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Install requirements, but google-generativeai only works on Python 3.9+
+        # Filter out google-generativeai on Python 3.8 since it requires Python 3.9+
+        if [ -f requirements.txt ]; then
+          if [ "${{ matrix.python-version }}" = "3.8" ]; then
+            grep -v "google-generativeai" requirements.txt | pip install -r /dev/stdin || true
+          else
+            pip install -r requirements.txt
+          fi
+        fi
     
     - name: Install package
       run: pip install -e .
