@@ -526,18 +526,6 @@ class TestInterfaceCompliance:
 
 
 @pytest.fixture
-def mock_preprocessor():
-    """
-    Mock for FilePreprocessor that returns original file unchanged.
-
-    Default behavior: No optimization needed, returns (original_path, False).
-    """
-    mock = Mock(spec=FilePreprocessor)
-    mock.prepare_file = Mock(side_effect=lambda path: (path, False))
-    return mock
-
-
-@pytest.fixture
 def mock_preprocessor_with_optimization(temp_dir):
     """
     Mock for FilePreprocessor that simulates file optimization.

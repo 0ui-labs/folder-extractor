@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pathlib import Path
-from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -79,7 +77,7 @@ class TestAsyncGeminiClientInitialization:
         """Client loads API key from environment when not explicitly provided."""
         mock_load_key.return_value = "env-api-key"
 
-        client = AsyncGeminiClient()
+        _client = AsyncGeminiClient()
 
         mock_load_key.assert_called_once()
         mock_genai.configure.assert_called_once_with(api_key="env-api-key")
@@ -88,7 +86,7 @@ class TestAsyncGeminiClientInitialization:
     @patch("folder_extractor.core.ai_async.load_google_api_key")
     def test_uses_provided_api_key_directly(self, mock_load_key, mock_genai):
         """Client uses provided API key instead of loading from environment."""
-        client = AsyncGeminiClient(api_key="explicit-key")
+        _client = AsyncGeminiClient(api_key="explicit-key")
 
         mock_load_key.assert_not_called()
         mock_genai.configure.assert_called_once_with(api_key="explicit-key")
@@ -96,10 +94,10 @@ class TestAsyncGeminiClientInitialization:
     @patch("folder_extractor.core.ai_async.genai")
     @patch("folder_extractor.core.ai_async.load_google_api_key")
     def test_uses_default_model(self, mock_load_key, mock_genai):
-        """Client uses gemini-1.5-flash as default model."""
+        """Client uses gemini-3-flash-preview as default model."""
         mock_load_key.return_value = "test-key"
 
-        client = AsyncGeminiClient()
+        _client = AsyncGeminiClient()
 
         mock_genai.GenerativeModel.assert_called_once_with("gemini-3-flash-preview")
 
@@ -109,7 +107,7 @@ class TestAsyncGeminiClientInitialization:
         """Client can be configured with a different model."""
         mock_load_key.return_value = "test-key"
 
-        client = AsyncGeminiClient(model_name="gemini-pro")
+        _client = AsyncGeminiClient(model_name="gemini-pro")
 
         mock_genai.GenerativeModel.assert_called_once_with("gemini-pro")
 

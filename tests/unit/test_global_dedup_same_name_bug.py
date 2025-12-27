@@ -24,8 +24,6 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from folder_extractor.core.file_operations import FileMover, FileOperations
 
 
@@ -357,7 +355,6 @@ class TestGlobalDedupKeepsOriginalNotCopy:
         even if it has a longer filename.
         """
         import os
-        import time
 
         with tempfile.TemporaryDirectory() as temp_dir:
             dest = Path(temp_dir)

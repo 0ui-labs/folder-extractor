@@ -11,7 +11,6 @@ Tests cover:
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from google.api_core.exceptions import (
@@ -19,6 +18,7 @@ from google.api_core.exceptions import (
     ResourceExhausted,
     ServiceUnavailable,
 )
+
 from folder_extractor.core.ai_resilience import (
     ai_retry,
     create_ai_retry_decorator,

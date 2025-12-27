@@ -159,7 +159,9 @@ class AsyncGeminiClient(IAIClient):
             loop = asyncio.get_running_loop()
             uploaded_file = await loop.run_in_executor(
                 None,  # Use default executor
-                lambda: genai.upload_file(path=str(optimized_path), mime_type=mime_type),
+                lambda: genai.upload_file(
+                    path=str(optimized_path), mime_type=mime_type
+                ),
             )
 
             # Generate content with JSON response format

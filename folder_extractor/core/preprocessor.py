@@ -11,6 +11,7 @@ Automatically validates and optimizes files before sending to AI API:
 from __future__ import annotations
 
 import logging
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -127,6 +128,7 @@ class FilePreprocessor:
         Raises:
             PreprocessorError: If image optimization fails
         """
+        temp_dir = None
         try:
             # Create temporary directory
             temp_dir = Path(tempfile.mkdtemp(prefix="preprocessor_"))
@@ -162,6 +164,9 @@ class FilePreprocessor:
             return output_path
 
         except Exception as e:
+            # Clean up temp directory on failure to prevent leaks
+            if temp_dir and temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
             error_msg = f"Failed to optimize image {filepath.name}: {e}"
             raise PreprocessorError(error_msg) from e
 
@@ -179,6 +184,7 @@ class FilePreprocessor:
         Raises:
             PreprocessorError: If PDF optimization fails
         """
+        temp_dir = None
         try:
             # Load PDF
             reader = PdfReader(filepath)
@@ -214,8 +220,14 @@ class FilePreprocessor:
             return output_path
 
         except PdfReadError as e:
+            # Clean up temp directory on failure to prevent leaks
+            if temp_dir and temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
             error_msg = f"Failed to optimize PDF {filepath.name}: {e}"
             raise PreprocessorError(error_msg) from e
         except Exception as e:
+            # Clean up temp directory on failure to prevent leaks
+            if temp_dir and temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
             error_msg = f"Failed to optimize PDF {filepath.name}: {e}"
             raise PreprocessorError(error_msg) from e
