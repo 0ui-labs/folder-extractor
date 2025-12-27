@@ -752,9 +752,19 @@ class FileMover:
         if global_dedup:
             # Sort files by modification time (oldest first) so that when
             # duplicates are found, the ORIGINAL (older) file is kept and
-            # the newer copy is detected as duplicate
+            # the newer copy is detected as duplicate.
+            # Secondary sort by filename length then alphabetically, so that
+            # when mtimes are equal, shorter/simpler names (likely originals)
+            # are processed first (e.g., "test.md" before "test kopie.md").
             with contextlib.suppress(OSError):
-                files = sorted(files, key=lambda f: Path(f).stat().st_mtime)
+                files = sorted(
+                    files,
+                    key=lambda f: (
+                        Path(f).stat().st_mtime,  # Primary: oldest first
+                        len(Path(f).name),  # Secondary: shortest name first
+                        Path(f).name,  # Tertiary: alphabetically
+                    ),
+                )
 
             try:
                 # Signal indexing start
@@ -829,7 +839,9 @@ class FileMover:
 
                 # Content duplicate check - BEFORE global dedup when same name
                 # Same name + same content = content duplicate (not global)
-                if existing_dest.exists() and deduplicate:
+                # Note: Also runs when global_dedup is True, because identical
+                # files with same name should be deduplicated regardless
+                if existing_dest.exists() and (deduplicate or global_dedup):
                     # Try hash comparison for deduplication
                     try:
                         source_hash = self.file_ops.calculate_file_hash(source_path)
@@ -995,9 +1007,19 @@ class FileMover:
         if global_dedup:
             # Sort files by modification time (oldest first) so that when
             # duplicates are found, the ORIGINAL (older) file is kept and
-            # the newer copy is detected as duplicate
+            # the newer copy is detected as duplicate.
+            # Secondary sort by filename length then alphabetically, so that
+            # when mtimes are equal, shorter/simpler names (likely originals)
+            # are processed first (e.g., "test.md" before "test kopie.md").
             with contextlib.suppress(OSError):
-                files = sorted(files, key=lambda f: Path(f).stat().st_mtime)
+                files = sorted(
+                    files,
+                    key=lambda f: (
+                        Path(f).stat().st_mtime,  # Primary: oldest first
+                        len(Path(f).name),  # Secondary: shortest name first
+                        Path(f).name,  # Tertiary: alphabetically
+                    ),
+                )
 
             try:
                 # Signal indexing start
@@ -1104,7 +1126,9 @@ class FileMover:
                 existing_dest = type_path / filename
 
                 # Check if destination file exists and deduplicate is enabled
-                if existing_dest.exists() and deduplicate:
+                # Note: Also runs when global_dedup is True, because identical
+                # files with same name should be deduplicated regardless
+                if existing_dest.exists() and (deduplicate or global_dedup):
                     # Try hash comparison for deduplication
                     try:
                         source_hash = self.file_ops.calculate_file_hash(source_path)

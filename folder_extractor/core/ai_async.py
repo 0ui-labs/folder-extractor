@@ -22,6 +22,7 @@ from google.api_core.exceptions import (
 )
 
 from folder_extractor.core.ai_resilience import ai_retry
+from folder_extractor.core.preprocessor import FilePreprocessor, PreprocessorError
 from folder_extractor.core.security import load_google_api_key
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,7 @@ class AsyncGeminiClient(IAIClient):
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(model_name)
         self.model_name = model_name
+        self.preprocessor = FilePreprocessor()
 
     @ai_retry
     async def analyze_file(
@@ -109,9 +111,12 @@ class AsyncGeminiClient(IAIClient):
 
         Uploads file, sends prompt, and returns JSON response.
         Automatically retries on rate limits (429) and server errors (5xx).
+        Files are automatically preprocessed before upload if they exceed
+        size limits or use exotic formats.
 
         Args:
-            filepath: Path to the file to analyze
+            filepath: Path to the file to analyze. Files > 20MB are
+                automatically optimized before upload.
             mime_type: MIME type of the file
             prompt: Analysis prompt
 
@@ -119,7 +124,15 @@ class AsyncGeminiClient(IAIClient):
             Parsed JSON response as dictionary
 
         Raises:
-            AIClientError: If file doesn't exist, is not a file, or parsing fails
+            AIClientError: If file doesn't exist, is not a file, parsing fails,
+                or file preprocessing fails
+
+        Notes:
+            Files are automatically preprocessed before upload:
+            - Images > 20MB are resized to max 2048px and converted to JPG
+            - PDFs > 20MB have only first 5 pages extracted
+            - Exotic formats (TIFF, BMP, WebP) are converted to JPG
+            - Temporary files are automatically cleaned up after analysis
         """
         # Validate filepath
         if not filepath.exists():
@@ -128,13 +141,27 @@ class AsyncGeminiClient(IAIClient):
         if not filepath.is_file():
             raise AIClientError(f"Path is not a file: {filepath}")
 
+        # Preprocess file (may create optimized temporary copy)
         try:
+            optimized_path, needs_cleanup = self.preprocessor.prepare_file(filepath)
+            logger.info(
+                f"File preprocessed: {filepath.name} -> {optimized_path.name} "
+                f"(cleanup={needs_cleanup})"
+            )
+        except PreprocessorError as e:
+            raise AIClientError(f"File preprocessing failed: {e}") from e
+
+        try:
+            logger.debug(f"Uploading file: {optimized_path}")
+
             # Upload file in thread pool (blocking operation)
             # Use run_in_executor for Python 3.8 compatibility (to_thread requires 3.9+)
             loop = asyncio.get_running_loop()
             uploaded_file = await loop.run_in_executor(
                 None,  # Use default executor
-                lambda: genai.upload_file(path=str(filepath), mime_type=mime_type),
+                lambda: genai.upload_file(
+                    path=str(optimized_path), mime_type=mime_type
+                ),
             )
 
             # Generate content with JSON response format
@@ -145,7 +172,9 @@ class AsyncGeminiClient(IAIClient):
 
             # Parse JSON response
             try:
-                return json.loads(response.text)
+                result = json.loads(response.text)
+                logger.info(f"File analyzed successfully: {filepath.name}")
+                return result
             except json.JSONDecodeError as e:
                 raise AIClientError(
                     f"Failed to parse JSON response: {e}. "
@@ -161,3 +190,34 @@ class AsyncGeminiClient(IAIClient):
         except Exception as e:
             # Wrap only non-retriable, unexpected errors
             raise AIClientError(f"AI analysis failed: {e}") from e
+        finally:
+            # Always cleanup temporary files
+            if needs_cleanup:
+                self._cleanup_temp_file(optimized_path)
+
+    def _cleanup_temp_file(self, filepath: Path) -> None:
+        """Clean up temporary file created by preprocessor.
+
+        Attempts to delete the temporary file and its parent directory
+        if empty. Errors are logged but not raised, as cleanup failures
+        should not block the main operation.
+
+        Args:
+            filepath: Path to temporary file to delete
+
+        Note:
+            Silently ignores errors if file doesn't exist or can't be deleted.
+        """
+        try:
+            if filepath.exists():
+                filepath.unlink()
+                logger.debug(f"Cleaned up temporary file: {filepath}")
+
+                # Remove parent directory if empty
+                parent = filepath.parent
+                if parent.exists() and not any(parent.iterdir()):
+                    parent.rmdir()
+                    logger.debug(f"Removed empty temp directory: {parent}")
+
+        except OSError as e:
+            logger.warning(f"Failed to cleanup temporary file {filepath}: {e}")

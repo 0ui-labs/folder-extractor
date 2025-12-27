@@ -4,6 +4,12 @@ branch = true
 omit = [
     "*/tests/*",
     "*/__pycache__/*",
+    # AI modules require google-generativeai which only works on Python 3.9+
+    # These are skipped on Python 3.8 and should not affect coverage
+    "*/ai_async.py",
+    "*/ai_resilience.py",
+    "*/preprocessor.py",
+    "*/security.py",
 ]
 
 [tool.coverage.report]
