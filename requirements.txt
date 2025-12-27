@@ -16,6 +16,10 @@ coverage>=7.0.0
 # Runtime dependencies
 rich>=13.0.0
 
+# File Processing
+pillow>=10.0.0
+pypdf>=3.0.0
+
 # AI Integration
 google-generativeai>=0.3.0
 python-dotenv>=1.0.0

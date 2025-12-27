@@ -41,6 +41,7 @@ from folder_extractor.core.ai_async import (
     IAIClient,
 )
 from folder_extractor.core.ai_resilience import ai_retry, create_ai_retry_decorator
+from folder_extractor.core.preprocessor import FilePreprocessor, PreprocessorError
 from folder_extractor.core.security import APIKeyError
 
 # Note: Individual async tests are marked with @pytest.mark.asyncio
@@ -136,7 +137,7 @@ class TestAsyncGeminiClient:
             AsyncGeminiClient(api_key="test-api-key-12345")
 
             mock_configure.assert_called_once_with(api_key="test-api-key-12345")
-            mock_model.assert_called_once_with("gemini-1.5-flash")
+            mock_model.assert_called_once_with(AsyncGeminiClient.DEFAULT_MODEL)
 
     def test_init_loads_api_key_from_environment(self, monkeypatch):
         """Client loads API key from environment when not provided."""
@@ -517,3 +518,311 @@ class TestInterfaceCompliance:
         # Verify it's abstract
         with pytest.raises(TypeError, match="[Aa]bstract|[Cc]an't instantiate"):
             IAIClient()
+
+
+# =============================================================================
+# PREPROCESSOR INTEGRATION FIXTURES
+# =============================================================================
+
+
+@pytest.fixture
+def mock_preprocessor():
+    """
+    Mock for FilePreprocessor that returns original file unchanged.
+
+    Default behavior: No optimization needed, returns (original_path, False).
+    """
+    mock = Mock(spec=FilePreprocessor)
+    mock.prepare_file = Mock(side_effect=lambda path: (path, False))
+    return mock
+
+
+@pytest.fixture
+def mock_preprocessor_with_optimization(temp_dir):
+    """
+    Mock for FilePreprocessor that simulates file optimization.
+
+    Creates a temporary file and returns (temp_path, True) to simulate
+    that cleanup is needed.
+    """
+    temp_path = Path(temp_dir) / "optimized_temp.jpg"
+    temp_path.write_bytes(b"optimized content")
+
+    mock = Mock(spec=FilePreprocessor)
+    mock.prepare_file = Mock(return_value=(temp_path, True))
+    return mock, temp_path
+
+
+# =============================================================================
+# TestPreprocessorIntegration
+# =============================================================================
+
+
+class TestPreprocessorIntegration:
+    """Tests for FilePreprocessor integration with AsyncGeminiClient."""
+
+    @pytest.mark.asyncio
+    async def test_analyze_file_calls_preprocessor(
+        self, test_image_file, mock_uploaded_file, mock_gemini_response
+    ):
+        """Preprocessor is called with the input filepath before upload."""
+        with patch("folder_extractor.core.ai_async.genai.configure"), patch(
+            "folder_extractor.core.ai_async.genai.GenerativeModel"
+        ) as mock_model_class, patch(
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
+        ), patch(
+            "folder_extractor.core.ai_async.FilePreprocessor"
+        ) as mock_preprocessor_class:
+            # Setup mock preprocessor
+            mock_preprocessor = Mock()
+            mock_preprocessor.prepare_file.return_value = (test_image_file, False)
+            mock_preprocessor_class.return_value = mock_preprocessor
+
+            # Setup mock model
+            mock_model = Mock()
+            mock_model.generate_content_async = AsyncMock(
+                return_value=mock_gemini_response({"status": "success"})
+            )
+            mock_model_class.return_value = mock_model
+
+            client = AsyncGeminiClient(api_key="test-key")
+            await client.analyze_file(
+                filepath=test_image_file,
+                mime_type="image/jpeg",
+                prompt="Analyze this",
+            )
+
+            mock_preprocessor.prepare_file.assert_called_once_with(test_image_file)
+
+    @pytest.mark.asyncio
+    async def test_analyze_file_uses_optimized_path_for_upload(
+        self, test_image_file, temp_dir, mock_uploaded_file, mock_gemini_response
+    ):
+        """Upload uses the optimized path returned by preprocessor."""
+        optimized_path = Path(temp_dir) / "optimized.jpg"
+        optimized_path.write_bytes(b"optimized image data")
+
+        with patch("folder_extractor.core.ai_async.genai.configure"), patch(
+            "folder_extractor.core.ai_async.genai.GenerativeModel"
+        ) as mock_model_class, patch(
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
+        ) as mock_upload, patch(
+            "folder_extractor.core.ai_async.FilePreprocessor"
+        ) as mock_preprocessor_class:
+            # Preprocessor returns different path
+            mock_preprocessor = Mock()
+            mock_preprocessor.prepare_file.return_value = (optimized_path, True)
+            mock_preprocessor_class.return_value = mock_preprocessor
+
+            mock_model = Mock()
+            mock_model.generate_content_async = AsyncMock(
+                return_value=mock_gemini_response({"status": "success"})
+            )
+            mock_model_class.return_value = mock_model
+
+            client = AsyncGeminiClient(api_key="test-key")
+            await client.analyze_file(
+                filepath=test_image_file,
+                mime_type="image/jpeg",
+                prompt="Analyze",
+            )
+
+            # Verify upload used optimized path, not original
+            mock_upload.assert_called_once()
+            call_kwargs = mock_upload.call_args.kwargs
+            assert call_kwargs["path"] == str(optimized_path)
+
+    @pytest.mark.asyncio
+    async def test_analyze_file_cleans_up_temp_files_on_success(
+        self, test_image_file, temp_dir, mock_uploaded_file, mock_gemini_response
+    ):
+        """Temporary files are deleted after successful analysis."""
+        # Create a temp directory and file to simulate preprocessor output
+        temp_subdir = Path(temp_dir) / "preprocessor_temp"
+        temp_subdir.mkdir()
+        temp_file = temp_subdir / "optimized.jpg"
+        temp_file.write_bytes(b"optimized content")
+
+        with patch("folder_extractor.core.ai_async.genai.configure"), patch(
+            "folder_extractor.core.ai_async.genai.GenerativeModel"
+        ) as mock_model_class, patch(
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
+        ), patch(
+            "folder_extractor.core.ai_async.FilePreprocessor"
+        ) as mock_preprocessor_class:
+            mock_preprocessor = Mock()
+            mock_preprocessor.prepare_file.return_value = (temp_file, True)
+            mock_preprocessor_class.return_value = mock_preprocessor
+
+            mock_model = Mock()
+            mock_model.generate_content_async = AsyncMock(
+                return_value=mock_gemini_response({"status": "success"})
+            )
+            mock_model_class.return_value = mock_model
+
+            client = AsyncGeminiClient(api_key="test-key")
+            await client.analyze_file(
+                filepath=test_image_file,
+                mime_type="image/jpeg",
+                prompt="Analyze",
+            )
+
+            # Temp file should be cleaned up
+            assert not temp_file.exists(), "Temporary file should be deleted"
+            # Empty parent directory should also be removed
+            assert not temp_subdir.exists(), "Empty temp directory should be removed"
+
+    @pytest.mark.asyncio
+    async def test_analyze_file_cleans_up_on_exception(
+        self, test_image_file, temp_dir, mock_uploaded_file
+    ):
+        """Temporary files are cleaned up even when API call fails."""
+        temp_subdir = Path(temp_dir) / "preprocessor_temp"
+        temp_subdir.mkdir()
+        temp_file = temp_subdir / "optimized.jpg"
+        temp_file.write_bytes(b"optimized content")
+
+        with patch("folder_extractor.core.ai_async.genai.configure"), patch(
+            "folder_extractor.core.ai_async.genai.GenerativeModel"
+        ) as mock_model_class, patch(
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
+        ), patch(
+            "folder_extractor.core.ai_async.FilePreprocessor"
+        ) as mock_preprocessor_class:
+            mock_preprocessor = Mock()
+            mock_preprocessor.prepare_file.return_value = (temp_file, True)
+            mock_preprocessor_class.return_value = mock_preprocessor
+
+            mock_model = Mock()
+            # Simulate API failure
+            mock_model.generate_content_async = AsyncMock(
+                side_effect=Exception("API error")
+            )
+            mock_model_class.return_value = mock_model
+
+            client = AsyncGeminiClient(api_key="test-key")
+
+            with pytest.raises(AIClientError, match="API error"):
+                await client.analyze_file(
+                    filepath=test_image_file,
+                    mime_type="image/jpeg",
+                    prompt="Analyze",
+                )
+
+            # Temp file should still be cleaned up despite exception
+            assert not temp_file.exists(), "Temp file should be cleaned up on error"
+
+    @pytest.mark.asyncio
+    async def test_analyze_file_no_cleanup_for_original_files(
+        self, test_image_file, mock_uploaded_file, mock_gemini_response
+    ):
+        """Original files are not deleted when no optimization occurred."""
+        with patch("folder_extractor.core.ai_async.genai.configure"), patch(
+            "folder_extractor.core.ai_async.genai.GenerativeModel"
+        ) as mock_model_class, patch(
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
+        ), patch(
+            "folder_extractor.core.ai_async.FilePreprocessor"
+        ) as mock_preprocessor_class:
+            mock_preprocessor = Mock()
+            # Returns original path, needs_cleanup=False
+            mock_preprocessor.prepare_file.return_value = (test_image_file, False)
+            mock_preprocessor_class.return_value = mock_preprocessor
+
+            mock_model = Mock()
+            mock_model.generate_content_async = AsyncMock(
+                return_value=mock_gemini_response({"status": "success"})
+            )
+            mock_model_class.return_value = mock_model
+
+            client = AsyncGeminiClient(api_key="test-key")
+            await client.analyze_file(
+                filepath=test_image_file,
+                mime_type="image/jpeg",
+                prompt="Analyze",
+            )
+
+            # Original file must still exist
+            assert test_image_file.exists(), "Original file should not be deleted"
+
+    @pytest.mark.asyncio
+    async def test_preprocessor_error_wrapped_in_ai_client_error(self, test_image_file):
+        """PreprocessorError is wrapped in AIClientError with clear message."""
+        with patch("folder_extractor.core.ai_async.genai.configure"), patch(
+            "folder_extractor.core.ai_async.genai.GenerativeModel"
+        ), patch(
+            "folder_extractor.core.ai_async.FilePreprocessor"
+        ) as mock_preprocessor_class:
+            mock_preprocessor = Mock()
+            mock_preprocessor.prepare_file.side_effect = PreprocessorError(
+                "Image optimization failed: corrupt file"
+            )
+            mock_preprocessor_class.return_value = mock_preprocessor
+
+            client = AsyncGeminiClient(api_key="test-key")
+
+            with pytest.raises(AIClientError) as exc_info:
+                await client.analyze_file(
+                    filepath=test_image_file,
+                    mime_type="image/jpeg",
+                    prompt="Analyze",
+                )
+
+            # Error message should be descriptive
+            assert "preprocessing failed" in str(exc_info.value).lower()
+            # Original exception should be chained
+            assert isinstance(exc_info.value.__cause__, PreprocessorError)
+
+    @pytest.mark.asyncio
+    async def test_large_file_triggers_optimization(
+        self, test_image_file, temp_dir, mock_uploaded_file, mock_gemini_response
+    ):
+        """Files that need optimization are processed and cleaned up."""
+        # Simulate preprocessor returning optimized file
+        optimized_path = Path(temp_dir) / "preprocessor_out" / "optimized.jpg"
+        optimized_path.parent.mkdir()
+        optimized_path.write_bytes(b"optimized image content")
+
+        with patch("folder_extractor.core.ai_async.genai.configure"), patch(
+            "folder_extractor.core.ai_async.genai.GenerativeModel"
+        ) as mock_model_class, patch(
+            "folder_extractor.core.ai_async.genai.upload_file",
+            return_value=mock_uploaded_file,
+        ) as mock_upload, patch(
+            "folder_extractor.core.ai_async.FilePreprocessor"
+        ) as mock_preprocessor_class:
+            # Preprocessor simulates optimization
+            mock_preprocessor = Mock()
+            mock_preprocessor.prepare_file.return_value = (optimized_path, True)
+            mock_preprocessor_class.return_value = mock_preprocessor
+
+            mock_model = Mock()
+            mock_model.generate_content_async = AsyncMock(
+                return_value=mock_gemini_response({"status": "processed"})
+            )
+            mock_model_class.return_value = mock_model
+
+            client = AsyncGeminiClient(api_key="test-key")
+            result = await client.analyze_file(
+                filepath=test_image_file,
+                mime_type="image/jpeg",
+                prompt="Analyze large image",
+            )
+
+            assert result["status"] == "processed"
+
+            # Verify upload used optimized path
+            mock_upload.assert_called_once()
+            call_kwargs = mock_upload.call_args.kwargs
+            assert call_kwargs["path"] == str(optimized_path)
+
+            # Temp file should be cleaned up
+            assert not optimized_path.exists()
+
+            # Original file should still exist
+            assert test_image_file.exists()

@@ -355,3 +355,12 @@ PROGRESS_UPDATE_INTERVAL = 0.1  # seconds between progress updates
 # Performance Tuning
 BATCH_SIZE = 100  # Number of files to process in one batch
 CACHE_SIZE = 1000  # Number of paths to cache
+
+
+# File Preprocessing Configuration (for AI API uploads)
+PREPROCESSOR_MAX_FILE_SIZE_MB = 20  # Gemini API limit
+PREPROCESSOR_MAX_IMAGE_DIMENSION = 2048  # Max image edge length
+PREPROCESSOR_JPG_QUALITY = 85  # JPG compression quality
+PREPROCESSOR_MAX_PDF_PAGES = 5  # Max PDF pages to extract
+# Exotic image formats to convert to JPG
+PREPROCESSOR_EXOTIC_IMAGE_FORMATS = {".tiff", ".tif", ".bmp", ".webp"}
