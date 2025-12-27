@@ -6,6 +6,9 @@ Tests cover:
 - File analysis behavior
 - Error handling
 - Interface compliance
+
+Note: These tests require google-generativeai which only works on Python 3.9+.
+Tests are skipped if the dependency is not available.
 """
 
 from __future__ import annotations
@@ -15,18 +18,22 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from google.api_core.exceptions import (
+
+# Skip all tests if google-generativeai is not installed (Python 3.8)
+pytest.importorskip("google.api_core.exceptions")
+
+from google.api_core.exceptions import (  # noqa: E402
     InternalServerError,
     ResourceExhausted,
     ServiceUnavailable,
 )
 
-from folder_extractor.core.ai_async import (
+from folder_extractor.core.ai_async import (  # noqa: E402
     AIClientError,
     AsyncGeminiClient,
     IAIClient,
 )
-from folder_extractor.core.security import APIKeyError
+from folder_extractor.core.security import APIKeyError  # noqa: E402
 
 
 class TestAIClientError:

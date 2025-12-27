@@ -343,7 +343,9 @@ class TestOptimizeImage:
 
         # Arrange: Create an RGBA image with transparency
         input_image = tmp_path / "rgba_image.png"
-        img = Image.new("RGBA", (100, 100), color=(255, 0, 0, 128))  # Semi-transparent red
+        img = Image.new(
+            "RGBA", (100, 100), color=(255, 0, 0, 128)
+        )  # Semi-transparent red
         img.save(input_image, "PNG")
 
         preprocessor = FilePreprocessor()
@@ -773,7 +775,9 @@ class TestPrepareFile:
         assert result_path.suffix == ".jpg"
         assert needs_cleanup is True
 
-    def test_exotic_image_format_returns_optimized_path_with_cleanup_flag(self, tmp_path):
+    def test_exotic_image_format_returns_optimized_path_with_cleanup_flag(
+        self, tmp_path
+    ):
         """An exotic image format (TIFF, BMP, WebP) returns (optimized_path, True)."""
         from PIL import Image
 
@@ -948,7 +952,9 @@ class TestPrepareFile:
         assert needs_cleanup is False
         assert "Unknown file type" in caplog.text or "unknown" in caplog.text.lower()
 
-    def test_unknown_format_small_file_returns_original_without_warning(self, tmp_path, caplog):
+    def test_unknown_format_small_file_returns_original_without_warning(
+        self, tmp_path, caplog
+    ):
         """A small unknown format file returns (original_path, False) without warning."""
         import logging
 

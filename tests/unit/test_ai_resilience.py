@@ -6,6 +6,9 @@ Tests cover:
 - Default retry decorator behavior
 - Exponential backoff configuration
 - Exception type filtering
+
+Note: These tests require google-generativeai which only works on Python 3.9+.
+Tests are skipped if the dependency is not available.
 """
 
 from __future__ import annotations
@@ -13,13 +16,17 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from google.api_core.exceptions import (
+
+# Skip all tests if google-generativeai is not installed (Python 3.8)
+pytest.importorskip("google.api_core.exceptions")
+
+from google.api_core.exceptions import (  # noqa: E402
     InternalServerError,
     ResourceExhausted,
     ServiceUnavailable,
 )
 
-from folder_extractor.core.ai_resilience import (
+from folder_extractor.core.ai_resilience import (  # noqa: E402
     ai_retry,
     create_ai_retry_decorator,
 )
@@ -205,21 +212,14 @@ class TestRetryConfiguration:
     def test_wait_parameters_accepted(self):
         """Wait parameters (multiplier, min_wait, max_wait) are accepted."""
         # Should not raise
-        decorator = create_ai_retry_decorator(
-            multiplier=2,
-            min_wait=1,
-            max_wait=60
-        )
+        decorator = create_ai_retry_decorator(multiplier=2, min_wait=1, max_wait=60)
         assert callable(decorator)
 
     def test_all_parameters_can_be_customized(self):
         """All parameters can be passed to the factory."""
         # Should not raise
         decorator = create_ai_retry_decorator(
-            max_attempts=10,
-            multiplier=2,
-            min_wait=1,
-            max_wait=120
+            max_attempts=10, multiplier=2, min_wait=1, max_wait=120
         )
 
         @decorator
