@@ -364,3 +364,15 @@ PREPROCESSOR_JPG_QUALITY = 85  # JPG compression quality
 PREPROCESSOR_MAX_PDF_PAGES = 5  # Max PDF pages to extract
 # Exotic image formats to convert to JPG
 PREPROCESSOR_EXOTIC_IMAGE_FORMATS = {".tiff", ".tif", ".bmp", ".webp"}
+
+# Smart Sorting Categories
+DEFAULT_CATEGORIES = [
+    "Finanzen",
+    "Verträge",
+    "Medizin",
+    "Bildung",
+    "Privat",
+    "Technik",
+    "Arbeit",
+    "Reisen",
+]

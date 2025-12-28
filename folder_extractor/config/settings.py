@@ -44,6 +44,8 @@ class Settings:
             "verbose": False,
             "quiet": False,
             "color_output": True,
+            # Smart Sorting
+            "custom_categories": [],
         }
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -117,6 +119,10 @@ class Settings:
     def delete_archives(self) -> bool:
         return self._settings["delete_archives"]
 
+    @property
+    def custom_categories(self) -> list:
+        return self._settings["custom_categories"]
+
 
 # Global settings instance
 settings = Settings()
@@ -151,3 +157,20 @@ def configure_from_args(args) -> None:
     settings.set("extract_archives", extract_archives)
     # delete_archives only makes sense with extract_archives enabled
     settings.set("delete_archives", delete_archives and extract_archives)
+
+
+def get_all_categories() -> list:
+    """
+    Get combined list of user-defined and default categories.
+
+    User categories take precedence over default categories.
+    Duplicates are removed while preserving order.
+
+    Returns:
+        List of category names with user categories first.
+    """
+    custom = settings.get("custom_categories", [])
+    from folder_extractor.config.constants import DEFAULT_CATEGORIES
+
+    # User categories first, then defaults (excluding duplicates)
+    return custom + [cat for cat in DEFAULT_CATEGORIES if cat not in custom]

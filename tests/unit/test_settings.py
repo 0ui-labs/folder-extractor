@@ -163,6 +163,28 @@ class TestSettings:
         s.set("global_dedup", True)
         assert s.global_dedup is True
 
+    def test_custom_categories_property(self):
+        """Test custom_categories property returns user-defined category list."""
+        s = Settings()
+        assert s.custom_categories == []
+        s.set("custom_categories", ["Kategorie1", "Kategorie2"])
+        assert s.custom_categories == ["Kategorie1", "Kategorie2"]
+
+    def test_to_dict_includes_custom_categories(self):
+        """Test that to_dict includes custom_categories for serialization."""
+        s = Settings()
+        s.set("custom_categories", ["Cat1", "Cat2"])
+        result = s.to_dict()
+        assert "custom_categories" in result
+        assert result["custom_categories"] == ["Cat1", "Cat2"]
+
+    def test_from_dict_loads_custom_categories(self):
+        """Test that from_dict restores custom_categories from saved state."""
+        s = Settings()
+        s.from_dict({"custom_categories": ["Cat1", "Cat2"], "dry_run": True})
+        assert s.custom_categories == ["Cat1", "Cat2"]
+        assert s.dry_run is True
+
 
 class TestGlobalSettings:
     """Tests for global settings instance."""
@@ -399,3 +421,67 @@ class TestSettingsArchiveProperties:
         s = Settings()
         s.set("delete_archives", True)
         assert s.delete_archives is True
+
+
+class TestGetAllCategories:
+    """Tests for get_all_categories function."""
+
+    def setup_method(self):
+        """Reset settings before each test."""
+        settings.reset_to_defaults()
+
+    def test_default_categories_only(self):
+        """When no custom categories defined, returns default categories."""
+        from folder_extractor.config.constants import DEFAULT_CATEGORIES
+        from folder_extractor.config.settings import get_all_categories
+
+        result = get_all_categories()
+        assert result == DEFAULT_CATEGORIES
+
+    def test_custom_categories_prepended_to_defaults(self):
+        """Custom categories appear first, followed by defaults."""
+        from folder_extractor.config.constants import DEFAULT_CATEGORIES
+        from folder_extractor.config.settings import get_all_categories
+
+        settings.set("custom_categories", ["Custom1", "Custom2"])
+        result = get_all_categories()
+
+        assert result[:2] == ["Custom1", "Custom2"]
+        assert "Finanzen" in result
+        assert len(result) == len(DEFAULT_CATEGORIES) + 2
+
+    def test_custom_category_overrides_duplicate_default(self):
+        """When custom category matches a default, it appears only once (from custom)."""
+        from folder_extractor.config.settings import get_all_categories
+
+        settings.set("custom_categories", ["Finanzen", "Custom1"])
+        result = get_all_categories()
+
+        # "Finanzen" should appear only once (from custom position)
+        assert result.count("Finanzen") == 1
+        assert result[0] == "Finanzen"
+        assert "Custom1" in result
+
+    def test_empty_custom_categories_returns_defaults(self):
+        """Explicitly empty custom categories returns only defaults."""
+        from folder_extractor.config.constants import DEFAULT_CATEGORIES
+        from folder_extractor.config.settings import get_all_categories
+
+        settings.set("custom_categories", [])
+        result = get_all_categories()
+        assert result == DEFAULT_CATEGORIES
+
+    def test_all_defaults_overridden_preserves_custom_order(self):
+        """When all custom categories match defaults, custom order is preserved."""
+        from folder_extractor.config.constants import DEFAULT_CATEGORIES
+        from folder_extractor.config.settings import get_all_categories
+
+        # Reverse order of defaults
+        reversed_defaults = list(reversed(DEFAULT_CATEGORIES))
+        settings.set("custom_categories", reversed_defaults)
+        result = get_all_categories()
+
+        # Should have same length (no duplicates)
+        assert len(result) == len(DEFAULT_CATEGORIES)
+        # Should be in reversed order
+        assert result == reversed_defaults

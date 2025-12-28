@@ -643,7 +643,7 @@ class TestFileMover:
                 files.append(file_path)  # Path objects directly
 
             # Move files with Path destination
-            moved, errors, duplicates, history = self.file_mover.move_files(
+            moved, errors, duplicates, _, _, history = self.file_mover.move_files(
                 files, dest_dir
             )
 
@@ -675,7 +675,7 @@ class TestFileMover:
                 files.append(str(file_path))
 
             # Move files with string destination
-            moved, errors, duplicates, history = self.file_mover.move_files(
+            moved, errors, duplicates, _, _, history = self.file_mover.move_files(
                 files, str(dest_dir)
             )
 
@@ -699,7 +699,7 @@ class TestFileMover:
             source_file.write_text("new")
 
             # Move file with Path objects
-            moved, errors, duplicates, history = self.file_mover.move_files(
+            moved, errors, duplicates, _, _, history = self.file_mover.move_files(
                 [source_file], dest_dir
             )
 
@@ -729,7 +729,9 @@ class TestFileMover:
             abort_signal.set()
 
             # Move files with Path destination
-            moved, errors, duplicates, history = file_mover.move_files(files, temp_path)
+            moved, errors, duplicates, _, _, history = file_mover.move_files(
+                files, temp_path
+            )
 
             # Should have moved very few files
             assert moved < len(files)
@@ -753,7 +755,7 @@ class TestFileMover:
                 files.append(file_path)
 
             # Move files sorted with Path destination
-            moved, errors, duplicates, history, created_folders = (
+            moved, errors, duplicates, _, _, history, created_folders = (
                 self.file_mover.move_files_sorted(files, dest_dir)
             )
 
@@ -784,7 +786,7 @@ class TestFileMover:
             file_path.touch()
 
             # Move files sorted with string paths
-            moved, errors, duplicates, history, created_folders = (
+            moved, errors, duplicates, _, _, history, created_folders = (
                 self.file_mover.move_files_sorted([str(file_path)], str(dest_dir))
             )
 
@@ -848,7 +850,7 @@ class TestFileMover:
             with patch.object(
                 self.file_ops, "move_file", side_effect=Exception("Test error")
             ):
-                moved, errors, duplicates, history = self.file_mover.move_files(
+                moved, errors, duplicates, _, _, history = self.file_mover.move_files(
                     [test_file], dest_dir, progress_callback=progress_callback
                 )
 
@@ -880,7 +882,7 @@ class TestFileMover:
             abort_signal.set()
 
             # Move files sorted
-            moved, errors, duplicates, history, created_folders = (
+            moved, errors, duplicates, _, _, history, created_folders = (
                 file_mover.move_files_sorted(files, dest_dir)
             )
 
@@ -916,7 +918,7 @@ class TestFileMover:
             with patch.object(
                 self.file_ops, "move_file", side_effect=Exception("Test error")
             ):
-                moved, errors, duplicates, history, created_folders = (
+                moved, errors, duplicates, _, _, history, created_folders = (
                     self.file_mover.move_files_sorted(
                         [test_file], dest_dir, progress_callback=progress_callback
                     )
@@ -945,7 +947,7 @@ class TestFileMover:
             source_file.write_text("new")
 
             # Move file sorted
-            moved, errors, duplicates, history, created_folders = (
+            moved, errors, duplicates, _, _, history, created_folders = (
                 self.file_mover.move_files_sorted([source_file], dest_dir)
             )
 
@@ -980,7 +982,7 @@ class TestFileMoverDeduplication:
             dest_file.write_text(identical_content)
 
             # Move with deduplication enabled
-            moved, errors, duplicates, content_duplicates, history = (
+            moved, errors, duplicates, content_duplicates, _, history = (
                 self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
             )
 
@@ -1010,7 +1012,7 @@ class TestFileMoverDeduplication:
             dest_file.write_text("destination content - different")
 
             # Move with deduplication enabled
-            moved, errors, duplicates, content_duplicates, history = (
+            moved, errors, duplicates, content_duplicates, _, history = (
                 self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
             )
 
@@ -1040,7 +1042,7 @@ class TestFileMoverDeduplication:
             dest_file.write_text(identical_content)
 
             # Move WITHOUT deduplication - old 4-tuple return
-            moved, errors, duplicates, history = self.file_mover.move_files(
+            moved, errors, duplicates, _, _, history = self.file_mover.move_files(
                 [source_file], dest_dir, deduplicate=False
             )
 
@@ -1065,7 +1067,7 @@ class TestFileMoverDeduplication:
             dest_file.write_text(identical_content)
 
             # Dry run with deduplication
-            moved, errors, duplicates, content_duplicates, history = (
+            moved, errors, duplicates, content_duplicates, _, history = (
                 self.file_mover.move_files(
                     [source_file], dest_dir, dry_run=True, deduplicate=True
                 )
@@ -1092,7 +1094,7 @@ class TestFileMoverDeduplication:
             dest_file = dest_dir / "flagtest.txt"
             dest_file.write_text(identical_content)
 
-            moved, errors, duplicates, content_duplicates, history = (
+            moved, errors, duplicates, content_duplicates, _, history = (
                 self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
             )
 
@@ -1121,10 +1123,16 @@ class TestFileMoverDeduplication:
             source_file.write_text(identical_content)
 
             # Move sorted with deduplication
-            moved, errors, duplicates, content_duplicates, history, created_folders = (
-                self.file_mover.move_files_sorted(
-                    [source_file], dest_dir, deduplicate=True
-                )
+            (
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                _,
+                history,
+                created_folders,
+            ) = self.file_mover.move_files_sorted(
+                [source_file], dest_dir, deduplicate=True
             )
 
             assert moved == 0
@@ -1152,10 +1160,16 @@ class TestFileMoverDeduplication:
             source_file.write_text("new PDF content - different")
 
             # Move sorted with deduplication
-            moved, errors, duplicates, content_duplicates, history, created_folders = (
-                self.file_mover.move_files_sorted(
-                    [source_file], dest_dir, deduplicate=True
-                )
+            (
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                _,
+                history,
+                created_folders,
+            ) = self.file_mover.move_files_sorted(
+                [source_file], dest_dir, deduplicate=True
             )
 
             assert moved == 1
@@ -1166,8 +1180,8 @@ class TestFileMoverDeduplication:
                 pdf_folder / "report_1.pdf"
             ).read_text() == "new PDF content - different"
 
-    def test_move_files_sorted_deduplicate_disabled_returns_old_signature(self):
-        """Without deduplicate, move_files_sorted returns 5-tuple (backward compat)."""
+    def test_move_files_sorted_deduplicate_disabled_returns_7_tuple(self):
+        """Without deduplicate, move_files_sorted returns 7-tuple (consistent structure)."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             source_dir = temp_path / "source"
@@ -1179,7 +1193,7 @@ class TestFileMoverDeduplication:
             source_file.touch()
 
             # Old signature without deduplicate
-            moved, errors, duplicates, history, created_folders = (
+            moved, errors, duplicates, _, _, history, created_folders = (
                 self.file_mover.move_files_sorted([source_file], dest_dir)
             )
 
@@ -1206,7 +1220,7 @@ class TestFileMoverDeduplication:
                 "calculate_file_hash",
                 side_effect=FileOperationError("Hash failed"),
             ):
-                moved, errors, duplicates, content_duplicates, history = (
+                moved, errors, duplicates, content_duplicates, _, history = (
                     self.file_mover.move_files(
                         [source_file], dest_dir, deduplicate=True
                     )
@@ -1231,7 +1245,7 @@ class TestFileMoverDeduplication:
             source_file.write_text("unique content")
 
             # No existing file at destination
-            moved, errors, duplicates, content_duplicates, history = (
+            moved, errors, duplicates, content_duplicates, _, history = (
                 self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
             )
 
@@ -1261,7 +1275,7 @@ class TestFileMoverDeduplication:
             dest_file = dest_dir / "file.txt"
             dest_file.write_text(identical_content)
 
-            moved, errors, duplicates, content_duplicates, history = (
+            moved, errors, duplicates, content_duplicates, _, history = (
                 self.file_mover.move_files([source_file], dest_dir, deduplicate=True)
             )
 
@@ -1588,8 +1602,8 @@ class TestFileMoverGlobalDedup:
             assert (dest_dir / "file1.txt").exists()
             assert (dest_dir / "file2.txt").exists()
 
-    def test_move_files_without_global_dedup_returns_4_tuple(self):
-        """Without global_dedup, move_files returns backward-compatible 4-tuple."""
+    def test_move_files_without_global_dedup_returns_6_tuple(self):
+        """Without global_dedup, move_files returns consistent 6-tuple."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             source_dir = temp_path / "source"
@@ -1600,13 +1614,15 @@ class TestFileMoverGlobalDedup:
             source_file = source_dir / "test.txt"
             source_file.touch()
 
-            # Old signature without global_dedup
+            # Signature now always returns 6-tuple (consistent structure)
             result = self.file_mover.move_files([source_file], dest_dir)
 
-            # Should return 4-tuple for backward compatibility
-            assert len(result) == 4
-            moved, errors, duplicates, history = result
+            # Should return 6-tuple with consistent structure
+            assert len(result) == 6
+            moved, errors, duplicates, content_dups, global_dups, history = result
             assert moved == 1
+            assert content_dups == 0
+            assert global_dups == 0
 
     def test_global_dedup_with_duplicate_source_files_moves_one(self):
         """When source files have identical content, ONE should be moved.
@@ -1982,7 +1998,7 @@ class TestFileMoverGlobalDedupSorted:
             source = source_dir / "samename.txt"
             source.write_text("sorted content dedup reference test")
 
-            moved, errors, duplicates, content_dups, history, created = (
+            moved, errors, duplicates, content_dups, _, history, created = (
                 self.file_mover.move_files_sorted([source], dest_dir, deduplicate=True)
             )
 
@@ -2007,6 +2023,17 @@ class TestFileMoverGlobalDedupSorted:
 
             result = self.file_mover.move_files_sorted([source], dest_dir)
 
-            assert len(result) == 5
-            moved, errors, duplicates, history, created_folders = result
+            # Should return 7-tuple with consistent structure
+            assert len(result) == 7
+            (
+                moved,
+                errors,
+                duplicates,
+                content_dups,
+                global_dups,
+                history,
+                created_folders,
+            ) = result
             assert moved == 1
+            assert content_dups == 0
+            assert global_dups == 0
