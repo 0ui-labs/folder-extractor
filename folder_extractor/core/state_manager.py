@@ -92,6 +92,11 @@ class IStateManager(ABC):
         """Reset start time for an operation."""
         pass
 
+    @abstractmethod
+    def get_abort_signal(self) -> threading.Event:
+        """Get the abort signal event."""
+        pass
+
 
 class StateManager(IStateManager):
     """Enhanced state manager with operation tracking."""

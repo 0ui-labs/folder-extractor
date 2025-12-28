@@ -310,7 +310,7 @@ class TestFileMovePerformance:
 
         # Benchmark moving
         with BenchmarkTimer("Move 500 small files"):
-            moved, _errors, _duplicates, _history = verschiebe_dateien(
+            moved, _errors, _duplicates, _, _, _history = verschiebe_dateien(
                 files, safe_test_dir, dry_run=False
             )
 
@@ -333,7 +333,7 @@ class TestFileMovePerformance:
 
         # Benchmark moving
         with BenchmarkTimer("Move 10 large files (1MB each)"):
-            moved, _errors, _duplicates, _history = verschiebe_dateien(
+            moved, _errors, _duplicates, _, _, _history = verschiebe_dateien(
                 files, safe_test_dir, dry_run=False
             )
 
@@ -363,7 +363,7 @@ class TestFileMovePerformance:
 
         # Benchmark moving with duplicate handling
         with BenchmarkTimer("Move 100 files with duplicates"):
-            moved, errors, duplicates, history = verschiebe_dateien(
+            moved, errors, duplicates, _, _, history = verschiebe_dateien(
                 files, safe_test_dir, dry_run=False
             )
 

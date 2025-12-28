@@ -39,6 +39,11 @@ class IFileDiscovery(ABC):
         """Check if a weblink file matches allowed domains."""
         pass
 
+    @abstractmethod
+    def extract_weblink_domain(self, filepath: Union[str, Path]) -> Optional[str]:
+        """Extract the domain from a weblink file (.url or .webloc)."""
+        pass
+
 
 class FileDiscovery(IFileDiscovery):
     """
@@ -275,10 +280,12 @@ class FileDiscovery(IFileDiscovery):
                             strings = dict_elem.findall("string")
                             if i < len(strings):
                                 url = strings[i].text
-                                return self._check_url_domain(url, allowed_domains)
+                                if url is not None:
+                                    return self._check_url_domain(url, allowed_domains)
                         else:
                             url = string_elem.text
-                            return self._check_url_domain(url, allowed_domains)
+                            if url is not None:
+                                return self._check_url_domain(url, allowed_domains)
         except Exception:
             pass
 
@@ -356,9 +363,13 @@ class FileDiscovery(IFileDiscovery):
                         if string_elem is None:
                             strings = dict_elem.findall("string")
                             if i < len(strings):
-                                return self._extract_domain_from_url(strings[i].text)
+                                url = strings[i].text
+                                if url is not None:
+                                    return self._extract_domain_from_url(url)
                         else:
-                            return self._extract_domain_from_url(string_elem.text)
+                            url = string_elem.text
+                            if url is not None:
+                                return self._extract_domain_from_url(url)
         except Exception:
             pass
         return None

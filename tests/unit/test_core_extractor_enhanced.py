@@ -96,7 +96,7 @@ class TestEnhancedFileExtractor:
         # Mock FileMover behavior
         with patch("folder_extractor.core.extractor.FileMover") as MockFileMover:
             mock_mover = MockFileMover.return_value
-            mock_mover.move_files.return_value = (3, 0, 0, history)
+            mock_mover.move_files.return_value = (3, 0, 0, 0, 0, history)
 
             # Mock ProgressTracker
             with patch("folder_extractor.core.extractor.ProgressTracker"):
@@ -125,7 +125,7 @@ class TestEnhancedFileExtractor:
         # Mock FileMover behavior
         with patch("folder_extractor.core.extractor.FileMover") as MockFileMover:
             mock_mover = MockFileMover.return_value
-            mock_mover.move_files.return_value = (1, 0, 0, [])
+            mock_mover.move_files.return_value = (1, 0, 0, 0, 0, [])
 
             # Mock ProgressTracker
             with patch("folder_extractor.core.extractor.ProgressTracker"):
@@ -160,7 +160,7 @@ class TestEnhancedFileExtractor:
                     "neuer_pfad": str(destination / "file1.txt"),
                 }
             ]
-            mock_mover.move_files.return_value = (1, 0, 0, history)
+            mock_mover.move_files.return_value = (1, 0, 0, 0, 0, history)
 
             # Mock ProgressTracker
             with patch("folder_extractor.core.extractor.ProgressTracker"):
@@ -840,7 +840,7 @@ class TestEnhancedFileExtractor:
         # Mock FileMover behavior
         with patch("folder_extractor.core.extractor.FileMover") as MockFileMover:
             mock_mover = MockFileMover.return_value
-            mock_mover.move_files.return_value = (1, 0, 0, [])
+            mock_mover.move_files.return_value = (1, 0, 0, 0, 0, [])
 
             # Mock ProgressTracker
             with patch("folder_extractor.core.extractor.ProgressTracker"):
@@ -860,7 +860,7 @@ class TestEnhancedFileExtractor:
         # Mock FileMover to return 0 moved files
         with patch("folder_extractor.core.extractor.FileMover") as MockFileMover:
             mock_mover = MockFileMover.return_value
-            mock_mover.move_files.return_value = (0, 0, 0, [])
+            mock_mover.move_files.return_value = (0, 0, 0, 0, 0, [])
 
             # Mock ProgressTracker
             with patch("folder_extractor.core.extractor.ProgressTracker"):
@@ -889,7 +889,7 @@ class TestEnhancedFileExtractor:
                     "neuer_pfad": str(destination / "TXT" / "file.txt"),
                 }
             ]
-            mock_mover.move_files_sorted.return_value = (1, 0, 0, history, ["TXT"])
+            mock_mover.move_files_sorted.return_value = (1, 0, 0, 0, 0, history, ["TXT"])
 
             # Mock ProgressTracker
             with patch("folder_extractor.core.extractor.ProgressTracker"):
@@ -916,7 +916,7 @@ class TestEnhancedFileExtractor:
             history = [
                 {"original_pfad": files[0], "neuer_pfad": str(destination / "file.txt")}
             ]
-            mock_mover.move_files.return_value = (1, 0, 0, history)
+            mock_mover.move_files.return_value = (1, 0, 0, 0, 0, history)
 
             # Mock ProgressTracker and capture callback
             with patch("folder_extractor.core.extractor.ProgressTracker"):

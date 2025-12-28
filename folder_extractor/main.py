@@ -111,7 +111,7 @@ def finde_dateien(
 
 def verschiebe_dateien(
     files: List[str], destination: str, dry_run: bool = False, progress_callback=None
-) -> Tuple[int, int, int, List[Dict]]:
+) -> Tuple[int, int, int, int, int, List[Dict]]:
     """
     Move multiple files to destination.
 
@@ -124,7 +124,8 @@ def verschiebe_dateien(
         progress_callback: Optional callback for progress updates
 
     Returns:
-        Tuple of (moved_count, error_count, duplicate_count, history)
+        Tuple of (moved_count, error_count, duplicate_count, content_duplicates,
+                  global_duplicates, history)
     """
     return _file_mover.move_files(files, destination, dry_run, progress_callback)
 
