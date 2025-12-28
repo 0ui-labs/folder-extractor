@@ -127,7 +127,7 @@ class TestSmartSorterProcessFile:
         filepath = Path("/test/invoice.pdf")
         mime_type = "application/pdf"
 
-        result = await sorter.process_file(filepath, mime_type)
+        await sorter.process_file(filepath, mime_type)
 
         # Verify analyze_file was called with correct parameters
         mock_client.analyze_file.assert_called_once()
@@ -177,9 +177,7 @@ class TestSmartSorterProcessFile:
 
         sorter = SmartSorter(mock_client, settings=mock_settings)
 
-        result = await sorter.process_file(
-            Path("/contract.pdf"), "application/pdf"
-        )
+        result = await sorter.process_file(Path("/contract.pdf"), "application/pdf")
 
         assert result == expected_result
 
@@ -294,9 +292,7 @@ class TestSmartSorterIntegration:
 
         sorter = SmartSorter(mock_client, settings=real_settings)
 
-        result = await sorter.process_file(
-            Path("/test.pdf"), "application/pdf"
-        )
+        result = await sorter.process_file(Path("/test.pdf"), "application/pdf")
 
         # Verify custom category was used
         call_kwargs = mock_client.analyze_file.call_args.kwargs
