@@ -1180,8 +1180,8 @@ class TestFileMoverDeduplication:
                 pdf_folder / "report_1.pdf"
             ).read_text() == "new PDF content - different"
 
-    def test_move_files_sorted_deduplicate_disabled_returns_old_signature(self):
-        """Without deduplicate, move_files_sorted returns 5-tuple (backward compat)."""
+    def test_move_files_sorted_deduplicate_disabled_returns_7_tuple(self):
+        """Without deduplicate, move_files_sorted returns 7-tuple (consistent structure)."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             source_dir = temp_path / "source"
@@ -1602,8 +1602,8 @@ class TestFileMoverGlobalDedup:
             assert (dest_dir / "file1.txt").exists()
             assert (dest_dir / "file2.txt").exists()
 
-    def test_move_files_without_global_dedup_returns_4_tuple(self):
-        """Without global_dedup, move_files returns backward-compatible 4-tuple."""
+    def test_move_files_without_global_dedup_returns_6_tuple(self):
+        """Without global_dedup, move_files returns consistent 6-tuple."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             source_dir = temp_path / "source"

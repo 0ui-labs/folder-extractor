@@ -37,7 +37,8 @@ class TestGetSystemPrompt:
         assert "year" in prompt, "Prompt should mention 'year' field"
 
         # Check that a JSON example structure is present
-        assert "{" in prompt and "}" in prompt, "Prompt should contain JSON example"
+        assert "{" in prompt, "Prompt should contain opening brace for JSON example"
+        assert "}" in prompt, "Prompt should contain closing brace for JSON example"
 
     def test_prompt_contains_fallback_category(self):
         """Prompt instructs to use 'Sonstiges' when no category fits."""
