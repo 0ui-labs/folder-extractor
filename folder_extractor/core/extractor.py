@@ -60,6 +60,7 @@ class IEnhancedExtractor(ABC):
         destination: Union[str, Path],
         operation_id: Optional[str] = None,
         progress_callback: ProgressCallback = None,
+        indexing_callback: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Extract files to destination with operation tracking."""
         pass
@@ -440,76 +441,48 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         if settings.get("sort_by_type", False):
             # Create folder override callback for domain filter
             domain_filter = settings.get("domain_filter")
-            folder_override = None
+            folder_override: Optional[
+                Callable[[Union[str, Path]], Optional[str]]
+            ] = None
             if domain_filter:
                 # When domain filter is active, use domain as folder name for weblinks
-                def folder_override(filepath):
-                    file_path = Path(filepath)
-                    if file_path.suffix.lower() in [".url", ".webloc"]:
-                        domain = self.file_discovery.extract_weblink_domain(filepath)
-                        if domain:
-                            return domain
-                    return None  # Use default folder determination
+                def _make_folder_override(
+                    discovery: "IFileDiscovery",
+                ) -> Callable[[Union[str, Path]], Optional[str]]:
+                    def _folder_override(filepath: Union[str, Path]) -> Optional[str]:
+                        file_path = Path(filepath)
+                        if file_path.suffix.lower() in [".url", ".webloc"]:
+                            domain = discovery.extract_weblink_domain(filepath)
+                            if domain:
+                                return domain
+                        return None  # Use default folder determination
+
+                    return _folder_override
+
+                folder_override = _make_folder_override(self.file_discovery)
 
             # Move files sorted by type
             deduplicate = settings.get("deduplicate", False)
             global_dedup = settings.get("global_dedup", False)
-            if global_dedup:
-                # Global deduplication - checks against entire destination tree
-                (
-                    moved,
-                    errors,
-                    duplicates,
-                    content_duplicates,
-                    global_duplicates,
-                    history,
-                    created_folders,
-                ) = file_mover.move_files_sorted(
-                    files=files,
-                    destination=destination_str,
-                    dry_run=settings.get("dry_run", False),
-                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
-                        c, f, e
-                    ),
-                    folder_override_callback=folder_override,
-                    deduplicate=deduplicate,
-                    global_dedup=True,
-                )
-            elif deduplicate:
-                (
-                    moved,
-                    errors,
-                    duplicates,
-                    content_duplicates,
-                    history,
-                    created_folders,
-                ) = file_mover.move_files_sorted(
-                    files=files,
-                    destination=destination_str,
-                    dry_run=settings.get("dry_run", False),
-                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
-                        c, f, e
-                    ),
-                    folder_override_callback=folder_override,
-                    deduplicate=True,
-                )
-                global_duplicates = 0
-            else:
-
-                def progress_cb(c, _t, f, e=None):
-                    progress_tracker.update(c, f, e)
-
-                moved, errors, duplicates, history, created_folders = (
-                    file_mover.move_files_sorted(
-                        files=files,
-                        destination=destination_str,
-                        dry_run=settings.get("dry_run", False),
-                        progress_callback=progress_cb,
-                        folder_override_callback=folder_override,
-                    )
-                )
-                content_duplicates = 0
-                global_duplicates = 0
+            (
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                global_duplicates,
+                history,
+                created_folders,
+            ) = file_mover.move_files_sorted(
+                files=files,
+                destination=destination_str,
+                dry_run=settings.get("dry_run", False),
+                progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
+                    c, f, e
+                ),
+                folder_override_callback=folder_override,
+                deduplicate=deduplicate,
+                global_dedup=global_dedup,
+            )
             move_results = {
                 "moved": moved,
                 "errors": errors,
@@ -525,55 +498,23 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             # Move files flat
             deduplicate = settings.get("deduplicate", False)
             global_dedup = settings.get("global_dedup", False)
-            if global_dedup:
-                # Global deduplication - checks against entire destination tree
-                (
-                    moved,
-                    errors,
-                    duplicates,
-                    content_duplicates,
-                    global_duplicates,
-                    history,
-                ) = file_mover.move_files(
-                    files=files,
-                    destination=destination_str,
-                    dry_run=settings.get("dry_run", False),
-                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
-                        c, f, e
-                    ),
-                    deduplicate=deduplicate,
-                    global_dedup=True,
-                )
-            elif deduplicate:
-                (
-                    moved,
-                    errors,
-                    duplicates,
-                    content_duplicates,
-                    history,
-                ) = file_mover.move_files(
-                    files=files,
-                    destination=destination_str,
-                    dry_run=settings.get("dry_run", False),
-                    progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
-                        c, f, e
-                    ),
-                    deduplicate=True,
-                )
-                global_duplicates = 0
-            else:
-
-                def progress_cb(c, _t, f, e=None):
-                    progress_tracker.update(c, f, e)
-
-                (moved, errors, duplicates, history) = file_mover.move_files(
-                    files=files,
-                    destination=destination_str,
-                    dry_run=settings.get("dry_run", False),
-                    progress_callback=progress_cb,
-                )
-                content_duplicates = 0
-                global_duplicates = 0
+            (
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                global_duplicates,
+                history,
+            ) = file_mover.move_files(
+                files=files,
+                destination=destination_str,
+                dry_run=settings.get("dry_run", False),
+                progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
+                    c, f, e
+                ),
+                deduplicate=deduplicate,
+                global_dedup=global_dedup,
+            )
             move_results = {
                 "moved": moved,
                 "errors": errors,
@@ -914,7 +855,10 @@ class EnhancedExtractionOrchestrator:
                 results["operation_id"] = op.operation_id
 
                 # Get final stats
-                stats = self.state_manager.get_operation_stats(op.operation_id)
+                if op.operation_id is not None:
+                    stats = self.state_manager.get_operation_stats(op.operation_id)
+                else:
+                    stats = None
                 if stats:
                     results["duration"] = stats.duration
                     results["success_rate"] = stats.success_rate

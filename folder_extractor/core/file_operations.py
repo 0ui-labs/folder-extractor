@@ -15,7 +15,7 @@ import stat
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 from folder_extractor.config.constants import (
     FILE_TYPE_FOLDERS,
@@ -706,17 +706,13 @@ class FileMover:
 
     def move_files(
         self,
-        files: List[Union[str, Path]],
+        files: Sequence[Union[str, Path]],
         destination: Union[str, Path],
         dry_run: bool = False,
-        progress_callback=None,
+        progress_callback: Optional[Callable[..., None]] = None,
         deduplicate: bool = False,
         global_dedup: bool = False,
-    ) -> Union[
-        Tuple[int, int, int, List[Dict]],
-        Tuple[int, int, int, int, List[Dict]],
-        Tuple[int, int, int, int, int, List[Dict]],
-    ]:
+    ) -> Tuple[int, int, int, int, int, List[Dict[str, Any]]]:
         """
         Move multiple files to destination.
 
@@ -940,34 +936,28 @@ class FileMover:
                 if progress_callback:  # pragma: no branch
                     progress_callback(i + 1, len(files), file_path, error=str(e))
 
-        # Return appropriate tuple based on flags
-        if global_dedup:
-            return (
-                moved,
-                errors,
-                duplicates,
-                content_duplicates,
-                global_duplicates,
-                history,
-            )
-        if deduplicate:
-            return moved, errors, duplicates, content_duplicates, history
-        return moved, errors, duplicates, history
+        # Always return consistent tuple structure
+        return (
+            moved,
+            errors,
+            duplicates,
+            content_duplicates,
+            global_duplicates,
+            history,
+        )
 
     def move_files_sorted(
         self,
-        files: List[Union[str, Path]],
+        files: Sequence[Union[str, Path]],
         destination: Union[str, Path],
         dry_run: bool = False,
-        progress_callback=None,
-        folder_override_callback=None,
+        progress_callback: Optional[Callable[..., None]] = None,
+        folder_override_callback: Optional[
+            Callable[[Union[str, Path]], Optional[str]]
+        ] = None,
         deduplicate: bool = False,
         global_dedup: bool = False,
-    ) -> Union[
-        Tuple[int, int, int, List[Dict], List[str]],
-        Tuple[int, int, int, int, List[Dict], List[str]],
-        Tuple[int, int, int, int, int, List[Dict], List[str]],
-    ]:
+    ) -> Tuple[int, int, int, int, int, List[Dict[str, Any]], List[str]]:
         """
         Move files sorted by type into subdirectories.
 
@@ -1227,18 +1217,14 @@ class FileMover:
                 if progress_callback:  # pragma: no branch
                     progress_callback(i + 1, len(files), file_path, error=str(e))
 
-        # Return appropriate tuple based on flags
+        # Always return consistent tuple structure
         folders = list(created_folders)
-        if global_dedup:
-            return (
-                moved,
-                errors,
-                duplicates,
-                content_duplicates,
-                global_duplicates,
-                history,
-                folders,
-            )
-        if deduplicate:
-            return (moved, errors, duplicates, content_duplicates, history, folders)
-        return moved, errors, duplicates, history, folders
+        return (
+            moved,
+            errors,
+            duplicates,
+            content_duplicates,
+            global_duplicates,
+            history,
+            folders,
+        )
