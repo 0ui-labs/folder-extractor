@@ -729,7 +729,9 @@ class TestFileMover:
             abort_signal.set()
 
             # Move files with Path destination
-            moved, errors, duplicates, _, _, history = file_mover.move_files(files, temp_path)
+            moved, errors, duplicates, _, _, history = file_mover.move_files(
+                files, temp_path
+            )
 
             # Should have moved very few files
             assert moved < len(files)
@@ -1121,10 +1123,16 @@ class TestFileMoverDeduplication:
             source_file.write_text(identical_content)
 
             # Move sorted with deduplication
-            moved, errors, duplicates, content_duplicates, _, history, created_folders = (
-                self.file_mover.move_files_sorted(
-                    [source_file], dest_dir, deduplicate=True
-                )
+            (
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                _,
+                history,
+                created_folders,
+            ) = self.file_mover.move_files_sorted(
+                [source_file], dest_dir, deduplicate=True
             )
 
             assert moved == 0
@@ -1152,10 +1160,16 @@ class TestFileMoverDeduplication:
             source_file.write_text("new PDF content - different")
 
             # Move sorted with deduplication
-            moved, errors, duplicates, content_duplicates, _, history, created_folders = (
-                self.file_mover.move_files_sorted(
-                    [source_file], dest_dir, deduplicate=True
-                )
+            (
+                moved,
+                errors,
+                duplicates,
+                content_duplicates,
+                _,
+                history,
+                created_folders,
+            ) = self.file_mover.move_files_sorted(
+                [source_file], dest_dir, deduplicate=True
             )
 
             assert moved == 1
@@ -2011,7 +2025,15 @@ class TestFileMoverGlobalDedupSorted:
 
             # Should return 7-tuple with consistent structure
             assert len(result) == 7
-            moved, errors, duplicates, content_dups, global_dups, history, created_folders = result
+            (
+                moved,
+                errors,
+                duplicates,
+                content_dups,
+                global_dups,
+                history,
+                created_folders,
+            ) = result
             assert moved == 1
             assert content_dups == 0
             assert global_dups == 0

@@ -55,7 +55,9 @@ class TestGetSystemPrompt:
         assert len(prompt) > 0
 
         # "Sonstiges" should be available as the only category
-        assert "Sonstiges" in prompt, "Empty list should still have 'Sonstiges' fallback"
+        assert "Sonstiges" in prompt, (
+            "Empty list should still have 'Sonstiges' fallback"
+        )
 
     def test_prompt_with_many_categories(self):
         """Prompt handles large category lists without becoming too long."""
@@ -155,9 +157,11 @@ class TestPromptQuality:
         prompt = get_system_prompt(categories)
 
         # Should mention null or None for missing values
-        assert "null" in prompt.lower() or "none" in prompt.lower() or "fehlt" in prompt.lower(), (
-            "Prompt should explain handling of missing information"
-        )
+        assert (
+            "null" in prompt.lower()
+            or "none" in prompt.lower()
+            or "fehlt" in prompt.lower()
+        ), "Prompt should explain handling of missing information"
 
     def test_prompt_mentions_sender_extraction(self):
         """Prompt explains how to extract sender information."""

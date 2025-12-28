@@ -889,7 +889,15 @@ class TestEnhancedFileExtractor:
                     "neuer_pfad": str(destination / "TXT" / "file.txt"),
                 }
             ]
-            mock_mover.move_files_sorted.return_value = (1, 0, 0, 0, 0, history, ["TXT"])
+            mock_mover.move_files_sorted.return_value = (
+                1,
+                0,
+                0,
+                0,
+                0,
+                history,
+                ["TXT"],
+            )
 
             # Mock ProgressTracker
             with patch("folder_extractor.core.extractor.ProgressTracker"):

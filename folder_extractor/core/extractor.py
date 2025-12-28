@@ -441,9 +441,9 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         if settings.get("sort_by_type", False):
             # Create folder override callback for domain filter
             domain_filter = settings.get("domain_filter")
-            folder_override: Optional[
-                Callable[[Union[str, Path]], Optional[str]]
-            ] = None
+            folder_override: Optional[Callable[[Union[str, Path]], Optional[str]]] = (
+                None
+            )
             if domain_filter:
                 # When domain filter is active, use domain as folder name for weblinks
                 def _make_folder_override(
