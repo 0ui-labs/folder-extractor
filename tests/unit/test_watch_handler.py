@@ -401,3 +401,231 @@ class TestTempFileFiltering:
         filepath = Path(f"/test/{filename}")
         result = self.handler._is_temp_file(filepath)
         assert result == expected, f"Expected {expected} for {filename}"
+
+
+class TestOnEventCallback:
+    """Tests for on_event_callback parameter in FolderEventHandler."""
+
+    def setup_method(self) -> None:
+        """Set up test fixtures before each test method."""
+        self.state_manager = StateManager()
+        self.monitor = Mock(spec=StabilityMonitor)
+        self.orchestrator = Mock(spec=EnhancedExtractionOrchestrator)
+        self.event_callback = Mock()
+
+    def test_on_event_callback_parameter_accepted(self) -> None:
+        """Handler accepts optional on_event_callback parameter."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=self.event_callback,
+        )
+        assert handler.on_event_callback is self.event_callback
+
+    def test_on_event_callback_defaults_to_none(self) -> None:
+        """Handler works without on_event_callback (backward compatibility)."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+        )
+        assert handler.on_event_callback is None
+
+    def test_callback_called_with_incoming_status(self, tmp_path: Path) -> None:
+        """Callback is invoked with 'incoming' status when file event detected."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=self.event_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        handler.on_created(event)
+
+        # Find the 'incoming' call
+        incoming_calls = [
+            call for call in self.event_callback.call_args_list
+            if call[0][0] == "incoming"
+        ]
+        assert len(incoming_calls) == 1
+        assert incoming_calls[0][0][1] == "document.pdf"
+
+    def test_callback_called_with_waiting_status(self, tmp_path: Path) -> None:
+        """Callback is invoked with 'waiting' status during stability check."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=self.event_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        handler.on_created(event)
+
+        waiting_calls = [
+            call for call in self.event_callback.call_args_list
+            if call[0][0] == "waiting"
+        ]
+        assert len(waiting_calls) == 1
+        assert waiting_calls[0][0][1] == "document.pdf"
+
+    def test_callback_called_with_analyzing_status(self, tmp_path: Path) -> None:
+        """Callback is invoked with 'analyzing' status before extraction."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=self.event_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        handler.on_created(event)
+
+        analyzing_calls = [
+            call for call in self.event_callback.call_args_list
+            if call[0][0] == "analyzing"
+        ]
+        assert len(analyzing_calls) == 1
+        assert analyzing_calls[0][0][1] == "document.pdf"
+
+    def test_callback_called_with_sorted_status_on_success(
+        self, tmp_path: Path
+    ) -> None:
+        """Callback is invoked with 'sorted' status after successful extraction."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=self.event_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        handler.on_created(event)
+
+        sorted_calls = [
+            call for call in self.event_callback.call_args_list
+            if call[0][0] == "sorted"
+        ]
+        assert len(sorted_calls) == 1
+        assert sorted_calls[0][0][1] == "document.pdf"
+
+    def test_callback_called_with_error_status_on_failure(
+        self, tmp_path: Path
+    ) -> None:
+        """Callback is invoked with 'error' status and error message on failure."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=self.event_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.side_effect = RuntimeError("Test error")
+
+        handler.on_created(event)
+
+        error_calls = [
+            call for call in self.event_callback.call_args_list
+            if call[0][0] == "error"
+        ]
+        assert len(error_calls) == 1
+        assert error_calls[0][0][1] == "document.pdf"
+        assert "Test error" in error_calls[0][0][2]
+
+    def test_callback_order_is_correct(self, tmp_path: Path) -> None:
+        """Callback events follow expected order: incoming → waiting → analyzing → sorted."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=self.event_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        handler.on_created(event)
+
+        # Extract status sequence
+        statuses = [call[0][0] for call in self.event_callback.call_args_list]
+        assert statuses == ["incoming", "waiting", "analyzing", "sorted"]
+
+    def test_faulty_event_callback_does_not_crash_handler(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Event callback exceptions are caught and logged, handler continues."""
+        faulty_callback = Mock(side_effect=RuntimeError("Callback exploded"))
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=faulty_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        # Should not raise despite faulty callback
+        with caplog.at_level(logging.WARNING):
+            handler.on_created(event)
+
+        # Extraction still completed
+        self.orchestrator.process_single_file.assert_called_once()
+
+    def test_callback_not_called_for_temp_files(self, tmp_path: Path) -> None:
+        """Event callback is not invoked for ignored temp files."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=self.event_callback,
+        )
+        test_file = tmp_path / "document.pdf.crdownload"
+        test_file.write_text("incomplete")
+        event = FileCreatedEvent(str(test_file))
+
+        handler.on_created(event)
+
+        self.event_callback.assert_not_called()

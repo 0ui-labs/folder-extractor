@@ -222,12 +222,22 @@ class EnhancedFolderExtractorCLI:
         ) -> None:
             self.interface.show_progress(current, total, filepath, error)
 
+        # Define event callback for UI status updates
+        def event_callback(
+            status: str,
+            filename: str,
+            error: Optional[str] = None,
+        ) -> None:
+            # show_watch_event expects (event_type, filename, status, error)
+            self.interface.show_watch_event("file", filename, status, error)
+
         # Create event handler
         handler = FolderEventHandler(
             orchestrator,
             monitor,
             self.state_manager,
             progress_callback,
+            on_event_callback=event_callback,
         )
 
         # Create and configure observer

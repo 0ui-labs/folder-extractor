@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 # Type alias for progress callback: (current, total, filename, error) -> None
 ProgressCallback = Optional[Callable[[int, int, str, Optional[str]], None]]
 
+# Type alias for event callback: (status, filename, error) -> None
+# status: "incoming", "waiting", "analyzing", "sorted", "error"
+EventCallback = Optional[Callable[[str, str, Optional[str]], None]]
+
 
 class FolderEventHandler(FileSystemEventHandler):
     """Handle file system events for watch mode.
@@ -43,6 +47,7 @@ class FolderEventHandler(FileSystemEventHandler):
         monitor: StabilityMonitor,
         state_manager: IStateManager,
         progress_callback: ProgressCallback = None,
+        on_event_callback: EventCallback = None,
     ) -> None:
         """Initialize folder event handler for watch mode.
 
@@ -52,12 +57,16 @@ class FolderEventHandler(FileSystemEventHandler):
             state_manager: State manager instance.
             progress_callback: Optional callback for progress updates.
                 Signature: (current, total, filename, error) -> None
+            on_event_callback: Optional callback for UI event updates.
+                Signature: (status, filename, error) -> None
+                Status values: "incoming", "waiting", "analyzing", "sorted", "error"
         """
         super().__init__()
         self.orchestrator = orchestrator
         self.monitor = monitor
         self.state_manager = state_manager
         self.progress_callback = progress_callback
+        self.on_event_callback = on_event_callback
         self._processing_files: set[str] = set()
 
     def on_created(self, event: FileSystemEvent) -> None:
@@ -120,6 +129,34 @@ class FolderEventHandler(FileSystemEventHandler):
                 exc_info=True,
             )
 
+    def _safe_event(
+        self,
+        status: str,
+        filename: str,
+        error: Optional[str] = None,
+    ) -> None:
+        """Safely invoke event callback, suppressing any exceptions.
+
+        Args:
+            status: Event status ("incoming", "waiting", "analyzing", "sorted", "error").
+            filename: Name of file being processed.
+            error: Optional error message.
+
+        Note:
+            Exceptions from the callback are logged but suppressed
+            to prevent faulty callbacks from crashing the watcher.
+        """
+        if not self.on_event_callback:
+            return
+
+        try:
+            self.on_event_callback(status, filename, error)
+        except Exception as e:
+            logger.warning(
+                f"Event callback raised exception: {e}",
+                exc_info=True,
+            )
+
     def _is_temp_file(self, filepath: Path) -> bool:
         """Check if file is a temporary file that should be ignored.
 
@@ -176,6 +213,12 @@ class FolderEventHandler(FileSystemEventHandler):
             try:
                 logger.info(f"Detected new file: {filepath.name}")
 
+                # Notify UI: incoming
+                self._safe_event("incoming", filepath.name)
+
+                # Notify UI: waiting
+                self._safe_event("waiting", filepath.name)
+
                 # Notify progress: waiting
                 self._safe_progress(
                     0, 1, f"\u23f3 Warte auf {filepath.name}..."
@@ -192,6 +235,9 @@ class FolderEventHandler(FileSystemEventHandler):
                     logger.info("Abort requested, skipping file processing")
                     return
 
+                # Notify UI: analyzing
+                self._safe_event("analyzing", filepath.name)
+
                 # Notify progress: analyzing
                 self._safe_progress(
                     0, 1, f"\U0001f916 Analysiere {filepath.name}..."
@@ -207,6 +253,8 @@ class FolderEventHandler(FileSystemEventHandler):
                 # Check results
                 if results.get("status") == "success":
                     logger.info(f"Successfully processed: {filepath.name}")
+                    # Notify UI: sorted
+                    self._safe_event("sorted", filepath.name)
                     self._safe_progress(
                         1, 1, f"\u2705 {filepath.name} sortiert"
                     )
@@ -219,4 +267,6 @@ class FolderEventHandler(FileSystemEventHandler):
 
         except Exception as e:
             logger.error(f"Error processing {filepath}: {e}", exc_info=True)
+            # Notify UI: error
+            self._safe_event("error", filepath.name, str(e))
             self._safe_progress(1, 1, filepath.name, str(e))
