@@ -6,6 +6,7 @@ Handles user interaction, progress display, and terminal operations.
 
 import time
 from abc import ABC, abstractmethod
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
 
@@ -413,6 +414,68 @@ class ConsoleInterface(IUserInterface):
             # Show undo hint
             if not settings.get("dry_run", False) and results.get("moved", 0) > 0:
                 self.console.print(MESSAGES["UNDO_AVAILABLE"])
+
+    def show_watch_status(self, path: Union[str, Path]) -> None:
+        """Show watch mode status message.
+
+        Args:
+            path: Path being watched
+        """
+        if settings.get("quiet", False):
+            return
+
+        message = MESSAGES["WATCH_STARTING"].format(path=path)
+        self._print(message, style=self.highlight_style)
+
+    def show_watch_event(
+        self,
+        event_type: str,
+        filename: str,
+        status: str = "incoming",
+        error: Optional[str] = None,
+    ) -> None:
+        """Show watch mode event notification.
+
+        Args:
+            event_type: Type of event (created, moved)
+            filename: Name of the file
+            status: Event status (incoming, waiting, analyzing, sorted, error)
+            error: Optional error message for error status
+        """
+        if settings.get("quiet", False):
+            return
+
+        # Get timestamp
+        timestamp = datetime.now().strftime("[%H:%M:%S]")
+
+        # Build message based on status
+        if status == "incoming":
+            msg = MESSAGES["WATCH_FILE_INCOMING"].format(file=filename)
+            style = self.info_style
+        elif status == "waiting":
+            msg = MESSAGES["WATCH_FILE_WAITING"].format(file=filename)
+            style = self.warning_style
+        elif status == "analyzing":
+            msg = MESSAGES["WATCH_FILE_ANALYZING"].format(file=filename)
+            style = self.info_style
+        elif status == "sorted":
+            msg = MESSAGES["WATCH_FILE_SORTED"].format(file=filename)
+            style = self.success_style
+        elif status == "error":
+            msg = MESSAGES["WATCH_FILE_ERROR"].format(file=filename, error=error or "")
+            style = self.error_style
+        else:
+            msg = f"{filename}"
+            style = self.info_style
+
+        self._print(f"{timestamp} {msg}", style=style)
+
+    def show_watch_stopped(self) -> None:
+        """Show watch mode stopped message."""
+        if settings.get("quiet", False):
+            return
+
+        self._print(MESSAGES["WATCH_STOPPED"], style=self.info_style)
 
 
 def create_console_interface() -> ConsoleInterface:

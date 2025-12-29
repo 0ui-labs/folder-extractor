@@ -1465,3 +1465,242 @@ class TestConsoleInterfaceAttributes:
 
         assert hasattr(interface, "progress_update_interval")
         assert interface.progress_update_interval > 0
+
+
+@patch("folder_extractor.cli.interface.Console")
+class TestWatchModeUI:
+    """Tests for watch mode UI methods."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        settings.reset_to_defaults()
+
+    # --- Tests for show_watch_status ---
+
+    def test_show_watch_status_displays_path_with_icon(self, mock_console_class):
+        """Test show_watch_status prints the watching message with path and eye icon."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_status("/Users/test/Downloads")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        # Should contain path and eye icon from MESSAGES["WATCH_STARTING"]
+        assert "/Users/test/Downloads" in output
+        assert "Wache" in output or "wache" in output.lower()
+
+    def test_show_watch_status_uses_highlight_style(self, mock_console_class):
+        """Test show_watch_status uses blue highlight style."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_status("/path/to/folder")
+
+        call_args = mock_console.print.call_args
+        assert call_args.kwargs.get("style") == interface.highlight_style
+
+    def test_show_watch_status_accepts_path_object(self, mock_console_class):
+        """Test show_watch_status accepts Path objects."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_status(Path("/Users/test/Downloads"))
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "Downloads" in output
+
+    def test_show_watch_status_quiet_mode_no_output(self, mock_console_class):
+        """Test show_watch_status is suppressed in quiet mode."""
+        settings.set("quiet", True)
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_status("/path/to/folder")
+
+        mock_console.print.assert_not_called()
+
+    # --- Tests for show_watch_event ---
+
+    def test_show_watch_event_incoming_displays_timestamp_and_message(
+        self, mock_console_class
+    ):
+        """Test show_watch_event with incoming status shows timestamp and message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_event("created", "document.pdf", status="incoming")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        # Should contain timestamp in format [HH:MM:SS]
+        assert "[" in output and "]" in output
+        assert "document.pdf" in output
+        assert "Incoming" in output
+
+    def test_show_watch_event_waiting_displays_waiting_message(self, mock_console_class):
+        """Test show_watch_event with waiting status shows waiting message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_event("created", "large_file.zip", status="waiting")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "large_file.zip" in output
+        assert "Warte" in output
+
+    def test_show_watch_event_analyzing_displays_analyzing_message(
+        self, mock_console_class
+    ):
+        """Test show_watch_event with analyzing status shows analyzing message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_event("created", "document.pdf", status="analyzing")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "document.pdf" in output
+        assert "Analysiere" in output
+
+    def test_show_watch_event_sorted_displays_success_message(self, mock_console_class):
+        """Test show_watch_event with sorted status shows success message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_event("created", "document.pdf", status="sorted")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "document.pdf" in output
+        assert "Sortiert" in output
+
+    def test_show_watch_event_error_displays_error_message(self, mock_console_class):
+        """Test show_watch_event with error status shows error message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_event("created", "broken.pdf", status="error")
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "broken.pdf" in output
+        assert "Fehler" in output
+
+    def test_show_watch_event_uses_appropriate_styles(self, mock_console_class):
+        """Test show_watch_event uses correct styles for each status."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+
+        # Test each status has appropriate style
+        status_style_map = {
+            "incoming": interface.info_style,
+            "waiting": interface.warning_style,
+            "analyzing": interface.info_style,
+            "sorted": interface.success_style,
+            "error": interface.error_style,
+        }
+
+        for status, expected_style in status_style_map.items():
+            mock_console.reset_mock()
+            interface.show_watch_event("created", "test.pdf", status=status)
+            call_args = mock_console.print.call_args
+            assert call_args.kwargs.get("style") == expected_style, (
+                f"Wrong style for status '{status}'"
+            )
+
+    def test_show_watch_event_timestamp_format(self, mock_console_class):
+        """Test show_watch_event timestamp is in HH:MM:SS format."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_event("created", "test.pdf", status="incoming")
+
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        # Extract timestamp pattern [HH:MM:SS]
+        import re
+
+        match = re.search(r"\[(\d{2}:\d{2}:\d{2})\]", output)
+        assert match is not None, f"Timestamp not found in: {output}"
+
+    def test_show_watch_event_quiet_mode_no_output(self, mock_console_class):
+        """Test show_watch_event is suppressed in quiet mode."""
+        settings.set("quiet", True)
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_event("created", "test.pdf", status="incoming")
+
+        mock_console.print.assert_not_called()
+
+    def test_show_watch_event_default_status_is_incoming(self, mock_console_class):
+        """Test show_watch_event defaults to incoming status."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_event("created", "test.pdf")  # No status specified
+
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "Incoming" in output
+
+    # --- Tests for show_watch_stopped ---
+
+    def test_show_watch_stopped_displays_stopped_message(self, mock_console_class):
+        """Test show_watch_stopped prints the stopped message."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_stopped()
+
+        mock_console.print.assert_called_once()
+        call_args = mock_console.print.call_args
+        output = str(call_args[0][0])
+        assert "beendet" in output.lower() or "Watch-Mode" in output
+
+    def test_show_watch_stopped_uses_info_style(self, mock_console_class):
+        """Test show_watch_stopped uses info style."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_stopped()
+
+        call_args = mock_console.print.call_args
+        assert call_args.kwargs.get("style") == interface.info_style
+
+    def test_show_watch_stopped_quiet_mode_no_output(self, mock_console_class):
+        """Test show_watch_stopped is suppressed in quiet mode."""
+        settings.set("quiet", True)
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        interface.show_watch_stopped()
+
+        mock_console.print.assert_not_called()
