@@ -170,6 +170,17 @@ class TestSettings:
         s.set("custom_categories", ["Kategorie1", "Kategorie2"])
         assert s.custom_categories == ["Kategorie1", "Kategorie2"]
 
+    def test_watch_mode_defaults_to_false(self):
+        """Test watch_mode property defaults to False for normal extraction mode."""
+        s = Settings()
+        assert s.watch_mode is False
+
+    def test_watch_mode_can_be_enabled(self):
+        """Test watch_mode property can be enabled for continuous monitoring."""
+        s = Settings()
+        s.set("watch_mode", True)
+        assert s.watch_mode is True
+
     def test_to_dict_includes_custom_categories(self):
         """Test that to_dict includes custom_categories for serialization."""
         s = Settings()
@@ -391,6 +402,65 @@ class TestConfigureFromArgs:
 
         assert settings.get("extract_archives") is True
         assert settings.get("delete_archives") is True
+
+    def test_watch_mode_from_args_when_enabled(self):
+        """Test configure_from_args sets watch_mode True when --watch flag is set."""
+        args = MagicMock()
+        args.dry_run = False
+        args.depth = 0
+        args.include_hidden = False
+        args.sort_by_type = False
+        args.type = None
+        args.domain = None
+        args.deduplicate = False
+        args.global_dedup = False
+        args.extract_archives = False
+        args.delete_archives = False
+        args.watch = True
+
+        configure_from_args(args)
+
+        assert settings.get("watch_mode") is True
+
+    def test_watch_mode_from_args_when_disabled(self):
+        """Test configure_from_args sets watch_mode False when --watch flag is not set."""
+        args = MagicMock()
+        args.dry_run = False
+        args.depth = 0
+        args.include_hidden = False
+        args.sort_by_type = False
+        args.type = None
+        args.domain = None
+        args.deduplicate = False
+        args.global_dedup = False
+        args.extract_archives = False
+        args.delete_archives = False
+        args.watch = False
+
+        configure_from_args(args)
+
+        assert settings.get("watch_mode") is False
+
+    def test_watch_mode_from_args_defaults_to_false_when_missing(self):
+        """Test configure_from_args defaults watch_mode to False when args.watch is missing."""
+        args = MagicMock(spec=["dry_run", "depth", "include_hidden", "sort_by_type",
+                               "type", "domain", "deduplicate", "global_dedup",
+                               "extract_archives", "delete_archives"])
+        args.dry_run = False
+        args.depth = 0
+        args.include_hidden = False
+        args.sort_by_type = False
+        args.type = None
+        args.domain = None
+        args.deduplicate = False
+        args.global_dedup = False
+        args.extract_archives = False
+        args.delete_archives = False
+        # Note: args.watch is NOT set (missing attribute)
+
+        configure_from_args(args)
+
+        assert settings.get("watch_mode") is False
 
 
 class TestSettingsArchiveProperties:

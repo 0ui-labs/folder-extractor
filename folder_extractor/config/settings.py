@@ -46,6 +46,8 @@ class Settings:
             "color_output": True,
             # Smart Sorting
             "custom_categories": [],
+            # Watch mode
+            "watch_mode": False,
         }
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -123,6 +125,10 @@ class Settings:
     def custom_categories(self) -> list:
         return self._settings["custom_categories"]
 
+    @property
+    def watch_mode(self) -> bool:
+        return self._settings["watch_mode"]
+
 
 # Global settings instance
 settings = Settings()
@@ -157,6 +163,9 @@ def configure_from_args(args) -> None:
     settings.set("extract_archives", extract_archives)
     # delete_archives only makes sense with extract_archives enabled
     settings.set("delete_archives", delete_archives and extract_archives)
+
+    # Watch mode
+    settings.set("watch_mode", getattr(args, "watch", False))
 
 
 def get_all_categories() -> list:
