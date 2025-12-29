@@ -1,0 +1,37 @@
+{
+  "include": [
+    "folder_extractor",
+    "tests"
+  ],
+  "exclude": [
+    "**/__pycache__"
+  ],
+  "pythonVersion": "3.8",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "standard",
+  "reportMissingImports": "warning",
+  "reportOptionalMemberAccess": "warning",
+  "reportAttributeAccessIssue": "error",
+  "reportAssignmentType": "error",
+  "reportArgumentType": "error",
+  "reportReturnType": "error",
+  "executionEnvironments": [
+    {
+      "root": "folder_extractor",
+      "extraPaths": ["."]
+    },
+    {
+      "root": "tests",
+      "extraPaths": ["."],
+      "reportAttributeAccessIssue": "warning",
+      "reportArgumentType": "warning",
+      "reportAssignmentType": "warning",
+      "reportOptionalOperand": "warning",
+      "reportOperatorIssue": "warning",
+      "reportIndexIssue": "warning",
+      "reportCallIssue": "warning",
+      "reportGeneralTypeIssues": "warning",
+      "reportAbstractUsage": "warning"
+    }
+  ]
+}

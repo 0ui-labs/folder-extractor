@@ -38,6 +38,15 @@ ruff check .
 ruff format .
 ```
 
+**Type Checking**:
+```bash
+pyright
+```
+
+> **Wichtig für Claude Code**: Nach Code-Änderungen immer `pyright` ausführen und Typfehler beheben, bevor du weitermachst. Produktivcode (`folder_extractor/`) hat strikte Regeln (Errors), Tests haben gelockerte Regeln (Warnings).
+
+> **LSP nutzen**: Für semantische Code-Navigation (Referenzen, Definitionen, Typ-Info) das LSP-Tool bevorzugen statt Grep – es versteht den Code, nicht nur den Text.
+
 ## Architecture Overview
 
 This is a German-language command-line tool for safely extracting files from subdirectories. Built with Python 3.7+ using only standard library modules (no external runtime dependencies).
