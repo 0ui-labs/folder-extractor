@@ -1349,3 +1349,167 @@ class TestEnhancedExtractionOrchestrator:
 
         # Verify result
         assert result == expected_result
+
+
+class TestProcessSingleFile:
+    """Test process_single_file method for watch mode single-file processing."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        settings.reset_to_defaults()
+        self.mock_extractor = Mock()
+        self.mock_state_manager = Mock()
+        self.orchestrator = EnhancedExtractionOrchestrator(
+            extractor=self.mock_extractor, state_manager=self.mock_state_manager
+        )
+
+    def test_process_single_file_skips_discovery(self, tmp_path):
+        """Processing a single file bypasses file discovery entirely."""
+        # Setup
+        filepath = tmp_path / "new_file.pdf"
+        filepath.touch()
+        destination = tmp_path
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+        self.mock_extractor.extract_files.return_value = {
+            "moved": 1,
+            "errors": 0,
+            "history": [],
+        }
+
+        # Mock ManagedOperation with abort signal
+        mock_operation = Mock()
+        mock_operation.operation_id = "single-file-op"
+        mock_abort_signal = Mock()
+        mock_abort_signal.is_set.return_value = False
+        mock_operation.abort_signal = mock_abort_signal
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        with patch(
+            "folder_extractor.core.extractor.ManagedOperation",
+            return_value=mock_operation,
+        ):
+            result = self.orchestrator.process_single_file(filepath, destination)
+
+        # Verify discovery was NOT called
+        self.mock_extractor.discover_files.assert_not_called()
+
+        # Verify extract_files was called with just the single file
+        self.mock_extractor.extract_files.assert_called_once()
+        call_kwargs = self.mock_extractor.extract_files.call_args[1]
+        assert call_kwargs.get("files") == [str(filepath)]
+
+        # Verify result
+        assert result["status"] == "success"
+        assert result["moved"] == 1
+
+    def test_process_single_file_validates_security(self, tmp_path):
+        """Security validation is performed before processing."""
+        filepath = tmp_path / "file.txt"
+        filepath.touch()
+
+        # Configure mock to raise security error
+        self.mock_extractor.validate_security.side_effect = SecurityError(
+            "Unsafe path"
+        )
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        with patch(
+            "folder_extractor.core.extractor.ManagedOperation",
+            return_value=mock_operation,
+        ):
+            result = self.orchestrator.process_single_file(filepath, tmp_path)
+
+        assert result["status"] == "security_error"
+        assert "Unsafe path" in result["message"]
+
+    def test_process_single_file_respects_abort_signal(self, tmp_path):
+        """Abort signal from state_manager is checked before processing."""
+        filepath = tmp_path / "file.txt"
+        filepath.touch()
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+
+        # Mock ManagedOperation with abort signal set
+        mock_operation = Mock()
+        mock_operation.operation_id = "abort-test"
+        mock_abort_signal = Mock()
+        mock_abort_signal.is_set.return_value = True
+        mock_operation.abort_signal = mock_abort_signal
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        with patch(
+            "folder_extractor.core.extractor.ManagedOperation",
+            return_value=mock_operation,
+        ):
+            result = self.orchestrator.process_single_file(filepath, tmp_path)
+
+        # Extract files should not be called when abort is requested
+        self.mock_extractor.extract_files.assert_not_called()
+        assert result["status"] == "aborted"
+
+    def test_process_single_file_handles_nonexistent_file(self, tmp_path):
+        """Gracefully handles attempt to process a file that doesn't exist."""
+        filepath = tmp_path / "nonexistent.txt"
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.operation_id = "missing-file-op"
+        mock_abort_signal = Mock()
+        mock_abort_signal.is_set.return_value = False
+        mock_operation.abort_signal = mock_abort_signal
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        with patch(
+            "folder_extractor.core.extractor.ManagedOperation",
+            return_value=mock_operation,
+        ):
+            result = self.orchestrator.process_single_file(filepath, tmp_path)
+
+        # Should return error status, not crash
+        assert result["status"] == "error"
+        assert "existiert nicht" in result["message"] or "not exist" in result["message"].lower()
+
+    def test_process_single_file_passes_progress_callback(self, tmp_path):
+        """Progress callback is forwarded to extract_files."""
+        filepath = tmp_path / "file.pdf"
+        filepath.touch()
+
+        # Configure mocks
+        self.mock_extractor.validate_security.return_value = None
+        self.mock_extractor.extract_files.return_value = {"moved": 1, "errors": 0}
+
+        progress_callback = Mock()
+
+        # Mock ManagedOperation
+        mock_operation = Mock()
+        mock_operation.operation_id = "progress-test"
+        mock_abort_signal = Mock()
+        mock_abort_signal.is_set.return_value = False
+        mock_operation.abort_signal = mock_abort_signal
+        mock_operation.__enter__ = Mock(return_value=mock_operation)
+        mock_operation.__exit__ = Mock(return_value=False)
+
+        with patch(
+            "folder_extractor.core.extractor.ManagedOperation",
+            return_value=mock_operation,
+        ):
+            self.orchestrator.process_single_file(
+                filepath, tmp_path, progress_callback=progress_callback
+            )
+
+        # Verify progress_callback was passed to extract_files
+        call_kwargs = self.mock_extractor.extract_files.call_args[1]
+        assert call_kwargs.get("progress_callback") == progress_callback

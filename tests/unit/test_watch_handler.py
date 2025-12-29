@@ -56,14 +56,14 @@ class TestFolderEventHandler:
         event = FileCreatedEvent(str(test_file))
 
         self.monitor.wait_for_file_ready.return_value = True
-        self.orchestrator.execute_extraction.return_value = {"status": "success"}
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
 
         # Act
         self.handler.on_created(event)
 
         # Assert
         self.monitor.wait_for_file_ready.assert_called_once()
-        self.orchestrator.execute_extraction.assert_called_once()
+        self.orchestrator.process_single_file.assert_called_once()
         # Progress callback called for: waiting, analyzing, success
         assert self.progress_callback.call_count == 3
 
@@ -79,7 +79,7 @@ class TestFolderEventHandler:
 
         # Assert
         self.monitor.wait_for_file_ready.assert_not_called()
-        self.orchestrator.execute_extraction.assert_not_called()
+        self.orchestrator.process_single_file.assert_not_called()
 
     def test_on_moved_processes_destination_file(self, tmp_path: Path) -> None:
         """File move event processes the destination file (browser download complete)."""
@@ -90,7 +90,7 @@ class TestFolderEventHandler:
         event = FileMovedEvent(str(src_file), str(dest_file))
 
         self.monitor.wait_for_file_ready.return_value = True
-        self.orchestrator.execute_extraction.return_value = {"status": "success"}
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
 
         # Act
         self.handler.on_moved(event)
@@ -99,7 +99,7 @@ class TestFolderEventHandler:
         # Verify destination path is used, not source
         call_args = self.monitor.wait_for_file_ready.call_args
         assert Path(call_args[0][0]) == dest_file
-        self.orchestrator.execute_extraction.assert_called_once()
+        self.orchestrator.process_single_file.assert_called_once()
 
     def test_temp_file_with_tmp_extension_is_ignored(self, tmp_path: Path) -> None:
         """Files with .tmp extension are filtered out."""
@@ -171,7 +171,7 @@ class TestFolderEventHandler:
             self.handler.on_created(event)
 
         # Assert
-        self.orchestrator.execute_extraction.assert_not_called()
+        self.orchestrator.process_single_file.assert_not_called()
         assert "not ready" in caplog.text.lower() or "File not ready" in caplog.text
 
     def test_abort_signal_stops_processing(
@@ -191,7 +191,7 @@ class TestFolderEventHandler:
             self.handler.on_created(event)
 
         # Assert
-        self.orchestrator.execute_extraction.assert_not_called()
+        self.orchestrator.process_single_file.assert_not_called()
         assert "abort" in caplog.text.lower()
 
     def test_processing_error_does_not_crash_handler(
@@ -204,7 +204,7 @@ class TestFolderEventHandler:
         event = FileCreatedEvent(str(test_file))
 
         self.monitor.wait_for_file_ready.return_value = True
-        self.orchestrator.execute_extraction.side_effect = RuntimeError("Test error")
+        self.orchestrator.process_single_file.side_effect = RuntimeError("Test error")
 
         # Act - should not raise
         with caplog.at_level(logging.ERROR):
@@ -242,7 +242,7 @@ class TestFolderEventHandler:
         event = FileCreatedEvent(str(test_file))
 
         self.monitor.wait_for_file_ready.return_value = True
-        self.orchestrator.execute_extraction.return_value = {"status": "success"}
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
 
         # Act
         self.handler.on_created(event)
@@ -275,7 +275,7 @@ class TestFolderEventHandler:
         event = FileCreatedEvent(str(test_file))
 
         self.monitor.wait_for_file_ready.return_value = True
-        self.orchestrator.execute_extraction.return_value = {
+        self.orchestrator.process_single_file.return_value = {
             "status": "error",
             "message": "Test error",
         }
@@ -295,7 +295,7 @@ class TestFolderEventHandler:
             f.write_text(f"content of {f.name}")
 
         self.monitor.wait_for_file_ready.return_value = True
-        self.orchestrator.execute_extraction.return_value = {"status": "success"}
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
 
         # Act
         for f in files:
@@ -303,7 +303,7 @@ class TestFolderEventHandler:
             self.handler.on_created(event)
 
         # Assert
-        assert self.orchestrator.execute_extraction.call_count == 3
+        assert self.orchestrator.process_single_file.call_count == 3
 
     def test_handler_without_progress_callback(self, tmp_path: Path) -> None:
         """Handler works correctly when no progress callback is provided."""
@@ -319,13 +319,13 @@ class TestFolderEventHandler:
         event = FileCreatedEvent(str(test_file))
 
         self.monitor.wait_for_file_ready.return_value = True
-        self.orchestrator.execute_extraction.return_value = {"status": "success"}
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
 
         # Act - should not raise
         handler.on_created(event)
 
         # Assert
-        self.orchestrator.execute_extraction.assert_called_once()
+        self.orchestrator.process_single_file.assert_called_once()
 
     def test_faulty_progress_callback_does_not_crash_handler(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
@@ -344,14 +344,14 @@ class TestFolderEventHandler:
         event = FileCreatedEvent(str(test_file))
 
         self.monitor.wait_for_file_ready.return_value = True
-        self.orchestrator.execute_extraction.return_value = {"status": "success"}
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
 
         # Act - should not raise despite faulty callback
         with caplog.at_level(logging.WARNING):
             handler.on_created(event)
 
         # Assert - extraction still completed
-        self.orchestrator.execute_extraction.assert_called_once()
+        self.orchestrator.process_single_file.assert_called_once()
         # Callback exception was logged as warning
         assert "callback" in caplog.text.lower()
         assert "exception" in caplog.text.lower()

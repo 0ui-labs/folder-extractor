@@ -197,9 +197,10 @@ class FolderEventHandler(FileSystemEventHandler):
                     0, 1, f"\U0001f916 Analysiere {filepath.name}..."
                 )
 
-                # Execute extraction
-                results = self.orchestrator.execute_extraction(
-                    filepath.parent,
+                # Process single file directly - avoid full directory scan
+                results = self.orchestrator.process_single_file(
+                    filepath=filepath,
+                    destination=filepath.parent,
                     progress_callback=self.progress_callback,
                 )
 
