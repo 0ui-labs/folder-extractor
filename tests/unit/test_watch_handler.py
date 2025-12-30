@@ -7,15 +7,15 @@ triggers extraction via the orchestrator.
 
 import logging
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 import pytest
-from watchdog.events import FileCreatedEvent, FileMovedEvent, DirCreatedEvent
+from watchdog.events import DirCreatedEvent, FileCreatedEvent, FileMovedEvent
 
-from folder_extractor.core.watch import FolderEventHandler
-from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.extractor import EnhancedExtractionOrchestrator
+from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.state_manager import StateManager
+from folder_extractor.core.watch import FolderEventHandler
 
 
 class TestFolderEventHandler:

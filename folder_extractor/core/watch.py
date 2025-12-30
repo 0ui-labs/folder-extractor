@@ -1,9 +1,9 @@
-"""File system event handler for watch mode with smart debouncing and robust error handling.
+"""File system event handler for watch mode.
 
-This module provides the FolderEventHandler class which handles file system events
-from watchdog. It filters temporary files, waits for file stability, and triggers
-extraction via the orchestrator. Errors are caught and logged to prevent the
-watcher from crashing.
+Provides smart debouncing and robust error handling for filesystem monitoring.
+The FolderEventHandler class handles file system events from watchdog. It filters
+temporary files, waits for file stability, and triggers extraction via the
+orchestrator. Errors are caught and logged to prevent the watcher from crashing.
 """
 
 import logging
@@ -138,7 +138,8 @@ class FolderEventHandler(FileSystemEventHandler):
         """Safely invoke event callback, suppressing any exceptions.
 
         Args:
-            status: Event status ("incoming", "waiting", "analyzing", "sorted", "error").
+            status: Event status. One of: incoming, waiting, analyzing,
+                sorted, or error.
             filename: Name of file being processed.
             error: Optional error message.
 
@@ -178,14 +179,9 @@ class FolderEventHandler(FileSystemEventHandler):
 
         # Check filename patterns for browser downloads
         # These patterns catch compound extensions like .pdf.crdownload
-        if filename.endswith(".crdownload"):
-            return True
-        if filename.endswith(".part"):
-            return True
-        if filename.endswith(".tmp"):
-            return True
-
-        return False
+        return any(
+            filename.endswith(ext) for ext in (".crdownload", ".part", ".tmp")
+        )
 
     def _process_file(self, filepath: Path) -> None:
         """Process a new file: wait for stability, then extract.
