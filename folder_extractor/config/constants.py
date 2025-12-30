@@ -274,6 +274,12 @@ Zusammenfassung:
     "WATCH_FILE_ANALYZING": "🤖 Analysiere: {file}...",
     "WATCH_FILE_SORTED": "✅ Sortiert: {file}",
     "WATCH_FILE_ERROR": "✗ Fehler bei {file}: {error}",
+    # Knowledge Graph Query messages
+    "QUERY_EXECUTING": "🔍 Suche nach: {query}...",
+    "QUERY_NO_RESULTS": "Keine Dokumente gefunden für: {query}",
+    "QUERY_RESULTS_HEADER": "\n📚 Gefundene Dokumente ({count}):",
+    "QUERY_RESULT_ITEM": "  • {path}",
+    "QUERY_ERROR": "✗ Fehler bei der Abfrage: {error}",
 }
 
 
@@ -302,6 +308,8 @@ Optionen:
                             (nur wirksam mit --extract-archives)
     --watch                 Ordner überwachen und neue Dateien automatisch verarbeiten
                             (Ctrl+C zum Beenden)
+    --ask FRAGE             Natürlichsprachige Abfrage des Knowledge Graphs
+                            (z.B. "Welche Versicherungsdokumente habe ich?")
 
 Beispiele:
     # Alle Dateien aus Unterordnern extrahieren
@@ -337,6 +345,10 @@ Beispiele:
 
     # Letzte Operation rückgängig machen
     folder-extractor --undo
+
+    # Knowledge Graph abfragen
+    folder-extractor --ask "Welche Versicherungsdokumente habe ich?"
+    folder-extractor --ask "Zeig mir Rechnungen von Apple"
 
 Sicherheit:
     Das Tool funktioniert nur in den Ordnern Desktop, Downloads und Documents.

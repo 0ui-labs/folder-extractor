@@ -185,3 +185,61 @@ class TestPromptQuality:
         assert any(term in prompt for term in year_terms), (
             "Prompt should explain year extraction"
         )
+
+
+class TestEntityExtractionPrompt:
+    """Tests for Named Entity Recognition prompt features."""
+
+    def test_prompt_contains_entities_field(self):
+        """Prompt specifies the entities field for NER output."""
+        categories = ["Finanzen"]
+        prompt = get_system_prompt(categories)
+
+        assert "entities" in prompt, "Prompt should mention 'entities' field"
+
+    def test_prompt_specifies_entity_types(self):
+        """Prompt defines valid entity types for classification."""
+        categories = ["Finanzen"]
+        prompt = get_system_prompt(categories)
+
+        expected_types = ["Organization", "Person", "Project", "Location", "Product"]
+
+        for entity_type in expected_types:
+            assert entity_type in prompt, f"Prompt should mention '{entity_type}' type"
+
+    def test_prompt_shows_entities_json_structure(self):
+        """Prompt demonstrates entities array structure in JSON example."""
+        categories = ["Finanzen"]
+        prompt = get_system_prompt(categories)
+
+        # Should show entity structure with name and type
+        assert '"name"' in prompt, "Prompt should show 'name' field in entity"
+        assert '"type"' in prompt, "Prompt should show 'type' field in entity"
+
+    def test_prompt_shows_empty_entities_example(self):
+        """Prompt shows how to return empty entities list."""
+        categories = ["Finanzen"]
+        prompt = get_system_prompt(categories)
+
+        # Should show empty list syntax for no entities case
+        assert "[]" in prompt, "Prompt should show empty list syntax for no entities"
+
+    def test_prompt_limits_entity_count(self):
+        """Prompt specifies maximum number of entities per document."""
+        categories = ["Finanzen"]
+        prompt = get_system_prompt(categories)
+
+        # Should mention limit (5 entities max per plan)
+        assert "5" in prompt or "fünf" in prompt.lower(), (
+            "Prompt should mention entity count limit"
+        )
+
+    def test_prompt_entity_examples_are_realistic(self):
+        """Prompt provides realistic entity examples."""
+        categories = ["Finanzen"]
+        prompt = get_system_prompt(categories)
+
+        # Should have realistic organization example
+        assert "Telekom" in prompt or "GmbH" in prompt, (
+            "Prompt should show realistic organization example"
+        )

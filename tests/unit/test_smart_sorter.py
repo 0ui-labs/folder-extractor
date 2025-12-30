@@ -400,3 +400,305 @@ class TestSmartSorterPromptGeneration:
             # Custom categories should be first
             assert call_args[0] == "First"
             assert call_args[1] == "Second"
+
+
+class TestSmartSorterKnowledgeGraphIntegration:
+    """Tests for KnowledgeGraph integration in SmartSorter."""
+
+    @pytest.mark.asyncio
+    async def test_process_file_ingests_to_knowledge_graph(self, tmp_path: Path):
+        """Successfully analyzed files are ingested into KnowledgeGraph."""
+        from folder_extractor.core.memory import reset_knowledge_graph
+
+        # Reset singleton to ensure clean state
+        reset_knowledge_graph()
+
+        mock_client = AsyncMock()
+        mock_client.analyze_file.return_value = {
+            "category": "Finanzen",
+            "sender": "Test GmbH",
+            "year": "2024",
+            "entities": [{"name": "Test GmbH", "type": "Organization"}],
+        }
+
+        mock_settings = MagicMock()
+        mock_settings.get.return_value = []
+
+        # Create a real temp file for hash calculation
+        test_file = tmp_path / "test.pdf"
+        test_file.write_bytes(b"test content")
+
+        sorter = SmartSorter(mock_client, settings=mock_settings)
+
+        with patch(
+            "folder_extractor.core.memory.graph.get_knowledge_graph"
+        ) as mock_get_kg:
+            mock_kg = MagicMock()
+            mock_get_kg.return_value = mock_kg
+
+            await sorter.process_file(test_file, "application/pdf")
+
+            # Verify ingest was called
+            mock_kg.ingest.assert_called_once()
+
+            # Verify file_info structure
+            file_info = mock_kg.ingest.call_args[0][0]
+            assert file_info["path"] == str(test_file.resolve())
+            assert "hash" in file_info
+            assert file_info["category"] == "Finanzen"
+            assert file_info["entities"] == [
+                {"name": "Test GmbH", "type": "Organization"}
+            ]
+            assert "timestamp" in file_info
+
+        reset_knowledge_graph()
+
+    @pytest.mark.asyncio
+    async def test_knowledge_graph_error_does_not_block_workflow(self, tmp_path: Path):
+        """KnowledgeGraph errors are logged but don't prevent file processing."""
+        from folder_extractor.core.memory import (
+            KnowledgeGraphError,
+            reset_knowledge_graph,
+        )
+
+        reset_knowledge_graph()
+
+        expected_result = {
+            "category": "Finanzen",
+            "sender": "Test GmbH",
+            "year": "2024",
+            "entities": [],
+        }
+
+        mock_client = AsyncMock()
+        mock_client.analyze_file.return_value = expected_result
+
+        mock_settings = MagicMock()
+        mock_settings.get.return_value = []
+
+        # Create a real temp file
+        test_file = tmp_path / "test.pdf"
+        test_file.write_bytes(b"test content")
+
+        sorter = SmartSorter(mock_client, settings=mock_settings)
+
+        with patch(
+            "folder_extractor.core.memory.graph.get_knowledge_graph"
+        ) as mock_get_kg:
+            mock_kg = MagicMock()
+            mock_kg.ingest.side_effect = KnowledgeGraphError("DB connection failed")
+            mock_get_kg.return_value = mock_kg
+
+            # Should NOT raise - error should be caught and logged
+            result = await sorter.process_file(test_file, "application/pdf")
+
+            # Result should still be returned despite graph error
+            assert result == expected_result
+
+        reset_knowledge_graph()
+
+    @pytest.mark.asyncio
+    async def test_unexpected_error_in_graph_does_not_block_workflow(
+        self, tmp_path: Path
+    ):
+        """Unexpected errors in KnowledgeGraph are caught and logged."""
+        from folder_extractor.core.memory import reset_knowledge_graph
+
+        reset_knowledge_graph()
+
+        expected_result = {
+            "category": "Privat",
+            "sender": None,
+            "year": None,
+            "entities": [],
+        }
+
+        mock_client = AsyncMock()
+        mock_client.analyze_file.return_value = expected_result
+
+        mock_settings = MagicMock()
+        mock_settings.get.return_value = []
+
+        test_file = tmp_path / "photo.jpg"
+        test_file.write_bytes(b"image data")
+
+        sorter = SmartSorter(mock_client, settings=mock_settings)
+
+        with patch(
+            "folder_extractor.core.memory.graph.get_knowledge_graph"
+        ) as mock_get_kg:
+            mock_kg = MagicMock()
+            mock_kg.ingest.side_effect = RuntimeError("Unexpected crash")
+            mock_get_kg.return_value = mock_kg
+
+            # Should NOT raise
+            result = await sorter.process_file(test_file, "image/jpeg")
+
+            assert result == expected_result
+
+        reset_knowledge_graph()
+
+    @pytest.mark.asyncio
+    async def test_file_info_contains_absolute_path(self, tmp_path: Path):
+        """Ingested file_info contains absolute path for consistent storage."""
+        from folder_extractor.core.memory import reset_knowledge_graph
+
+        reset_knowledge_graph()
+
+        mock_client = AsyncMock()
+        mock_client.analyze_file.return_value = {
+            "category": "Test",
+            "entities": [],
+        }
+
+        mock_settings = MagicMock()
+        mock_settings.get.return_value = []
+
+        # Create file with relative-looking path
+        test_file = tmp_path / "subdir" / "test.pdf"
+        test_file.parent.mkdir(parents=True, exist_ok=True)
+        test_file.write_bytes(b"content")
+
+        sorter = SmartSorter(mock_client, settings=mock_settings)
+
+        with patch(
+            "folder_extractor.core.memory.graph.get_knowledge_graph"
+        ) as mock_get_kg:
+            mock_kg = MagicMock()
+            mock_get_kg.return_value = mock_kg
+
+            await sorter.process_file(test_file, "application/pdf")
+
+            file_info = mock_kg.ingest.call_args[0][0]
+            # Path should be absolute
+            assert file_info["path"].startswith("/")
+            assert str(test_file.resolve()) == file_info["path"]
+
+        reset_knowledge_graph()
+
+    @pytest.mark.asyncio
+    async def test_entities_from_ai_response_passed_to_graph(self, tmp_path: Path):
+        """Entities extracted by AI are passed to KnowledgeGraph."""
+        from folder_extractor.core.memory import reset_knowledge_graph
+
+        reset_knowledge_graph()
+
+        entities = [
+            {"name": "Apple Inc.", "type": "Organization"},
+            {"name": "Tim Cook", "type": "Person"},
+            {"name": "iPhone", "type": "Product"},
+        ]
+
+        mock_client = AsyncMock()
+        mock_client.analyze_file.return_value = {
+            "category": "Technik",
+            "sender": "Apple Inc.",
+            "year": "2024",
+            "entities": entities,
+        }
+
+        mock_settings = MagicMock()
+        mock_settings.get.return_value = []
+
+        test_file = tmp_path / "report.pdf"
+        test_file.write_bytes(b"report content")
+
+        sorter = SmartSorter(mock_client, settings=mock_settings)
+
+        with patch(
+            "folder_extractor.core.memory.graph.get_knowledge_graph"
+        ) as mock_get_kg:
+            mock_kg = MagicMock()
+            mock_get_kg.return_value = mock_kg
+
+            await sorter.process_file(test_file, "application/pdf")
+
+            file_info = mock_kg.ingest.call_args[0][0]
+            assert file_info["entities"] == entities
+
+        reset_knowledge_graph()
+
+    @pytest.mark.asyncio
+    async def test_missing_entities_defaults_to_empty_list(self, tmp_path: Path):
+        """Missing entities in AI response defaults to empty list for graph."""
+        from folder_extractor.core.memory import reset_knowledge_graph
+
+        reset_knowledge_graph()
+
+        # AI response without entities field
+        mock_client = AsyncMock()
+        mock_client.analyze_file.return_value = {
+            "category": "Privat",
+            "sender": None,
+            "year": None,
+            # No "entities" key
+        }
+
+        mock_settings = MagicMock()
+        mock_settings.get.return_value = []
+
+        test_file = tmp_path / "photo.jpg"
+        test_file.write_bytes(b"image")
+
+        sorter = SmartSorter(mock_client, settings=mock_settings)
+
+        with patch(
+            "folder_extractor.core.memory.graph.get_knowledge_graph"
+        ) as mock_get_kg:
+            mock_kg = MagicMock()
+            mock_get_kg.return_value = mock_kg
+
+            await sorter.process_file(test_file, "image/jpeg")
+
+            file_info = mock_kg.ingest.call_args[0][0]
+            assert file_info["entities"] == []
+
+        reset_knowledge_graph()
+
+    @pytest.mark.asyncio
+    async def test_missing_kuzu_dependency_does_not_block_workflow(
+        self, tmp_path: Path
+    ):
+        """Missing kuzu package is handled gracefully without blocking processing."""
+        expected_result = {
+            "category": "Finanzen",
+            "sender": "Test GmbH",
+            "year": "2024",
+            "entities": [],
+        }
+
+        mock_client = AsyncMock()
+        mock_client.analyze_file.return_value = expected_result
+
+        mock_settings = MagicMock()
+        mock_settings.get.return_value = []
+
+        test_file = tmp_path / "test.pdf"
+        test_file.write_bytes(b"test content")
+
+        sorter = SmartSorter(mock_client, settings=mock_settings)
+
+        # Simulate missing kuzu by making the import fail
+        with patch.dict("sys.modules", {"kuzu": None}):
+            with patch(
+                "folder_extractor.core.smart_sorter.time"
+            ):  # Avoid actual time call
+                # Patch the import to raise ModuleNotFoundError
+                import builtins
+
+                original_import = builtins.__import__
+
+                def mock_import(name, *args, **kwargs):
+                    if (
+                        "memory.graph" in name
+                        or name == "folder_extractor.core.memory.graph"
+                    ):
+                        raise ModuleNotFoundError("No module named 'kuzu'")
+                    return original_import(name, *args, **kwargs)
+
+                with patch.object(builtins, "__import__", mock_import):
+                    # Should NOT raise - ModuleNotFoundError should be caught
+                    result = await sorter.process_file(test_file, "application/pdf")
+
+                    # Result should still be returned
+                    assert result == expected_result
