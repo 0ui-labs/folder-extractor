@@ -88,7 +88,9 @@ class TestStabilityMonitor:
         lock_states = iter([True, True, False])
 
         with patch.object(
-            self.monitor, "_is_file_locked", side_effect=lambda _: next(lock_states, False)
+            self.monitor,
+            "_is_file_locked",
+            side_effect=lambda _: next(lock_states, False),
         ):
             result = self.monitor.wait_for_file_ready(test_file, timeout=10)
 
@@ -127,7 +129,9 @@ class TestStabilityMonitor:
             elapsed = time.time() - start
 
         assert result is False
-        assert 2.0 < elapsed < 10  # Should timeout around 3 seconds (wide margin for CI)
+        assert (
+            2.0 < elapsed < 10
+        )  # Should timeout around 3 seconds (wide margin for CI)
 
     def test_abort_signal_stops_waiting(self, tmp_path):
         """Abort signal causes immediate return with False."""

@@ -602,9 +602,7 @@ class TestWatchMode:
         self.cli.interface.show_welcome = Mock()
 
         # Mock execute_watch
-        with patch.object(
-            self.cli, "_execute_watch", return_value=0
-        ) as mock_watch:
+        with patch.object(self.cli, "_execute_watch", return_value=0) as mock_watch:
             with patch("folder_extractor.cli.app.configure_from_args"):
                 with patch("folder_extractor.core.migration.MigrationHelper"):
                     result = self.cli.run()
@@ -773,9 +771,7 @@ class TestWatchMode:
         mock_orchestrator = Mock()
 
         with patch("folder_extractor.cli.app.Observer", mock_observer_class):
-            with patch(
-                "folder_extractor.cli.app.StabilityMonitor", mock_monitor_class
-            ):
+            with patch("folder_extractor.cli.app.StabilityMonitor", mock_monitor_class):
                 with patch(
                     "folder_extractor.cli.app.FolderEventHandler", mock_handler_class
                 ):

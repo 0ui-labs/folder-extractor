@@ -443,9 +443,20 @@ class TestConfigureFromArgs:
 
     def test_watch_mode_from_args_defaults_to_false_when_missing(self):
         """Test configure_from_args defaults watch_mode to False when args.watch is missing."""
-        args = MagicMock(spec=["dry_run", "depth", "include_hidden", "sort_by_type",
-                               "type", "domain", "deduplicate", "global_dedup",
-                               "extract_archives", "delete_archives"])
+        args = MagicMock(
+            spec=[
+                "dry_run",
+                "depth",
+                "include_hidden",
+                "sort_by_type",
+                "type",
+                "domain",
+                "deduplicate",
+                "global_dedup",
+                "extract_archives",
+                "delete_archives",
+            ]
+        )
         args.dry_run = False
         args.depth = 0
         args.include_hidden = False

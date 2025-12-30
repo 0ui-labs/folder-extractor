@@ -454,7 +454,8 @@ class TestOnEventCallback:
 
         # Find the 'incoming' call
         incoming_calls = [
-            call for call in self.event_callback.call_args_list
+            call
+            for call in self.event_callback.call_args_list
             if call[0][0] == "incoming"
         ]
         assert len(incoming_calls) == 1
@@ -479,7 +480,8 @@ class TestOnEventCallback:
         handler.on_created(event)
 
         waiting_calls = [
-            call for call in self.event_callback.call_args_list
+            call
+            for call in self.event_callback.call_args_list
             if call[0][0] == "waiting"
         ]
         assert len(waiting_calls) == 1
@@ -504,7 +506,8 @@ class TestOnEventCallback:
         handler.on_created(event)
 
         analyzing_calls = [
-            call for call in self.event_callback.call_args_list
+            call
+            for call in self.event_callback.call_args_list
             if call[0][0] == "analyzing"
         ]
         assert len(analyzing_calls) == 1
@@ -531,15 +534,14 @@ class TestOnEventCallback:
         handler.on_created(event)
 
         sorted_calls = [
-            call for call in self.event_callback.call_args_list
+            call
+            for call in self.event_callback.call_args_list
             if call[0][0] == "sorted"
         ]
         assert len(sorted_calls) == 1
         assert sorted_calls[0][0][1] == "document.pdf"
 
-    def test_callback_called_with_error_status_on_failure(
-        self, tmp_path: Path
-    ) -> None:
+    def test_callback_called_with_error_status_on_failure(self, tmp_path: Path) -> None:
         """Callback is invoked with 'error' status and error message on failure."""
         handler = FolderEventHandler(
             self.orchestrator,
@@ -558,8 +560,7 @@ class TestOnEventCallback:
         handler.on_created(event)
 
         error_calls = [
-            call for call in self.event_callback.call_args_list
-            if call[0][0] == "error"
+            call for call in self.event_callback.call_args_list if call[0][0] == "error"
         ]
         assert len(error_calls) == 1
         assert error_calls[0][0][1] == "document.pdf"

@@ -1411,9 +1411,7 @@ class TestProcessSingleFile:
         filepath.touch()
 
         # Configure mock to raise security error
-        self.mock_extractor.validate_security.side_effect = SecurityError(
-            "Unsafe path"
-        )
+        self.mock_extractor.validate_security.side_effect = SecurityError("Unsafe path")
 
         # Mock ManagedOperation
         mock_operation = Mock()
@@ -1480,7 +1478,10 @@ class TestProcessSingleFile:
 
         # Should return error status, not crash
         assert result["status"] == "error"
-        assert "existiert nicht" in result["message"] or "not exist" in result["message"].lower()
+        assert (
+            "existiert nicht" in result["message"]
+            or "not exist" in result["message"].lower()
+        )
 
     def test_process_single_file_passes_progress_callback(self, tmp_path):
         """Progress callback is forwarded to extract_files."""

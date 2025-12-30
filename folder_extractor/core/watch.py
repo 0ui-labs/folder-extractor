@@ -179,9 +179,7 @@ class FolderEventHandler(FileSystemEventHandler):
 
         # Check filename patterns for browser downloads
         # These patterns catch compound extensions like .pdf.crdownload
-        return any(
-            filename.endswith(ext) for ext in (".crdownload", ".part", ".tmp")
-        )
+        return any(filename.endswith(ext) for ext in (".crdownload", ".part", ".tmp"))
 
     def _process_file(self, filepath: Path) -> None:
         """Process a new file: wait for stability, then extract.
@@ -216,9 +214,7 @@ class FolderEventHandler(FileSystemEventHandler):
                 self._safe_event("waiting", filepath.name)
 
                 # Notify progress: waiting
-                self._safe_progress(
-                    0, 1, f"\u23f3 Warte auf {filepath.name}..."
-                )
+                self._safe_progress(0, 1, f"\u23f3 Warte auf {filepath.name}...")
 
                 # Wait for file to be ready
                 ready = self.monitor.wait_for_file_ready(filepath, timeout=60)
@@ -235,9 +231,7 @@ class FolderEventHandler(FileSystemEventHandler):
                 self._safe_event("analyzing", filepath.name)
 
                 # Notify progress: analyzing
-                self._safe_progress(
-                    0, 1, f"\U0001f916 Analysiere {filepath.name}..."
-                )
+                self._safe_progress(0, 1, f"\U0001f916 Analysiere {filepath.name}...")
 
                 # Process single file directly - avoid full directory scan
                 results = self.orchestrator.process_single_file(
@@ -251,9 +245,7 @@ class FolderEventHandler(FileSystemEventHandler):
                     logger.info(f"Successfully processed: {filepath.name}")
                     # Notify UI: sorted
                     self._safe_event("sorted", filepath.name)
-                    self._safe_progress(
-                        1, 1, f"\u2705 {filepath.name} sortiert"
-                    )
+                    self._safe_progress(1, 1, f"\u2705 {filepath.name} sortiert")
                 else:
                     logger.error(f"Failed to process: {filepath.name}")
 

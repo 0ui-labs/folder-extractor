@@ -1724,7 +1724,9 @@ class TestWatchModeErrorAndAbort:
                 time.sleep(0.3)
 
                 # Watcher should still be running despite error
-                assert watch_thread.is_alive(), "Watch thread should survive ConnectionError"
+                assert watch_thread.is_alive(), (
+                    "Watch thread should survive ConnectionError"
+                )
 
                 cli.state_manager.request_abort()
                 watch_thread.join(timeout=3)
@@ -1792,7 +1794,9 @@ class TestWatchModeErrorAndAbort:
                 time.sleep(0.3)
 
                 # Watcher should still be running
-                assert watch_thread.is_alive(), "Watch thread should survive PermissionError"
+                assert watch_thread.is_alive(), (
+                    "Watch thread should survive PermissionError"
+                )
 
                 cli.state_manager.request_abort()
                 watch_thread.join(timeout=3)
@@ -1861,7 +1865,9 @@ class TestWatchModeErrorAndAbort:
                 time.sleep(0.2)
 
                 # Watcher should still be running
-                assert watch_thread.is_alive(), "Watch thread should handle missing file"
+                assert watch_thread.is_alive(), (
+                    "Watch thread should handle missing file"
+                )
 
                 cli.state_manager.request_abort()
                 watch_thread.join(timeout=3)
@@ -2031,7 +2037,9 @@ class TestWatchModeErrorAndAbort:
                 watch_thread.join(timeout=3)
 
         # All files should have been attempted
-        assert error_count[0] == 5, f"All 5 files should be attempted, got {error_count[0]}"
+        assert error_count[0] == 5, (
+            f"All 5 files should be attempted, got {error_count[0]}"
+        )
 
         # Clean shutdown
         mock_observer_instance.stop.assert_called_once()

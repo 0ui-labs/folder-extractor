@@ -1547,7 +1547,9 @@ class TestWatchModeUI:
         assert "document.pdf" in output
         assert "Incoming" in output
 
-    def test_show_watch_event_waiting_displays_waiting_message(self, mock_console_class):
+    def test_show_watch_event_waiting_displays_waiting_message(
+        self, mock_console_class
+    ):
         """Test show_watch_event with waiting status shows waiting message."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
