@@ -53,10 +53,10 @@ class StabilityMonitor:
             False if timeout reached, abort requested, or file doesn't exist.
         """
         filepath = Path(filepath)
-        start_time = time.time()
+        start_time = time.monotonic()
         last_size = -1
 
-        while time.time() - start_time < timeout:
+        while time.monotonic() - start_time < timeout:
             # Check for abort signal
             if self.state_manager.is_abort_requested():
                 logger.debug(f"Abort requested while waiting for {filepath}")
@@ -89,7 +89,7 @@ class StabilityMonitor:
     def _is_file_locked(self, filepath: Path) -> bool:
         """Check if file is locked by another process.
 
-        Attempts to open the file in append-binary mode. If successful,
+        Attempts to open the file in read-binary mode. If successful,
         the file is not locked. Permission or OS errors indicate the
         file may be locked or in use.
 
@@ -101,7 +101,7 @@ class StabilityMonitor:
             False if file is accessible.
         """
         try:
-            with open(filepath, "ab"):
+            with open(filepath, "rb"):
                 pass
             return False
         except (PermissionError, OSError):

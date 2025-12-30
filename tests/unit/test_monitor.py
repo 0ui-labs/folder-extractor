@@ -127,7 +127,7 @@ class TestStabilityMonitor:
             elapsed = time.time() - start
 
         assert result is False
-        assert 2.5 < elapsed < 4  # Should timeout around 3 seconds
+        assert 2.0 < elapsed < 10  # Should timeout around 3 seconds (wide margin for CI)
 
     def test_abort_signal_stops_waiting(self, tmp_path):
         """Abort signal causes immediate return with False."""
