@@ -456,7 +456,10 @@ class TestSmartSorterKnowledgeGraphIntegration:
     @pytest.mark.asyncio
     async def test_knowledge_graph_error_does_not_block_workflow(self, tmp_path: Path):
         """KnowledgeGraph errors are logged but don't prevent file processing."""
-        from folder_extractor.core.memory import KnowledgeGraphError, reset_knowledge_graph
+        from folder_extractor.core.memory import (
+            KnowledgeGraphError,
+            reset_knowledge_graph,
+        )
 
         reset_knowledge_graph()
 

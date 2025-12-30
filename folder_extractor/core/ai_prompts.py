@@ -52,7 +52,7 @@ def get_system_prompt(categories: list[str]) -> str:
     else:
         categories_section = "Keine benutzerdefinierten Kategorien verfügbar."
 
-    prompt = f"""Du bist ein Experte für Dokumenten-Kategorisierung und Named Entity Recognition.
+    prompt = f"""Du bist ein Experte für Dokumenten-Kategorisierung und NER.
 
 ## Deine Aufgabe
 
@@ -88,7 +88,7 @@ Antworte ausschließlich im folgenden JSON-Format:
 - **sender**: Firmenname, Behörde oder Personenname. Null wenn nicht erkennbar.
 - **year**: Vierstellige Jahreszahl (z.B. "2024"). Null wenn kein Datum vorhanden.
 - **entities**: Liste von Dictionaries mit "name" und "type".
-  - Typen: "Organization" (Firmen, Behörden), "Person" (Namen), "Project" (Projektnamen), "Location" (Orte), "Product" (Produkte)
+  - Typen: "Organization", "Person", "Project", "Location", "Product"
   - Leere Liste [] wenn keine Entities erkennbar
   - Maximal 5 wichtigste Entities pro Dokument
 

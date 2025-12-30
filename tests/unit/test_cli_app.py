@@ -903,7 +903,7 @@ class TestQueryMode:
         with patch(
             "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
         ):
-            with patch("asyncio.run", side_effect=lambda coro: coro) as mock_run:
+            with patch("asyncio.run", side_effect=lambda coro: coro):
                 # We need to handle the async nature
                 result = self.cli._execute_query("Zeig mir Rechnungen")
 

@@ -154,10 +154,7 @@ class SmartSorter:
         """
         try:
             # Lazy import inside try to handle missing kuzu dependency gracefully
-            from folder_extractor.core.memory.graph import (
-                KnowledgeGraphError,
-                get_knowledge_graph,
-            )
+            from folder_extractor.core.memory.graph import get_knowledge_graph
 
             # Calculate file hash
             file_hash = self._file_ops.calculate_file_hash(filepath)

@@ -129,7 +129,7 @@ class ArgumentParser:
             "--ask",
             type=str,
             metavar="FRAGE",
-            help="Natürlichsprachige Abfrage des Knowledge Graphs (z.B. 'Welche Versicherungsdokumente habe ich?')",
+            help="Natürlichsprachige Abfrage des Knowledge Graphs",
         )
 
         return parser
