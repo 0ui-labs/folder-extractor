@@ -5,6 +5,7 @@ Coordinates the command line interface with new state management
 and progress tracking capabilities.
 """
 
+import asyncio
 import sys
 import time
 from pathlib import Path
@@ -20,6 +21,7 @@ from folder_extractor.core.extractor import (
     EnhancedExtractionOrchestrator,
     EnhancedFileExtractor,
 )
+from folder_extractor.core.memory.graph import KnowledgeGraph
 from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.state_manager import get_state_manager
 from folder_extractor.core.watch import FolderEventHandler
@@ -65,6 +67,8 @@ class EnhancedFolderExtractorCLI:
             # Execute operation
             if parsed_args.undo:
                 return self._execute_undo(current_dir)
+            elif getattr(parsed_args, "ask", None):
+                return self._execute_query(parsed_args.ask)
             elif getattr(parsed_args, "watch", False):
                 return self._execute_watch(current_dir)
             else:
@@ -264,6 +268,58 @@ class EnhancedFolderExtractorCLI:
             self.interface.show_watch_stopped()
 
         return 0
+
+    def _execute_query(self, query_text: str) -> int:
+        """Execute knowledge graph query operation.
+
+        Args:
+            query_text: Natural language query string
+
+        Returns:
+            Exit code (0 for success, non-zero for error)
+        """
+        try:
+            # Show query message
+            self.interface.show_message(
+                MESSAGES["QUERY_EXECUTING"].format(query=query_text),
+                message_type="info",
+            )
+
+            # Initialize knowledge graph
+            kg = KnowledgeGraph()
+
+            # Execute query (async call via asyncio.run)
+            results = asyncio.run(kg.query_documents(query_text))
+
+            # Display results
+            if not results:
+                self.interface.show_message(
+                    MESSAGES["QUERY_NO_RESULTS"].format(query=query_text),
+                    message_type="warning",
+                )
+                return 0
+
+            # Show results header
+            self.interface.show_message(
+                MESSAGES["QUERY_RESULTS_HEADER"].format(count=len(results)),
+                message_type="success",
+            )
+
+            # Show each result
+            for result_path in results:
+                self.interface.show_message(
+                    MESSAGES["QUERY_RESULT_ITEM"].format(path=result_path),
+                    message_type="info",
+                )
+
+            return 0
+
+        except Exception as e:
+            self.interface.show_message(
+                MESSAGES["QUERY_ERROR"].format(error=str(e)),
+                message_type="error",
+            )
+            return 1
 
 
 def main(args: Optional[list] = None) -> int:

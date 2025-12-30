@@ -264,3 +264,39 @@ class TestArgumentParser:
         assert args.extract_archives is True
         assert args.depth == 2
         assert args.type == "pdf,jpg"
+
+    # --ask flag tests for Knowledge Graph queries
+    def test_ask_flag_default_is_none(self):
+        """Test --ask flag defaults to None when not specified."""
+        args = self.parser.parse_args([])
+        assert args.ask is None
+
+    def test_ask_flag_accepts_query_string(self):
+        """Test --ask flag accepts a natural language query string."""
+        args = self.parser.parse_args(["--ask", "Welche Versicherungsdokumente habe ich?"])
+        assert args.ask == "Welche Versicherungsdokumente habe ich?"
+
+    def test_ask_flag_accepts_query_with_entity(self):
+        """Test --ask flag accepts queries mentioning entities like company names."""
+        args = self.parser.parse_args(["--ask", "Zeig mir Rechnungen von Apple"])
+        assert args.ask == "Zeig mir Rechnungen von Apple"
+
+    def test_ask_flag_accepts_empty_string(self):
+        """Test --ask flag accepts empty string (validation happens later)."""
+        args = self.parser.parse_args(["--ask", ""])
+        assert args.ask == ""
+
+    def test_ask_flag_requires_argument(self):
+        """Test --ask flag requires a query argument."""
+        with pytest.raises(SystemExit):
+            self.parser.parse_args(["--ask"])
+
+    def test_ask_flag_with_special_characters(self):
+        """Test --ask flag handles queries with special characters like quotes."""
+        args = self.parser.parse_args(["--ask", "Dokumente mit 'wichtig' im Namen"])
+        assert args.ask == "Dokumente mit 'wichtig' im Namen"
+
+    def test_ask_flag_with_german_umlauts(self):
+        """Test --ask flag handles German umlauts correctly."""
+        args = self.parser.parse_args(["--ask", "Verträge und Kündigungsschreiben"])
+        assert args.ask == "Verträge und Kündigungsschreiben"

@@ -125,6 +125,13 @@ class ArgumentParser:
             help="Ordner überwachen und neue Dateien automatisch verarbeiten",
         )
 
+        parser.add_argument(
+            "--ask",
+            type=str,
+            metavar="FRAGE",
+            help="Natürlichsprachige Abfrage des Knowledge Graphs (z.B. 'Welche Versicherungsdokumente habe ich?')",
+        )
+
         return parser
 
     def parse_args(self, args: Optional[List[str]] = None) -> argparse.Namespace:

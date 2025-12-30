@@ -93,7 +93,7 @@ class TestEnhancedFolderExtractorCLI:
     def test_run_extraction_operation(self):
         """Test running extraction operation."""
         # Mock parsed arguments for extraction
-        mock_args = Mock(undo=False, watch=False)
+        mock_args = Mock(undo=False, watch=False, ask=None)
         self.cli.parser.parse_args = Mock(return_value=mock_args)
 
         # Mock interface
@@ -595,7 +595,7 @@ class TestWatchMode:
     def test_watch_flag_triggers_execute_watch(self):
         """Test that --watch flag triggers _execute_watch method."""
         # Mock parsed arguments with watch=True
-        mock_args = Mock(undo=False, watch=True)
+        mock_args = Mock(undo=False, watch=True, ask=None)
         self.cli.parser.parse_args = Mock(return_value=mock_args)
 
         # Mock interface
@@ -835,3 +835,195 @@ class TestWatchMode:
         assert schedule_args[0][0] == mock_handler
         assert schedule_args[0][1] == test_path
         assert schedule_args[1]["recursive"] is False
+
+
+class TestQueryMode:
+    """Tests for --ask query mode functionality."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        try:
+            os.getcwd()
+        except (FileNotFoundError, OSError):
+            os.chdir(os.path.expanduser("~"))
+
+        with patch("folder_extractor.cli.app.create_parser"):
+            with patch("folder_extractor.cli.app.create_console_interface"):
+                with patch("folder_extractor.cli.app.get_state_manager"):
+                    self.cli = EnhancedFolderExtractorCLI()
+
+    def test_ask_flag_triggers_execute_query(self):
+        """Test that --ask flag triggers _execute_query method."""
+        # Mock parsed arguments with ask query
+        mock_args = Mock(undo=False, watch=False, ask="Welche Dokumente?")
+        self.cli.parser.parse_args = Mock(return_value=mock_args)
+
+        # Mock interface
+        self.cli.interface.show_welcome = Mock()
+
+        # Mock execute_query
+        with patch.object(self.cli, "_execute_query", return_value=0) as mock_query:
+            with patch("folder_extractor.cli.app.configure_from_args"):
+                with patch("folder_extractor.core.migration.MigrationHelper"):
+                    result = self.cli.run()
+
+                    assert result == 0
+                    mock_query.assert_called_once_with("Welche Dokumente?")
+                    # Should show welcome for query mode
+                    self.cli.interface.show_welcome.assert_called_once()
+
+    def test_ask_takes_priority_over_extraction(self):
+        """Test that --ask has priority over regular extraction mode."""
+        # Mock args with ask set (extraction would be default otherwise)
+        mock_args = Mock(undo=False, watch=False, ask="Meine Rechnungen")
+        self.cli.parser.parse_args = Mock(return_value=mock_args)
+        self.cli.interface.show_welcome = Mock()
+
+        with patch.object(self.cli, "_execute_query", return_value=0) as mock_query:
+            with patch.object(self.cli, "_execute_extraction") as mock_extract:
+                with patch("folder_extractor.cli.app.configure_from_args"):
+                    with patch("folder_extractor.core.migration.MigrationHelper"):
+                        self.cli.run()
+
+                        # Query should be called, extraction should NOT
+                        mock_query.assert_called_once()
+                        mock_extract.assert_not_called()
+
+    def test_execute_query_returns_results(self):
+        """Test successful query execution with results."""
+        # Mock interface
+        self.cli.interface.show_message = Mock()
+
+        # Mock KnowledgeGraph with async query_documents
+        mock_kg = Mock()
+        mock_kg.query_documents = Mock(
+            return_value=["/path/to/doc1.pdf", "/path/to/doc2.pdf"]
+        )
+
+        with patch(
+            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
+        ):
+            with patch("asyncio.run", side_effect=lambda coro: coro) as mock_run:
+                # We need to handle the async nature
+                result = self.cli._execute_query("Zeig mir Rechnungen")
+
+        assert result == 0
+
+        # Check that messages were shown
+        assert self.cli.interface.show_message.call_count >= 2
+
+        # Find the calls for results
+        calls = [c[0][0] for c in self.cli.interface.show_message.call_args_list]
+
+        # Should show executing message
+        assert any("Suche" in str(c) or "🔍" in str(c) for c in calls)
+
+    def test_execute_query_no_results(self):
+        """Test query execution with no matching documents."""
+        self.cli.interface.show_message = Mock()
+
+        mock_kg = Mock()
+        mock_kg.query_documents = Mock(return_value=[])
+
+        with patch(
+            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
+        ):
+            with patch("asyncio.run", side_effect=lambda coro: coro):
+                result = self.cli._execute_query("Nicht existierende Dokumente")
+
+        assert result == 0  # Empty results is not an error
+
+        # Should show warning about no results
+        calls = self.cli.interface.show_message.call_args_list
+        warning_calls = [c for c in calls if c[1].get("message_type") == "warning"]
+        assert len(warning_calls) > 0
+
+    def test_execute_query_handles_exception(self):
+        """Test that query errors are handled gracefully."""
+        self.cli.interface.show_message = Mock()
+
+        mock_kg = Mock()
+        mock_kg.query_documents = Mock(
+            side_effect=Exception("API error: Connection failed")
+        )
+
+        with patch(
+            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
+        ):
+            with patch("asyncio.run", side_effect=lambda coro: coro):
+                result = self.cli._execute_query("Broken query")
+
+        assert result == 1  # Error should return 1
+
+        # Should show error message
+        calls = self.cli.interface.show_message.call_args_list
+        error_calls = [c for c in calls if c[1].get("message_type") == "error"]
+        assert len(error_calls) > 0
+        assert "API error" in str(error_calls[0][0][0]) or "Fehler" in str(
+            error_calls[0][0][0]
+        )
+
+    def test_execute_query_displays_each_result_path(self):
+        """Test that each result path is displayed to the user."""
+        self.cli.interface.show_message = Mock()
+
+        result_paths = [
+            "/home/user/Documents/invoice1.pdf",
+            "/home/user/Documents/invoice2.pdf",
+            "/home/user/Documents/contract.pdf",
+        ]
+
+        mock_kg = Mock()
+        mock_kg.query_documents = Mock(return_value=result_paths)
+
+        with patch(
+            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
+        ):
+            with patch("asyncio.run", side_effect=lambda coro: coro):
+                self.cli._execute_query("Alle Dokumente")
+
+        # Check all paths are displayed
+        all_call_args = [
+            str(c[0][0]) for c in self.cli.interface.show_message.call_args_list
+        ]
+        combined_output = " ".join(all_call_args)
+
+        for path in result_paths:
+            assert path in combined_output
+
+    def test_execute_query_shows_count_in_header(self):
+        """Test that result count is shown in the header message."""
+        self.cli.interface.show_message = Mock()
+
+        mock_kg = Mock()
+        mock_kg.query_documents = Mock(
+            return_value=["/path/1.pdf", "/path/2.pdf", "/path/3.pdf"]
+        )
+
+        with patch(
+            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
+        ):
+            with patch("asyncio.run", side_effect=lambda coro: coro):
+                self.cli._execute_query("Test query")
+
+        # Find call with count
+        calls = [str(c[0][0]) for c in self.cli.interface.show_message.call_args_list]
+
+        # Should mention "3" somewhere (the count)
+        assert any("3" in c for c in calls)
+
+    def test_undo_takes_priority_over_ask(self):
+        """Test that --undo has priority over --ask."""
+        # Both flags set, undo should take priority
+        mock_args = Mock(undo=True, watch=False, ask="Some query")
+        self.cli.parser.parse_args = Mock(return_value=mock_args)
+
+        with patch.object(self.cli, "_execute_undo", return_value=0) as mock_undo:
+            with patch.object(self.cli, "_execute_query") as mock_query:
+                with patch("folder_extractor.cli.app.configure_from_args"):
+                    with patch("folder_extractor.core.migration.MigrationHelper"):
+                        self.cli.run()
+
+                        # Undo should be called, query should NOT
+                        mock_undo.assert_called_once()
+                        mock_query.assert_not_called()
