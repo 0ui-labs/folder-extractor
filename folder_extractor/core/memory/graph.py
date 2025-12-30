@@ -593,8 +593,7 @@ Use DISTINCT to avoid duplicate results when joining through relationships."""
             # Validate response structure
             if "cypher" not in response:
                 raise KnowledgeGraphError(
-                    f"Invalid AI response: missing 'cypher' field. "
-                    f"Response: {response}"
+                    f"Invalid AI response: missing 'cypher' field. Response: {response}"
                 )
 
             cypher_query = response["cypher"]
@@ -602,8 +601,7 @@ Use DISTINCT to avoid duplicate results when joining through relationships."""
             # Validate that query returns d.path
             if "d.path" not in cypher_query:
                 raise KnowledgeGraphError(
-                    f"Generated Cypher query must return d.path. "
-                    f"Got: {cypher_query}"
+                    f"Generated Cypher query must return d.path. Got: {cypher_query}"
                 )
 
             logger.debug(f"Generated Cypher: {cypher_query}")

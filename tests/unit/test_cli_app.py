@@ -900,9 +900,7 @@ class TestQueryMode:
             return_value=["/path/to/doc1.pdf", "/path/to/doc2.pdf"]
         )
 
-        with patch(
-            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
-        ):
+        with patch("folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg):
             with patch("asyncio.run", side_effect=lambda coro: coro):
                 # We need to handle the async nature
                 result = self.cli._execute_query("Zeig mir Rechnungen")
@@ -925,9 +923,7 @@ class TestQueryMode:
         mock_kg = Mock()
         mock_kg.query_documents = Mock(return_value=[])
 
-        with patch(
-            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
-        ):
+        with patch("folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg):
             with patch("asyncio.run", side_effect=lambda coro: coro):
                 result = self.cli._execute_query("Nicht existierende Dokumente")
 
@@ -947,9 +943,7 @@ class TestQueryMode:
             side_effect=Exception("API error: Connection failed")
         )
 
-        with patch(
-            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
-        ):
+        with patch("folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg):
             with patch("asyncio.run", side_effect=lambda coro: coro):
                 result = self.cli._execute_query("Broken query")
 
@@ -976,9 +970,7 @@ class TestQueryMode:
         mock_kg = Mock()
         mock_kg.query_documents = Mock(return_value=result_paths)
 
-        with patch(
-            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
-        ):
+        with patch("folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg):
             with patch("asyncio.run", side_effect=lambda coro: coro):
                 self.cli._execute_query("Alle Dokumente")
 
@@ -1000,9 +992,7 @@ class TestQueryMode:
             return_value=["/path/1.pdf", "/path/2.pdf", "/path/3.pdf"]
         )
 
-        with patch(
-            "folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg
-        ):
+        with patch("folder_extractor.cli.app.KnowledgeGraph", return_value=mock_kg):
             with patch("asyncio.run", side_effect=lambda coro: coro):
                 self.cli._execute_query("Test query")
 

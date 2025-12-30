@@ -273,7 +273,9 @@ class TestArgumentParser:
 
     def test_ask_flag_accepts_query_string(self):
         """Test --ask flag accepts a natural language query string."""
-        args = self.parser.parse_args(["--ask", "Welche Versicherungsdokumente habe ich?"])
+        args = self.parser.parse_args(
+            ["--ask", "Welche Versicherungsdokumente habe ich?"]
+        )
         assert args.ask == "Welche Versicherungsdokumente habe ich?"
 
     def test_ask_flag_accepts_query_with_entity(self):

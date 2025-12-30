@@ -689,7 +689,10 @@ class TestSmartSorterKnowledgeGraphIntegration:
                 original_import = builtins.__import__
 
                 def mock_import(name, *args, **kwargs):
-                    if "memory.graph" in name or name == "folder_extractor.core.memory.graph":
+                    if (
+                        "memory.graph" in name
+                        or name == "folder_extractor.core.memory.graph"
+                    ):
                         raise ModuleNotFoundError("No module named 'kuzu'")
                     return original_import(name, *args, **kwargs)
 

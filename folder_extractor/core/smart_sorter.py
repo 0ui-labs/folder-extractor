@@ -183,6 +183,4 @@ class SmartSorter:
             )
         except Exception as e:
             # All other errors (including KnowledgeGraphError) - log but don't propagate
-            logger.warning(
-                f"Failed to update knowledge graph for {filepath.name}: {e}"
-            )
+            logger.warning(f"Failed to update knowledge graph for {filepath.name}: {e}")

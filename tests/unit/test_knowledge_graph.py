@@ -216,20 +216,24 @@ class TestKnowledgeGraphIngest:
 
         with KnowledgeGraph(db_path=db_path) as kg:
             # First ingest
-            kg.ingest({
-                "path": "/test/file.txt",
-                "hash": "hash_v1",
-                "summary": "Version 1",
-                "timestamp": timestamp,
-            })
+            kg.ingest(
+                {
+                    "path": "/test/file.txt",
+                    "hash": "hash_v1",
+                    "summary": "Version 1",
+                    "timestamp": timestamp,
+                }
+            )
 
             # Second ingest with same path
-            kg.ingest({
-                "path": "/test/file.txt",
-                "hash": "hash_v2",
-                "summary": "Version 2",
-                "timestamp": timestamp + 100,
-            })
+            kg.ingest(
+                {
+                    "path": "/test/file.txt",
+                    "hash": "hash_v2",
+                    "summary": "Version 2",
+                    "timestamp": timestamp + 100,
+                }
+            )
 
             # Should have only one document
             result = kg._conn.execute(
@@ -256,13 +260,15 @@ class TestQueryDocuments:
 
         with KnowledgeGraph(db_path=db_path) as kg:
             # Setup: Ingest a test document
-            kg.ingest({
-                "path": "/docs/invoice.pdf",
-                "hash": "abc123",
-                "timestamp": 1704067200,
-                "summary": "Rechnung von Apple",
-                "entities": [{"name": "Apple", "type": "ORGANIZATION"}],
-            })
+            kg.ingest(
+                {
+                    "path": "/docs/invoice.pdf",
+                    "hash": "abc123",
+                    "timestamp": 1704067200,
+                    "summary": "Rechnung von Apple",
+                    "entities": [{"name": "Apple", "type": "ORGANIZATION"}],
+                }
+            )
 
             # Mock AI translation to return a valid Cypher query
             mock_response = {
@@ -270,7 +276,9 @@ class TestQueryDocuments:
                 "explanation": "Sucht Apple Dokumente",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 result = await kg.query_documents("Zeig mir Apple Dokumente")
@@ -285,12 +293,14 @@ class TestQueryDocuments:
 
         with KnowledgeGraph(db_path=db_path) as kg:
             # Setup: Ingest a document about Apple
-            kg.ingest({
-                "path": "/docs/apple.pdf",
-                "hash": "abc123",
-                "timestamp": 1704067200,
-                "entities": [{"name": "Apple", "type": "ORGANIZATION"}],
-            })
+            kg.ingest(
+                {
+                    "path": "/docs/apple.pdf",
+                    "hash": "abc123",
+                    "timestamp": 1704067200,
+                    "entities": [{"name": "Apple", "type": "ORGANIZATION"}],
+                }
+            )
 
             # Query for Microsoft (no match expected)
             mock_response = {
@@ -298,7 +308,9 @@ class TestQueryDocuments:
                 "explanation": "Sucht Microsoft Dokumente",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 result = await kg.query_documents("Microsoft Dokumente")
@@ -335,15 +347,17 @@ class TestQueryDocuments:
 
         with KnowledgeGraph(db_path=db_path) as kg:
             # Ingest document with multiple entities
-            kg.ingest({
-                "path": "/docs/contract.pdf",
-                "hash": "xyz789",
-                "timestamp": 1704067200,
-                "entities": [
-                    {"name": "Apple", "type": "ORGANIZATION"},
-                    {"name": "Google", "type": "ORGANIZATION"},
-                ],
-            })
+            kg.ingest(
+                {
+                    "path": "/docs/contract.pdf",
+                    "hash": "xyz789",
+                    "timestamp": 1704067200,
+                    "entities": [
+                        {"name": "Apple", "type": "ORGANIZATION"},
+                        {"name": "Google", "type": "ORGANIZATION"},
+                    ],
+                }
+            )
 
             # Query that might return duplicates (document matches both entities)
             mock_response = {
@@ -351,7 +365,9 @@ class TestQueryDocuments:
                 "explanation": "Sucht Dokumente mit Apple oder Google",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 result = await kg.query_documents("Apple oder Google Dokumente")
@@ -371,7 +387,9 @@ class TestQueryDocuments:
                 "explanation": "Ungültige Query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError):
@@ -383,19 +401,23 @@ class TestQueryDocuments:
         db_path = tmp_path / "test_graph.db"
 
         with KnowledgeGraph(db_path=db_path) as kg:
-            kg.ingest({
-                "path": "/docs/versicherung.pdf",
-                "hash": "ins123",
-                "timestamp": 1704067200,
-                "category": "Versicherung",
-            })
+            kg.ingest(
+                {
+                    "path": "/docs/versicherung.pdf",
+                    "hash": "ins123",
+                    "timestamp": 1704067200,
+                    "category": "Versicherung",
+                }
+            )
 
             mock_response = {
                 "cypher": "MATCH (d:Document)-[:BELONGS_TO]->(c:Category {name: 'Versicherung'}) RETURN DISTINCT d.path",
                 "explanation": "Sucht Versicherungsdokumente",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 result = await kg.query_documents("Versicherungsdokumente")
@@ -408,26 +430,33 @@ class TestQueryDocuments:
         db_path = tmp_path / "test_graph.db"
 
         with KnowledgeGraph(db_path=db_path) as kg:
-            kg.ingest({
-                "path": "/docs/test.pdf",
-                "hash": "test123",
-                "timestamp": 1704067200,
-            })
+            kg.ingest(
+                {
+                    "path": "/docs/test.pdf",
+                    "hash": "test123",
+                    "timestamp": 1704067200,
+                }
+            )
 
             mock_response = {
                 "cypher": "MATCH (d:Document) RETURN DISTINCT d.path",
                 "explanation": "Alle Dokumente",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 import logging
+
                 with caplog.at_level(logging.INFO):
                     await kg.query_documents("Alle Dokumente")
 
                 # Check that some logging occurred
-                assert len(caplog.records) > 0 or True  # Flexible - implementation may vary
+                assert (
+                    len(caplog.records) > 0 or True
+                )  # Flexible - implementation may vary
 
 
 class TestSingletonPattern:
@@ -502,28 +531,32 @@ class TestKnowledgeGraphIntegration:
 
         # Create and populate
         with KnowledgeGraph(db_path=db_path) as kg:
-            kg.ingest({
-                "path": "/docs/invoice_001.pdf",
-                "hash": "abc123",
-                "summary": "Invoice from Acme Corp for consulting services",
-                "timestamp": int(time.time()),
-                "category": "Invoices",
-                "entities": [
-                    {"name": "Acme Corp", "type": "ORGANIZATION"},
-                    {"name": "2024-01-15", "type": "DATE"},
-                ],
-            })
+            kg.ingest(
+                {
+                    "path": "/docs/invoice_001.pdf",
+                    "hash": "abc123",
+                    "summary": "Invoice from Acme Corp for consulting services",
+                    "timestamp": int(time.time()),
+                    "category": "Invoices",
+                    "entities": [
+                        {"name": "Acme Corp", "type": "ORGANIZATION"},
+                        {"name": "2024-01-15", "type": "DATE"},
+                    ],
+                }
+            )
 
-            kg.ingest({
-                "path": "/docs/contract_v2.pdf",
-                "hash": "def456",
-                "summary": "Service agreement with Acme Corp",
-                "timestamp": int(time.time()),
-                "category": "Contracts",
-                "entities": [
-                    {"name": "Acme Corp", "type": "ORGANIZATION"},
-                ],
-            })
+            kg.ingest(
+                {
+                    "path": "/docs/contract_v2.pdf",
+                    "hash": "def456",
+                    "summary": "Service agreement with Acme Corp",
+                    "timestamp": int(time.time()),
+                    "category": "Contracts",
+                    "entities": [
+                        {"name": "Acme Corp", "type": "ORGANIZATION"},
+                    ],
+                }
+            )
 
         # Reopen and verify persistence
         with KnowledgeGraph(db_path=db_path) as kg:
@@ -673,7 +706,9 @@ class TestCypherReadOnlyGuard:
                 "explanation": "Malicious query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError, match="read-only|CREATE"):
@@ -690,7 +725,9 @@ class TestCypherReadOnlyGuard:
                 "explanation": "Malicious query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError, match="read-only|MERGE"):
@@ -707,7 +744,9 @@ class TestCypherReadOnlyGuard:
                 "explanation": "Malicious query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError, match="read-only|DELETE"):
@@ -724,7 +763,9 @@ class TestCypherReadOnlyGuard:
                 "explanation": "Malicious query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError, match="read-only|SET"):
@@ -741,7 +782,9 @@ class TestCypherReadOnlyGuard:
                 "explanation": "Malicious query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError, match="read-only|DROP"):
@@ -758,7 +801,9 @@ class TestCypherReadOnlyGuard:
                 "explanation": "Malicious query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError, match="read-only|ALTER"):
@@ -775,7 +820,9 @@ class TestCypherReadOnlyGuard:
                 "explanation": "Injection attempt",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError, match="read-only|semicolon"):
@@ -792,7 +839,9 @@ class TestCypherReadOnlyGuard:
                 "explanation": "Unexpected start",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError, match="read-only|MATCH|WITH"):
@@ -804,18 +853,22 @@ class TestCypherReadOnlyGuard:
         db_path = tmp_path / "test_graph.db"
 
         with KnowledgeGraph(db_path=db_path) as kg:
-            kg.ingest({
-                "path": "/docs/test.pdf",
-                "hash": "abc123",
-                "timestamp": 1704067200,
-            })
+            kg.ingest(
+                {
+                    "path": "/docs/test.pdf",
+                    "hash": "abc123",
+                    "timestamp": 1704067200,
+                }
+            )
 
             mock_response = {
                 "cypher": "MATCH (d:Document) RETURN DISTINCT d.path",
                 "explanation": "Valid query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 result = await kg.query_documents("All documents")
@@ -828,18 +881,22 @@ class TestCypherReadOnlyGuard:
         db_path = tmp_path / "test_graph.db"
 
         with KnowledgeGraph(db_path=db_path) as kg:
-            kg.ingest({
-                "path": "/docs/test.pdf",
-                "hash": "abc123",
-                "timestamp": 1704067200,
-            })
+            kg.ingest(
+                {
+                    "path": "/docs/test.pdf",
+                    "hash": "abc123",
+                    "timestamp": 1704067200,
+                }
+            )
 
             mock_response = {
                 "cypher": "WITH 'Apple' AS name MATCH (d:Document) RETURN DISTINCT d.path",
                 "explanation": "Valid WITH query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 result = await kg.query_documents("Apple documents")
@@ -862,7 +919,9 @@ class TestTranslateToCypher:
                 "explanation": "Sucht Dokumente die Apple erwähnen",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 result = await kg._translate_to_cypher("Zeig mir Apple Dokumente")
@@ -882,7 +941,9 @@ class TestTranslateToCypher:
                 "explanation": "Alle Dokumente",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 result = await kg._translate_to_cypher("Alle Dokumente")
@@ -903,7 +964,9 @@ class TestTranslateToCypher:
                 "explanation": "Ungültige Query",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 with pytest.raises(KnowledgeGraphError, match="d.path"):
@@ -915,7 +978,9 @@ class TestTranslateToCypher:
         db_path = tmp_path / "test_graph.db"
 
         with KnowledgeGraph(db_path=db_path) as kg:
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.side_effect = Exception("API error")
 
                 with pytest.raises(KnowledgeGraphError, match="API error"):
@@ -932,12 +997,17 @@ class TestTranslateToCypher:
                 "explanation": "Test",
             }
 
-            with patch.object(kg, "_call_gemini_for_text", new_callable=AsyncMock) as mock_call:
+            with patch.object(
+                kg, "_call_gemini_for_text", new_callable=AsyncMock
+            ) as mock_call:
                 mock_call.return_value = mock_response
 
                 import logging
+
                 with caplog.at_level(logging.DEBUG):
                     await kg._translate_to_cypher("Test query")
 
                 # Verify logging occurred (implementation detail but useful for debugging)
-                assert any("MATCH" in record.message for record in caplog.records) or True  # Flexible assertion
+                assert (
+                    any("MATCH" in record.message for record in caplog.records) or True
+                )  # Flexible assertion
