@@ -453,10 +453,8 @@ class TestQueryDocuments:
                 with caplog.at_level(logging.INFO):
                     await kg.query_documents("Alle Dokumente")
 
-                # Check that some logging occurred
-                assert (
-                    len(caplog.records) > 0 or True
-                )  # Flexible - implementation may vary
+                # Logging verification is optional - implementation may vary
+                # We just verify the query executed without error
 
 
 class TestSingletonPattern:
@@ -1007,7 +1005,5 @@ class TestTranslateToCypher:
                 with caplog.at_level(logging.DEBUG):
                     await kg._translate_to_cypher("Test query")
 
-                # Verify logging occurred (implementation detail but useful for debugging)
-                assert (
-                    any("MATCH" in record.message for record in caplog.records) or True
-                )  # Flexible assertion
+                # Logging verification is optional - implementation may vary
+                # We just verify the translation executed without error

@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import re
 import tempfile
+import threading
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Optional
@@ -109,12 +110,11 @@ Antworte NUR mit einem JSON-Objekt in diesem Format:
 class KnowledgeGraphError(Exception):
     """Raised when knowledge graph operations fail."""
 
-    pass
-
 
 # Forbidden keywords in AI-generated Cypher queries (write/DDL operations)
+# CALL can execute stored procedures, REMOVE removes properties
 _CYPHER_WRITE_KEYWORDS = frozenset(
-    ["CREATE", "MERGE", "DELETE", "SET", "DROP", "ALTER"]
+    ["CREATE", "MERGE", "DELETE", "SET", "DROP", "ALTER", "CALL", "REMOVE"]
 )
 
 
@@ -177,7 +177,6 @@ class IKnowledgeGraph(ABC):
         Creates node tables (Document, Entity, Category) and
         relationship tables (MENTIONS, BELONGS_TO) if they don't exist.
         """
-        pass
 
     @abstractmethod
     def ingest(self, file_info: dict[str, Any]) -> None:
@@ -188,7 +187,6 @@ class IKnowledgeGraph(ABC):
                 Required keys: path, hash, timestamp
                 Optional keys: summary, category, entities
         """
-        pass
 
     @abstractmethod
     async def query_documents(self, filter_text: str) -> list[str]:
@@ -206,12 +204,10 @@ class IKnowledgeGraph(ABC):
         Raises:
             KnowledgeGraphError: If query translation or execution fails.
         """
-        pass
 
     @abstractmethod
     def close(self) -> None:
         """Close database connection and release resources."""
-        pass
 
 
 class KnowledgeGraph(IKnowledgeGraph):
@@ -720,16 +716,17 @@ Use DISTINCT to avoid duplicate results when joining through relationships."""
         logger.debug("Knowledge graph connection closed")
 
 
-# Singleton pattern for global access
+# Singleton pattern for global access (thread-safe)
 _knowledge_graph_instance: Optional[KnowledgeGraph] = None
+_knowledge_graph_lock = threading.Lock()
 
 
 def get_knowledge_graph() -> KnowledgeGraph:
     """Get or create the global knowledge graph instance.
 
     Uses the default database path in the config directory.
-    Thread-safe for read access, but the returned instance
-    is not thread-safe for concurrent writes.
+    Thread-safe initialization using double-checked locking pattern.
+    The returned instance is not thread-safe for concurrent writes.
 
     Returns:
         The global KnowledgeGraph instance.
@@ -739,8 +736,14 @@ def get_knowledge_graph() -> KnowledgeGraph:
         >>> kg.ingest(file_info)
     """
     global _knowledge_graph_instance
-    if _knowledge_graph_instance is None:
-        _knowledge_graph_instance = KnowledgeGraph()
+    # Fast path: instance already exists
+    if _knowledge_graph_instance is not None:
+        return _knowledge_graph_instance
+    # Slow path: acquire lock for initialization
+    with _knowledge_graph_lock:
+        # Double-check after acquiring lock
+        if _knowledge_graph_instance is None:
+            _knowledge_graph_instance = KnowledgeGraph()
     return _knowledge_graph_instance
 
 
@@ -749,6 +752,7 @@ def reset_knowledge_graph() -> None:
 
     Closes the existing connection and clears the singleton.
     The next call to get_knowledge_graph() will create a new instance.
+    Thread-safe.
 
     Use this for testing or when you need to reinitialize the database.
 
@@ -757,6 +761,7 @@ def reset_knowledge_graph() -> None:
         >>> kg = get_knowledge_graph()  # Fresh instance
     """
     global _knowledge_graph_instance
-    if _knowledge_graph_instance is not None:
-        _knowledge_graph_instance.close()
-        _knowledge_graph_instance = None
+    with _knowledge_graph_lock:
+        if _knowledge_graph_instance is not None:
+            _knowledge_graph_instance.close()
+            _knowledge_graph_instance = None
