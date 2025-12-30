@@ -20,24 +20,21 @@ import shutil
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from watchdog.events import FileCreatedEvent, FileMovedEvent
 
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI
-from folder_extractor.config.constants import TEMP_EXTENSIONS
 from folder_extractor.config.settings import settings
 from folder_extractor.core.extractor import EnhancedExtractionOrchestrator
 from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.state_manager import (
     IStateManager,
-    StateManager,
     reset_state_manager,
 )
 from folder_extractor.core.watch import FolderEventHandler
-
 
 # =============================================================================
 # Helper Functions
@@ -942,7 +939,6 @@ class TestEndToEndWatchMode:
 
         # Track process_single_file calls
         process_calls: list[Path] = []
-        original_process = None
 
         def track_process(filepath, destination, progress_callback=None):
             process_calls.append(filepath)
@@ -1100,8 +1096,6 @@ class TestEndToEndWatchMode:
                 cli = EnhancedFolderExtractorCLI()
 
                 # Patch interface to capture calls
-                original_show_watch_event = cli.interface.show_watch_event
-
                 def capture_watch_event(*args, **kwargs):
                     watch_event_calls.append(args)
 
@@ -1157,8 +1151,6 @@ class TestEndToEndWatchMode:
         mock_observer_instance.start = Mock()
         mock_observer_instance.stop = Mock()
         mock_observer_instance.join = Mock()
-
-        error_logged = []
 
         def failing_process(filepath, destination, progress_callback=None):
             raise RuntimeError("Simulated processing failure")
@@ -1568,7 +1560,6 @@ class TestWatchModeWithFeatures:
         # Verify: archive contents should be extracted
         # Check if inner files exist somewhere in the root tree
         inner_pdfs = list(root.rglob("inner_doc.pdf"))
-        inner_jpgs = list(root.rglob("inner_image.jpg"))
 
         assert len(inner_pdfs) >= 1 or archive_path.exists(), (
             "Archive should be processed (extracted or moved)"
@@ -1645,7 +1636,6 @@ class TestWatchModeWithFeatures:
             watch_thread.join(timeout=3)
 
         # Verify: duplicate skipped, new file sorted
-        pdf_files = list(pdf_folder.glob("*.pdf"))
         # Should have original + new_document (duplicate was skipped)
         assert existing_pdf.exists(), "Original PDF should still exist"
         # New file should be in PDF folder (or still in watched if processing is async)
@@ -1759,7 +1749,6 @@ class TestWatchModeErrorAndAbort:
         test_file.write_text("Protected content")
 
         captured_handler = None
-        error_logged = []
 
         def capture_schedule(handler, path, recursive=False):
             nonlocal captured_handler
@@ -1889,7 +1878,6 @@ class TestWatchModeErrorAndAbort:
         watched = e2e_watch_env["watched_folder"]
 
         captured_handler = None
-        loop_iterations = []
 
         def capture_schedule(handler, path, recursive=False):
             nonlocal captured_handler
