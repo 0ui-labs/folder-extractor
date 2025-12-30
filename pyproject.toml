@@ -56,6 +56,7 @@ markers = [
     "integration: Integration tests that test complete workflows",
     "slow: Tests that are slow to execute",
     "security: Security-related tests (Zip Slip, path traversal, etc.)",
+    "watch: Watch mode tests for file system monitoring",
 ]
 
 [tool.ruff]

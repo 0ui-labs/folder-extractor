@@ -213,3 +213,54 @@ class TestArgumentParser:
         assert args.delete_archives is True
         assert args.deduplicate is True
         assert args.sort_by_type is True
+
+    def test_watch_flag_default_is_false(self):
+        """Test watch flag defaults to False when not specified."""
+        args = self.parser.parse_args([])
+        assert args.watch is False
+
+    def test_watch_flag_enables_watch_mode(self):
+        """Test --watch flag enables folder monitoring mode."""
+        args = self.parser.parse_args(["--watch"])
+        assert args.watch is True
+
+    def test_watch_flag_combines_with_sort_by_type(self):
+        """Test --watch can be used together with --sort-by-type."""
+        args = self.parser.parse_args(["--watch", "--sort-by-type"])
+        assert args.watch is True
+        assert args.sort_by_type is True
+
+    def test_watch_flag_combines_with_deduplicate(self):
+        """Test --watch can be used together with --deduplicate."""
+        args = self.parser.parse_args(["--watch", "--deduplicate"])
+        assert args.watch is True
+        assert args.deduplicate is True
+
+    def test_watch_flag_combines_with_extract_archives(self):
+        """Test --watch can be used together with --extract-archives."""
+        args = self.parser.parse_args(["--watch", "--extract-archives"])
+        assert args.watch is True
+        assert args.extract_archives is True
+
+    def test_watch_flag_with_all_common_options(self):
+        """Test --watch works with all commonly used extraction options."""
+        args = self.parser.parse_args(
+            [
+                "--watch",
+                "--sort-by-type",
+                "--deduplicate",
+                "--global-dedup",
+                "--extract-archives",
+                "--depth",
+                "2",
+                "--type",
+                "pdf,jpg",
+            ]
+        )
+        assert args.watch is True
+        assert args.sort_by_type is True
+        assert args.deduplicate is True
+        assert args.global_dedup is True
+        assert args.extract_archives is True
+        assert args.depth == 2
+        assert args.type == "pdf,jpg"

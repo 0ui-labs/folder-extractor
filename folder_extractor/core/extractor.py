@@ -875,6 +875,73 @@ class EnhancedExtractionOrchestrator:
                     "error": True,
                 }
 
+    def process_single_file(
+        self,
+        filepath: Union[str, Path],
+        destination: Union[str, Path],
+        progress_callback: ProgressCallback = None,
+    ) -> Dict[str, Any]:
+        """Process a single file without directory discovery.
+
+        This method is designed for watch mode where a single file is detected
+        and should be processed immediately without scanning the entire directory.
+
+        Args:
+            filepath: Path to the single file to process
+            destination: Destination directory for the file
+            progress_callback: Optional callback for progress updates
+
+        Returns:
+            Dictionary with operation results
+        """
+        filepath = Path(filepath)
+        destination = Path(destination)
+
+        # Start operation
+        with ManagedOperation(self.state_manager, "single_file") as op:
+            try:
+                # Validate security
+                self.extractor.validate_security(destination)
+
+                # Check if file exists
+                if not filepath.exists():
+                    return {
+                        "status": "error",
+                        "message": f"Datei existiert nicht: {filepath}",
+                        "error": True,
+                    }
+
+                # Check abort signal before processing
+                if op.abort_signal.is_set():
+                    return {
+                        "status": "aborted",
+                        "message": "Operation abgebrochen",
+                    }
+
+                # Process single file directly - skip discovery
+                results = self.extractor.extract_files(
+                    files=[str(filepath)],
+                    destination=destination,
+                    operation_id=op.operation_id,
+                    progress_callback=progress_callback,
+                )
+
+                # Add metadata
+                results["status"] = "success"
+                results["operation_id"] = op.operation_id
+
+                return results
+
+            except SecurityError as e:
+                return {"status": "security_error", "message": str(e), "error": True}
+
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": f"Fehler: {str(e)}",
+                    "error": True,
+                }
+
     def execute_undo(self, path: Union[str, Path]) -> Dict[str, Any]:
         """Execute undo operation.
 

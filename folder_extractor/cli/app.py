@@ -6,8 +6,11 @@ and progress tracking capabilities.
 """
 
 import sys
+import time
 from pathlib import Path
 from typing import Optional, Union
+
+from watchdog.observers import Observer
 
 from folder_extractor.cli.interface import create_console_interface
 from folder_extractor.cli.parser import create_parser
@@ -17,7 +20,9 @@ from folder_extractor.core.extractor import (
     EnhancedExtractionOrchestrator,
     EnhancedFileExtractor,
 )
+from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.state_manager import get_state_manager
+from folder_extractor.core.watch import FolderEventHandler
 
 
 class EnhancedFolderExtractorCLI:
@@ -60,6 +65,8 @@ class EnhancedFolderExtractorCLI:
             # Execute operation
             if parsed_args.undo:
                 return self._execute_undo(current_dir)
+            elif getattr(parsed_args, "watch", False):
+                return self._execute_watch(current_dir)
             else:
                 return self._execute_extraction(current_dir)
 
@@ -188,6 +195,75 @@ class EnhancedFolderExtractorCLI:
                 )
 
         return 0 if result["status"] == "success" else 1
+
+    def _execute_watch(self, path: Union[str, Path]) -> int:
+        """Execute watch mode operation.
+
+        Starts a filesystem watcher that monitors the given path for new files
+        and automatically processes them using the extraction orchestrator.
+
+        Args:
+            path: Path to watch for new files
+
+        Returns:
+            Exit code (0 for normal exit)
+        """
+        # Create monitor and orchestrator
+        monitor = StabilityMonitor(self.state_manager)
+        extractor = EnhancedFileExtractor(state_manager=self.state_manager)
+        orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
+
+        # Define progress callback for watch events
+        def progress_callback(
+            current: int,
+            total: int,
+            filepath: Union[str, Path],
+            error: Optional[str] = None,
+        ) -> None:
+            self.interface.show_progress(current, total, filepath, error)
+
+        # Define event callback for UI status updates
+        def event_callback(
+            status: str,
+            filename: str,
+            error: Optional[str] = None,
+        ) -> None:
+            # show_watch_event expects (event_type, filename, status, error)
+            self.interface.show_watch_event("file", filename, status, error)
+
+        # Create event handler
+        handler = FolderEventHandler(
+            orchestrator,
+            monitor,
+            self.state_manager,
+            progress_callback,
+            on_event_callback=event_callback,
+        )
+
+        # Create and configure observer
+        observer = Observer()
+        observer.schedule(handler, str(path), recursive=False)
+
+        # Show status
+        self.interface.show_watch_status(path)
+
+        # Start observer
+        observer.start()
+
+        try:
+            # Main loop - wait for abort signal
+            while not self.state_manager.is_abort_requested():
+                time.sleep(1)
+        except KeyboardInterrupt:
+            # User pressed Ctrl+C
+            self.state_manager.request_abort()
+        finally:
+            # Clean shutdown
+            observer.stop()
+            observer.join()
+            self.interface.show_watch_stopped()
+
+        return 0
 
 
 def main(args: Optional[list] = None) -> int:

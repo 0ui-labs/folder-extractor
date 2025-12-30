@@ -93,7 +93,7 @@ class TestEnhancedFolderExtractorCLI:
     def test_run_extraction_operation(self):
         """Test running extraction operation."""
         # Mock parsed arguments for extraction
-        mock_args = Mock(undo=False)
+        mock_args = Mock(undo=False, watch=False)
         self.cli.parser.parse_args = Mock(return_value=mock_args)
 
         # Mock interface
@@ -575,3 +575,263 @@ class TestCLIAppEdgeCases:
                         or "abgebrochen" in call[0][0].lower()
                         for call in warning_calls
                     )
+
+
+class TestWatchMode:
+    """Tests for watch mode functionality."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        try:
+            os.getcwd()
+        except (FileNotFoundError, OSError):
+            os.chdir(os.path.expanduser("~"))
+
+        with patch("folder_extractor.cli.app.create_parser"):
+            with patch("folder_extractor.cli.app.create_console_interface"):
+                with patch("folder_extractor.cli.app.get_state_manager"):
+                    self.cli = EnhancedFolderExtractorCLI()
+
+    def test_watch_flag_triggers_execute_watch(self):
+        """Test that --watch flag triggers _execute_watch method."""
+        # Mock parsed arguments with watch=True
+        mock_args = Mock(undo=False, watch=True)
+        self.cli.parser.parse_args = Mock(return_value=mock_args)
+
+        # Mock interface
+        self.cli.interface.show_welcome = Mock()
+
+        # Mock execute_watch
+        with patch.object(self.cli, "_execute_watch", return_value=0) as mock_watch:
+            with patch("folder_extractor.cli.app.configure_from_args"):
+                with patch("folder_extractor.core.migration.MigrationHelper"):
+                    result = self.cli.run()
+
+                    assert result == 0
+                    mock_watch.assert_called_once()
+                    # Should show welcome for watch mode
+                    self.cli.interface.show_welcome.assert_called_once()
+
+    def test_execute_watch_starts_and_stops_observer(self):
+        """Test that Observer is started and stopped correctly."""
+        # Mock state manager to exit loop after first iteration
+        abort_call_count = [0]
+
+        def mock_is_abort():
+            abort_call_count[0] += 1
+            # Exit on second call
+            return abort_call_count[0] > 1
+
+        self.cli.state_manager.is_abort_requested = Mock(side_effect=mock_is_abort)
+        self.cli.state_manager.request_abort = Mock()
+
+        # Mock interface methods
+        self.cli.interface.show_watch_status = Mock()
+        self.cli.interface.show_watch_event = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        # Mock Observer
+        mock_observer = Mock()
+        mock_observer_class = Mock(return_value=mock_observer)
+
+        with patch("folder_extractor.cli.app.Observer", mock_observer_class):
+            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                with patch("folder_extractor.cli.app.FolderEventHandler"):
+                    with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+                        with patch(
+                            "folder_extractor.cli.app.EnhancedExtractionOrchestrator"
+                        ):
+                            with patch("time.sleep"):
+                                result = self.cli._execute_watch("/test/path")
+
+        # Observer should be started and stopped
+        mock_observer.start.assert_called_once()
+        mock_observer.stop.assert_called_once()
+        mock_observer.join.assert_called_once()
+
+        # Should have scheduled the handler
+        mock_observer.schedule.assert_called_once()
+
+        assert result == 0
+
+    def test_execute_watch_keyboard_interrupt_requests_abort(self):
+        """Test that KeyboardInterrupt requests abort and stops observer."""
+        # Mock state manager to never return True for abort
+        self.cli.state_manager.is_abort_requested = Mock(return_value=False)
+        self.cli.state_manager.request_abort = Mock()
+
+        # Mock interface methods
+        self.cli.interface.show_watch_status = Mock()
+        self.cli.interface.show_watch_event = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        # Mock Observer
+        mock_observer = Mock()
+        mock_observer_class = Mock(return_value=mock_observer)
+
+        # Mock time.sleep to raise KeyboardInterrupt
+        def sleep_interrupt(_):
+            raise KeyboardInterrupt
+
+        with patch("folder_extractor.cli.app.Observer", mock_observer_class):
+            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                with patch("folder_extractor.cli.app.FolderEventHandler"):
+                    with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+                        with patch(
+                            "folder_extractor.cli.app.EnhancedExtractionOrchestrator"
+                        ):
+                            with patch("time.sleep", side_effect=sleep_interrupt):
+                                result = self.cli._execute_watch("/test/path")
+
+        # Should have requested abort
+        self.cli.state_manager.request_abort.assert_called_once()
+
+        # Observer should still be stopped properly
+        mock_observer.stop.assert_called_once()
+        mock_observer.join.assert_called_once()
+
+        assert result == 0
+
+    def test_execute_watch_shows_watch_status(self):
+        """Test that show_watch_status is called with path."""
+        # Mock state manager to exit immediately
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        # Mock interface methods
+        self.cli.interface.show_watch_status = Mock()
+        self.cli.interface.show_watch_event = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        # Mock Observer
+        mock_observer = Mock()
+        mock_observer_class = Mock(return_value=mock_observer)
+
+        test_path = Path("/test/watch/path")
+
+        with patch("folder_extractor.cli.app.Observer", mock_observer_class):
+            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                with patch("folder_extractor.cli.app.FolderEventHandler"):
+                    with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+                        with patch(
+                            "folder_extractor.cli.app.EnhancedExtractionOrchestrator"
+                        ):
+                            with patch("time.sleep"):
+                                self.cli._execute_watch(test_path)
+
+        # Should show watch status with the path
+        self.cli.interface.show_watch_status.assert_called_once_with(test_path)
+
+    def test_execute_watch_shows_stopped_on_exit(self):
+        """Test that show_watch_stopped is called on exit."""
+        # Mock state manager to exit immediately
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        # Mock interface methods
+        self.cli.interface.show_watch_status = Mock()
+        self.cli.interface.show_watch_event = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        # Mock Observer
+        mock_observer = Mock()
+        mock_observer_class = Mock(return_value=mock_observer)
+
+        with patch("folder_extractor.cli.app.Observer", mock_observer_class):
+            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                with patch("folder_extractor.cli.app.FolderEventHandler"):
+                    with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+                        with patch(
+                            "folder_extractor.cli.app.EnhancedExtractionOrchestrator"
+                        ):
+                            with patch("time.sleep"):
+                                self.cli._execute_watch("/test/path")
+
+        # Should show watch stopped
+        self.cli.interface.show_watch_stopped.assert_called_once()
+
+    def test_execute_watch_creates_handler_with_correct_components(self):
+        """Test that FolderEventHandler is created with correct dependencies."""
+        # Mock state manager
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        # Mock interface methods
+        self.cli.interface.show_watch_status = Mock()
+        self.cli.interface.show_watch_event = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        # Mock components
+        mock_observer = Mock()
+        mock_observer_class = Mock(return_value=mock_observer)
+        mock_monitor = Mock()
+        mock_monitor_class = Mock(return_value=mock_monitor)
+        mock_handler = Mock()
+        mock_handler_class = Mock(return_value=mock_handler)
+        mock_orchestrator = Mock()
+
+        with patch("folder_extractor.cli.app.Observer", mock_observer_class):
+            with patch("folder_extractor.cli.app.StabilityMonitor", mock_monitor_class):
+                with patch(
+                    "folder_extractor.cli.app.FolderEventHandler", mock_handler_class
+                ):
+                    with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+                        with patch(
+                            "folder_extractor.cli.app.EnhancedExtractionOrchestrator",
+                            return_value=mock_orchestrator,
+                        ):
+                            with patch("time.sleep"):
+                                self.cli._execute_watch("/test/path")
+
+        # Check that StabilityMonitor was created with state_manager
+        mock_monitor_class.assert_called_once_with(self.cli.state_manager)
+
+        # Check that FolderEventHandler was created with correct arguments
+        mock_handler_class.assert_called_once()
+        handler_args = mock_handler_class.call_args
+
+        # First argument should be orchestrator
+        assert handler_args[0][0] == mock_orchestrator
+        # Second argument should be monitor
+        assert handler_args[0][1] == mock_monitor
+        # Third argument should be state_manager
+        assert handler_args[0][2] == self.cli.state_manager
+
+    def test_execute_watch_schedules_handler_non_recursive(self):
+        """Test that observer.schedule is called with recursive=False."""
+        # Mock state manager
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        # Mock interface methods
+        self.cli.interface.show_watch_status = Mock()
+        self.cli.interface.show_watch_event = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        # Mock Observer
+        mock_observer = Mock()
+        mock_observer_class = Mock(return_value=mock_observer)
+        mock_handler = Mock()
+
+        test_path = "/test/watch/directory"
+
+        with patch("folder_extractor.cli.app.Observer", mock_observer_class):
+            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                with patch(
+                    "folder_extractor.cli.app.FolderEventHandler",
+                    return_value=mock_handler,
+                ):
+                    with patch("folder_extractor.cli.app.EnhancedFileExtractor"):
+                        with patch(
+                            "folder_extractor.cli.app.EnhancedExtractionOrchestrator"
+                        ):
+                            with patch("time.sleep"):
+                                self.cli._execute_watch(test_path)
+
+        # Check schedule was called with handler, path (as str), and recursive=False
+        mock_observer.schedule.assert_called_once()
+        schedule_args = mock_observer.schedule.call_args
+
+        assert schedule_args[0][0] == mock_handler
+        assert schedule_args[0][1] == test_path
+        assert schedule_args[1]["recursive"] is False

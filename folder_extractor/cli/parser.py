@@ -119,6 +119,12 @@ class ArgumentParser:
             help="Original-Archive nach Entpacken löschen (nur mit --extract-archives)",
         )
 
+        parser.add_argument(
+            "--watch",
+            action="store_true",
+            help="Ordner überwachen und neue Dateien automatisch verarbeiten",
+        )
+
         return parser
 
     def parse_args(self, args: Optional[List[str]] = None) -> argparse.Namespace:

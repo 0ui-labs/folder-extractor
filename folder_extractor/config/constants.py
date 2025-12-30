@@ -266,6 +266,14 @@ Zusammenfassung:
     "ARCHIVE_DELETED": "✓ Archiv {archive} gelöscht",
     "ARCHIVE_DELETE_ERROR": "✗ Fehler beim Löschen von {archive}: {error}",
     "ARCHIVE_SECURITY_ERROR": "⚠ SICHERHEIT: {archive} hat unsichere Pfade",
+    # Watch Mode messages
+    "WATCH_STARTING": "👀 Wache über {path}...",
+    "WATCH_STOPPED": "⏹ Watch-Mode beendet",
+    "WATCH_FILE_INCOMING": "📥 Incoming: {file}...",
+    "WATCH_FILE_WAITING": "⏳ Warte auf Download: {file}...",
+    "WATCH_FILE_ANALYZING": "🤖 Analysiere: {file}...",
+    "WATCH_FILE_SORTED": "✅ Sortiert: {file}",
+    "WATCH_FILE_ERROR": "✗ Fehler bei {file}: {error}",
 }
 
 
@@ -292,6 +300,8 @@ Optionen:
     --extract-archives      Archive (ZIP, TAR, GZ) entpacken und Inhalt extrahieren
     --delete-archives       Original-Archive nach erfolgreichem Entpacken löschen
                             (nur wirksam mit --extract-archives)
+    --watch                 Ordner überwachen und neue Dateien automatisch verarbeiten
+                            (Ctrl+C zum Beenden)
 
 Beispiele:
     # Alle Dateien aus Unterordnern extrahieren
