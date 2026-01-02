@@ -10,6 +10,11 @@ omit = [
     "*/ai_resilience.py",
     "*/preprocessor.py",
     "*/security.py",
+    # API and CLI modules depend on google-generativeai (Python 3.9+)
+    # These can't be tested on Python 3.8 and are excluded from coverage
+    "*/api/*",
+    "*/cli/app.py",
+    "*/smart_sorter.py",
 ]
 
 [tool.coverage.report]

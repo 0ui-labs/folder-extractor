@@ -16,6 +16,38 @@ from folder_extractor.core.state_manager import reset_state_manager
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
+# =============================================================================
+# Collection-time skip for Python 3.8 (google-generativeai not available)
+# =============================================================================
+
+
+def _can_import_google_generativeai() -> bool:
+    """Check if google-generativeai module can be imported (Python 3.9+)."""
+    try:
+        import google.generativeai  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+# Conditionally ignore test files that require google-generativeai
+# This prevents collection errors on Python 3.8
+if not _can_import_google_generativeai():
+    collect_ignore = [
+        # Unit tests for API and CLI that depend on google-generativeai
+        "unit/api/test_server.py",
+        "unit/api/test_dependencies.py",
+        "unit/api/test_endpoints.py",
+        "unit/api/test_watcher_endpoints.py",
+        "unit/test_cli_app.py",
+        # Integration tests that import CLI
+        "integration/test_archive_extraction.py",
+        "integration/test_extraction_workflow.py",
+        "integration/test_watch.py",
+    ]
+
+
 @pytest.fixture
 def temp_dir(tmp_path):
     """Create a temporary directory for testing."""
