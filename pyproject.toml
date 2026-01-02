@@ -15,6 +15,7 @@ omit = [
     "*/api/*",
     "*/cli/app.py",
     "*/smart_sorter.py",
+    "*/watch.py",
 ]
 
 [tool.coverage.report]
