@@ -8,7 +8,7 @@ endpoints. All models use Pydantic v2 for validation and serialization.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -48,7 +48,7 @@ class ZoneConfig(BaseModel):
     path: str = Field(..., min_length=1, description="Absolute path to directory")
     enabled: bool = Field(default=True, description="Zone is active")
     auto_sort: bool = Field(default=False, description="Auto-sort by type")
-    categories: list[str] = Field(
+    categories: List[str] = Field(
         default_factory=list, description="Allowed file types"
     )
 
@@ -72,7 +72,7 @@ class ZoneUpdateRequest(BaseModel):
     path: Optional[str] = Field(default=None, min_length=1, description="Absolute path")
     enabled: Optional[bool] = Field(default=None, description="Zone is active")
     auto_sort: Optional[bool] = Field(default=None, description="Auto-sort")
-    categories: Optional[list[str]] = Field(
+    categories: Optional[List[str]] = Field(
         default=None, description="Allowed file types"
     )
 
@@ -136,7 +136,7 @@ class ZoneResponse(BaseModel):
     path: str = Field(..., description="Directory path")
     enabled: bool = Field(..., description="Zone is active")
     auto_sort: bool = Field(..., description="Auto-sort enabled")
-    categories: list[str] = Field(..., description="Allowed file types")
+    categories: List[str] = Field(..., description="Allowed file types")
     created_at: Optional[datetime] = Field(
         default=None, description="Creation timestamp"
     )
@@ -150,7 +150,7 @@ class ZoneListResponse(BaseModel):
         total: Total number of zones.
     """
 
-    zones: list[ZoneResponse] = Field(..., description="List of zones")
+    zones: List[ZoneResponse] = Field(..., description="List of zones")
     total: int = Field(..., description="Total number of zones")
 
 
@@ -182,7 +182,7 @@ class WatcherStatusResponse(BaseModel):
     """
 
     running: bool = Field(..., description="Watcher is running")
-    zones: list[str] = Field(..., description="Watched zone IDs")
+    zones: List[str] = Field(..., description="Watched zone IDs")
     active_since: Optional[datetime] = Field(
         default=None, description="Start timestamp"
     )
@@ -198,7 +198,7 @@ class WatcherListResponse(BaseModel):
     """
 
     overall_status: str = Field(..., description="Overall status: running or stopped")
-    active_watchers: list[SingleWatcherStatus] = Field(
+    active_watchers: List[SingleWatcherStatus] = Field(
         ..., description="Active watchers"
     )
     total_count: int = Field(..., description="Total active watcher count")
@@ -247,5 +247,5 @@ class WebSocketMessage(BaseModel):
     """
 
     type: str = Field(..., description="Message type: progress, status, chat, error")
-    data: dict[str, Any] = Field(..., description="Message payload")
+    data: Dict[str, Any] = Field(..., description="Message payload")
     timestamp: datetime = Field(..., description="Message timestamp")
