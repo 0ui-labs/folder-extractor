@@ -13,7 +13,26 @@ from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
+
+
+# Skip entire module if API server cannot be imported (Python 3.8 lacks google-generativeai)
+def _can_import_api_server() -> bool:
+    """Check if the API server module can be imported."""
+    try:
+        from folder_extractor.api import server  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    not _can_import_api_server(),
+    reason="API server requires google-generativeai (Python 3.9+)",
+)
+
+# Import after skip marker to avoid import errors on Python 3.8
+from fastapi.testclient import TestClient  # noqa: E402
 
 # =============================================================================
 # Fixtures

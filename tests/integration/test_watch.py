@@ -26,15 +26,33 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from watchdog.events import FileCreatedEvent, FileMovedEvent
 
-from folder_extractor.cli.app import EnhancedFolderExtractorCLI
-from folder_extractor.config.settings import settings
-from folder_extractor.core.extractor import EnhancedExtractionOrchestrator
-from folder_extractor.core.monitor import StabilityMonitor
-from folder_extractor.core.state_manager import (
+
+# Skip entire module if CLI app cannot be imported (Python 3.8 lacks google-generativeai)
+def _can_import_cli_app() -> bool:
+    """Check if the CLI app module can be imported."""
+    try:
+        from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    not _can_import_cli_app(),
+    reason="CLI app requires google-generativeai (Python 3.9+)",
+)
+
+# Import after skip marker to avoid import errors on Python 3.8
+from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: E402
+from folder_extractor.config.settings import settings  # noqa: E402
+from folder_extractor.core.extractor import EnhancedExtractionOrchestrator  # noqa: E402
+from folder_extractor.core.monitor import StabilityMonitor  # noqa: E402
+from folder_extractor.core.state_manager import (  # noqa: E402
     IStateManager,
     reset_state_manager,
 )
-from folder_extractor.core.watch import FolderEventHandler
+from folder_extractor.core.watch import FolderEventHandler  # noqa: E402
 
 # =============================================================================
 # Helper Functions

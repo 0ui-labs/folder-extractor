@@ -8,7 +8,27 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-from folder_extractor.cli.app import EnhancedFolderExtractorCLI, main
+import pytest
+
+
+# Skip entire module if CLI app cannot be imported (Python 3.8 lacks google-generativeai)
+def _can_import_cli_app() -> bool:
+    """Check if the CLI app module can be imported."""
+    try:
+        from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    not _can_import_cli_app(),
+    reason="CLI app requires google-generativeai (Python 3.9+)",
+)
+
+# Import after skip marker to avoid import errors on Python 3.8
+from folder_extractor.cli.app import EnhancedFolderExtractorCLI, main  # noqa: E402
 
 
 class TestEnhancedFolderExtractorCLI:
