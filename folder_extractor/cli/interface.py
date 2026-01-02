@@ -477,6 +477,60 @@ class ConsoleInterface(IUserInterface):
 
         self._print(MESSAGES["WATCH_STOPPED"], style=self.info_style)
 
+    def show_smart_watch_status(self, profile: dict) -> None:
+        """Show smart watch mode status banner with configuration details.
+
+        Displays the watch configuration including path, folder structure,
+        categories, file types, recursion settings, and exclusions.
+
+        Args:
+            profile: Smart watch profile dictionary containing:
+                - path: Watch directory path
+                - folder_structure: Target path template
+                - categories: List of AI categories (optional)
+                - file_types: List of file extensions to filter (optional)
+                - recursive: Whether to watch recursively (optional)
+                - exclude_subfolders: Folders to exclude (optional)
+        """
+        if settings.get("quiet", False):
+            return
+
+        # Banner header
+        self._print(MESSAGES["SMART_WATCH_BANNER"], style=self.highlight_style)
+
+        # Watch path
+        path = profile.get("path", "")
+        self._print(MESSAGES["SMART_WATCH_PATH"].format(path=path))
+
+        # Folder structure
+        structure = profile.get("folder_structure", "{category}")
+        self._print(MESSAGES["SMART_WATCH_STRUCTURE"].format(structure=structure))
+
+        # Categories (show "Standard" if empty or not provided)
+        categories = profile.get("categories", [])
+        if categories:
+            cat_str = ", ".join(categories)
+        else:
+            cat_str = "Standard"
+        self._print(MESSAGES["SMART_WATCH_CATEGORIES"].format(categories=cat_str))
+
+        # File types (only show if not empty)
+        file_types = profile.get("file_types")
+        if file_types:
+            ft_str = ", ".join(file_types)
+            self._print(MESSAGES["SMART_WATCH_FILE_TYPES"].format(file_types=ft_str))
+
+        # Recursive status
+        recursive = profile.get("recursive", False)
+        recursive_str = "Ja" if recursive else "Nein"
+        self._print(MESSAGES["SMART_WATCH_RECURSIVE"].format(recursive=recursive_str))
+
+        # Exclusions (only show if not empty)
+        exclusions = profile.get("exclude_subfolders", [])
+        if exclusions:
+            excl_str = ", ".join(exclusions)
+            self._print(MESSAGES["SMART_WATCH_EXCLUSIONS"].format(exclusions=excl_str))
+
 
 def create_console_interface() -> ConsoleInterface:
     """Create and return a console interface."""

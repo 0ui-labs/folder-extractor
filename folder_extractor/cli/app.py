@@ -16,15 +16,18 @@ from watchdog.observers import Observer
 from folder_extractor.cli.interface import create_console_interface
 from folder_extractor.cli.parser import create_parser
 from folder_extractor.config.constants import MESSAGES
-from folder_extractor.config.settings import configure_from_args
+from folder_extractor.config.settings import Settings, configure_from_args
 from folder_extractor.core.extractor import (
     EnhancedExtractionOrchestrator,
     EnhancedFileExtractor,
 )
+from folder_extractor.core.ai_async import AsyncGeminiClient
 from folder_extractor.core.memory.graph import KnowledgeGraph
 from folder_extractor.core.monitor import StabilityMonitor
+from folder_extractor.core.smart_sorter import SmartSorter
 from folder_extractor.core.state_manager import get_state_manager
-from folder_extractor.core.watch import FolderEventHandler
+from folder_extractor.core.watch import FolderEventHandler, SmartFolderEventHandler
+from folder_extractor.core.zone_manager import ZoneManager
 
 
 class EnhancedFolderExtractorCLI:
@@ -250,6 +253,105 @@ class EnhancedFolderExtractorCLI:
 
         # Show status
         self.interface.show_watch_status(path)
+
+        # Start observer
+        observer.start()
+
+        try:
+            # Main loop - wait for abort signal
+            while not self.state_manager.is_abort_requested():
+                time.sleep(1)
+        except KeyboardInterrupt:
+            # User pressed Ctrl+C
+            self.state_manager.request_abort()
+        finally:
+            # Clean shutdown
+            observer.stop()
+            observer.join()
+            self.interface.show_watch_stopped()
+
+        return 0
+
+    def _execute_watch_smart(self, zone_id: str) -> int:
+        """Execute smart watch mode with AI categorization.
+
+        Loads a zone configuration and starts a SmartFolderEventHandler
+        that uses the SmartSorter for AI-powered file categorization.
+
+        Args:
+            zone_id: ID of the zone to watch
+
+        Returns:
+            Exit code (0 for normal exit, 1 for error)
+        """
+        # Load zone configuration
+        zone_manager = ZoneManager()
+        zone = zone_manager.get_zone(zone_id)
+
+        if zone is None:
+            self.interface.show_message(
+                f"Zone '{zone_id}' nicht gefunden",
+                message_type="error",
+            )
+            return 1
+
+        # Build complete smart watch profile from zone configuration
+        # Read all fields from zone with sensible defaults
+        profile = {
+            "name": zone.get("name", ""),
+            "path": zone.get("path", ""),
+            "folder_structure": zone.get(
+                "folder_structure", "{category}/{sender}/{year}"
+            ),
+            "categories": zone.get("categories", []),
+            "file_types": zone.get("file_types"),  # File extensions like ["pdf", "jpg"]
+            "recursive": zone.get("recursive", False),
+            "exclude_subfolders": zone.get("exclude_subfolders", []),
+            "ignore_patterns": zone.get("ignore_patterns"),
+        }
+
+        # Create isolated settings with zone's custom categories for SmartSorter
+        # This ensures the AI uses zone-specific categories, not global settings
+        temp_settings = Settings()
+        temp_settings.set("custom_categories", profile["categories"])
+
+        # Create AI client and SmartSorter with zone-specific settings
+        ai_client = AsyncGeminiClient()
+        smart_sorter = SmartSorter(client=ai_client, settings=temp_settings)
+
+        # Create stability monitor
+        monitor = StabilityMonitor(self.state_manager)
+
+        # Define event callback for UI status updates
+        def event_callback(
+            status: str,
+            filename: str,
+            error: Optional[str] = None,
+        ) -> None:
+            self.interface.show_watch_event("file", filename, status, error)
+
+        # Create SmartFolderEventHandler with profile configuration
+        # Note: file_types are file extensions (e.g., ["pdf", "jpg"]) for filtering
+        #       categories are passed to SmartSorter via temp_settings for AI categorization
+        handler = SmartFolderEventHandler(
+            smart_sorter=smart_sorter,
+            monitor=monitor,
+            state_manager=self.state_manager,
+            base_path=profile["path"],
+            folder_structure=profile["folder_structure"],
+            file_types=profile.get("file_types"),  # File extensions for filtering
+            ignore_patterns=profile.get("ignore_patterns"),
+            exclude_subfolders=profile["exclude_subfolders"],
+            recursive=profile["recursive"],
+            on_event_callback=event_callback,
+        )
+
+        # Create and configure observer
+        observer = Observer()
+        observer.schedule(handler, profile["path"], recursive=profile["recursive"])
+
+        # Show status banner
+        self.interface.show_smart_watch_status(profile)
 
         # Start observer
         observer.start()

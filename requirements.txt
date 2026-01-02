@@ -28,3 +28,8 @@ watchdog>=4.0.0
 
 # Knowledge Graph
 kuzu>=0.1.0
+
+# API Integration (optional for macOS native app)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0

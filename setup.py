@@ -44,6 +44,7 @@ setup(
     entry_points={
         "console_scripts": [
             "folder-extractor=folder_extractor.main:main",
+            "folder-extractor-api=run_api:main",
         ],
     },
     # Runtime dependencies for modern CLI experience

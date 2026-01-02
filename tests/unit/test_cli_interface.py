@@ -1706,3 +1706,265 @@ class TestWatchModeUI:
         interface.show_watch_stopped()
 
         mock_console.print.assert_not_called()
+
+
+@patch("folder_extractor.cli.interface.Console")
+class TestSmartWatchUI:
+    """Tests for smart watch mode UI methods."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        settings.reset_to_defaults()
+
+    # --- Tests for show_smart_watch_status ---
+
+    def test_show_smart_watch_status_displays_banner(self, mock_console_class):
+        """Test show_smart_watch_status displays the smart watch banner."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "name": "Downloads",
+            "path": "/Users/test/Downloads",
+            "folder_structure": "{category}/{sender}/{year}",
+            "categories": ["Finanzen", "Verträge", "Medizin"],
+            "recursive": False,
+            "exclude_subfolders": [],
+        }
+        interface.show_smart_watch_status(profile)
+
+        # Should print multiple lines for the banner
+        assert mock_console.print.call_count >= 3
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should contain banner header
+        assert "Smart Watch" in call_args_str
+
+    def test_show_smart_watch_status_displays_path(self, mock_console_class):
+        """Test show_smart_watch_status displays the watch path."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/Users/test/Downloads",
+            "folder_structure": "{category}",
+            "categories": [],
+            "recursive": False,
+        }
+        interface.show_smart_watch_status(profile)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "/Users/test/Downloads" in call_args_str
+
+    def test_show_smart_watch_status_displays_folder_structure(self, mock_console_class):
+        """Test show_smart_watch_status displays the folder structure template."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}/{sender}/{year}",
+            "categories": [],
+            "recursive": False,
+        }
+        interface.show_smart_watch_status(profile)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "{category}/{sender}/{year}" in call_args_str
+
+    def test_show_smart_watch_status_displays_categories(self, mock_console_class):
+        """Test show_smart_watch_status displays configured categories."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+            "categories": ["Finanzen", "Verträge", "Medizin"],
+            "recursive": False,
+        }
+        interface.show_smart_watch_status(profile)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Categories should be joined with comma
+        assert "Finanzen" in call_args_str
+        assert "Verträge" in call_args_str
+
+    def test_show_smart_watch_status_displays_recursive_status(self, mock_console_class):
+        """Test show_smart_watch_status displays recursion status."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+            "categories": [],
+            "recursive": True,
+        }
+        interface.show_smart_watch_status(profile)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show "Ja" for recursive=True
+        assert "Ja" in call_args_str or "ja" in call_args_str.lower()
+
+    def test_show_smart_watch_status_displays_exclusions(self, mock_console_class):
+        """Test show_smart_watch_status displays excluded subfolders."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+            "categories": [],
+            "recursive": True,
+            "exclude_subfolders": ["node_modules", ".git"],
+        }
+        interface.show_smart_watch_status(profile)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        assert "node_modules" in call_args_str
+        assert ".git" in call_args_str
+
+    def test_show_smart_watch_status_hides_exclusions_when_empty(
+        self, mock_console_class
+    ):
+        """Test show_smart_watch_status hides exclusions line when empty."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+            "categories": [],
+            "recursive": False,
+            "exclude_subfolders": [],
+        }
+        interface.show_smart_watch_status(profile)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show exclusions line when empty
+        assert "Ausgeschlossen" not in call_args_str
+
+    def test_show_smart_watch_status_quiet_mode_no_output(self, mock_console_class):
+        """Test show_smart_watch_status is suppressed in quiet mode."""
+        settings.set("quiet", True)
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+            "categories": [],
+            "recursive": False,
+        }
+        interface.show_smart_watch_status(profile)
+
+        mock_console.print.assert_not_called()
+
+    def test_show_smart_watch_status_uses_highlight_style_for_banner(
+        self, mock_console_class
+    ):
+        """Test show_smart_watch_status uses highlight style for banner."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+            "categories": [],
+            "recursive": False,
+        }
+        interface.show_smart_watch_status(profile)
+
+        # First call should be the banner with highlight style
+        first_call = mock_console.print.call_args_list[0]
+        assert first_call.kwargs.get("style") == interface.highlight_style
+
+    def test_show_smart_watch_status_handles_missing_optional_fields(
+        self, mock_console_class
+    ):
+        """Test show_smart_watch_status handles profiles with missing optional fields."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        # Minimal profile without optional fields
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+        }
+        # Should not raise exception
+        interface.show_smart_watch_status(profile)
+
+        # Should still display the banner and required fields
+        assert mock_console.print.call_count >= 2
+
+    def test_show_smart_watch_status_empty_categories_shows_default_hint(
+        self, mock_console_class
+    ):
+        """Test show_smart_watch_status shows hint when categories is empty."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+            "categories": [],
+            "recursive": False,
+        }
+        interface.show_smart_watch_status(profile)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show "Standard" or similar for empty categories
+        assert "Standard" in call_args_str or "standard" in call_args_str.lower()
+
+    def test_show_smart_watch_status_displays_file_types(self, mock_console_class):
+        """Test show_smart_watch_status displays file type filter when provided."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+            "categories": ["Finanzen"],
+            "file_types": ["pdf", "docx", "xlsx"],
+            "recursive": False,
+        }
+        interface.show_smart_watch_status(profile)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should show file types
+        assert "pdf" in call_args_str
+        assert "docx" in call_args_str
+        assert "xlsx" in call_args_str
+
+    def test_show_smart_watch_status_hides_file_types_when_empty(
+        self, mock_console_class
+    ):
+        """Test show_smart_watch_status hides file types line when empty or None."""
+        mock_console = MagicMock()
+        mock_console_class.return_value = mock_console
+
+        interface = ConsoleInterface()
+        profile = {
+            "path": "/test/path",
+            "folder_structure": "{category}",
+            "categories": [],
+            "file_types": None,  # No file type filter
+            "recursive": False,
+        }
+        interface.show_smart_watch_status(profile)
+
+        call_args_str = str(mock_console.print.call_args_list)
+        # Should NOT show file types line when None
+        assert "Dateitypen" not in call_args_str

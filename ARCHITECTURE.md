@@ -41,11 +41,18 @@ folder_extractor/
 │   ├── constants.py     # Application constants, messages, file type mappings
 │   └── settings.py      # Runtime settings management (singleton)
 │
-└── utils/               # Utility functions
+├── utils/               # Utility functions
+│   ├── __init__.py
+│   ├── path_validators.py  # Path security validation
+│   ├── file_validators.py  # File type and temp file validation
+│   └── parsers.py          # Input parsing (file types, domains, depth)
+│
+└── api/                 # API layer (optional, for macOS integration)
     ├── __init__.py
-    ├── path_validators.py  # Path security validation
-    ├── file_validators.py  # File type and temp file validation
-    └── parsers.py          # Input parsing (file types, domains, depth)
+    ├── models.py        # Pydantic request/response models
+    ├── server.py        # FastAPI application (Phase 3)
+    ├── endpoints.py     # REST endpoints (Phase 4)
+    └── websocket.py     # WebSocket manager (Phase 6)
 ```
 
 ## Key Components
@@ -155,6 +162,25 @@ folder_extractor/
   - `parse_file_types()`: Parses comma-separated file extensions
   - `parse_domains()`: Parses and normalizes domain filters
   - `parse_depth()`: Validates and parses depth parameter
+
+### 5. API Layer (`api/`) - Optional
+
+**Purpose**: Expose core functionality via REST API and WebSockets for native macOS integration
+
+- **`models.py`**: Pydantic models for request/response validation
+  - Request models: `ProcessRequest`, `ZoneConfig`, `WatcherStartRequest`, `WatcherStopRequest`
+  - Response models: `ProcessResponse`, `ZoneResponse`, `WatcherStatusResponse`, `HealthResponse`
+  - WebSocket models: `WebSocketMessage`
+- **`server.py`**: FastAPI application with lifecycle management (created in Phase 3)
+- **`endpoints.py`**: REST endpoint implementations (created in Phase 4)
+- **`websocket.py`**: WebSocket connection manager (created in Phase 6)
+
+**Design Principle**: The API layer is a **thin adapter** that delegates to existing core components:
+- No business logic in API layer
+- Direct reuse of `EnhancedExtractionOrchestrator`, `SmartSorter`, `FolderEventHandler`
+- Follows existing Dependency Injection pattern
+
+**Dependencies**: `fastapi>=0.104.0`, `uvicorn[standard]>=0.24.0`, `pydantic>=2.0.0`
 
 ## Design Patterns Used
 

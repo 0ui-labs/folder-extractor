@@ -226,10 +226,161 @@ pip uninstall folder-extractor
 
 ## Systemanforderungen
 
-- Python 3.7 oder höher
+- Python 3.8 oder höher
 - macOS, Linux oder Windows
-- Keine externen Abhängigkeiten
+- **CLI-Modus**: Nur `rich` als externe Abhängigkeit
+- **API-Modus**: `fastapi`, `uvicorn`, `pydantic` (optional)
 
 ## Lizenz
 
 MIT License
+
+## API Server (für macOS Integration)
+
+Folder Extractor bietet eine REST-API und WebSocket-Schnittstelle für die Integration mit nativen macOS-Apps (z.B. Swift-Apps).
+
+### API-Dependencies installieren
+
+```bash
+pip install fastapi uvicorn[standard] pydantic>=2.0.0 websockets python-dotenv
+```
+
+### Server starten
+
+```bash
+# Standard: localhost:23456
+python run_api.py
+
+# Eigener Port
+python run_api.py --port 8000
+
+# Development-Mode mit Auto-Reload
+python run_api.py --reload
+
+# Alle Optionen
+python run_api.py --host 127.0.0.1 --port 23456 --log-level debug --reload
+```
+
+Nach dem Start ist die API verfügbar unter:
+- **API Endpunkte:** `http://localhost:23456`
+- **Interaktive Dokumentation:** `http://localhost:23456/docs`
+- **Alternative Docs:** `http://localhost:23456/redoc`
+
+### Verfügbare Endpunkte
+
+#### Health Check
+- `GET /health` - Server-Status prüfen
+
+#### Dateiverarbeitung
+- `POST /api/v1/process` - Einzelne Datei verarbeiten
+  ```json
+  {
+    "filepath": "/Users/username/Desktop/document.pdf"
+  }
+  ```
+
+#### Dropzone-Verwaltung
+- `GET /api/v1/zones` - Alle konfigurierten Dropzones abrufen
+- `POST /api/v1/zones` - Neue Dropzone erstellen
+  ```json
+  {
+    "name": "Dokumente",
+    "path": "/Users/username/Desktop/Dropzone",
+    "enabled": true,
+    "auto_sort": true,
+    "categories": ["Finanzen", "Verträge"]
+  }
+  ```
+- `DELETE /api/v1/zones/{zone_id}` - Dropzone löschen
+
+#### Watch-Mode
+- `POST /api/v1/watcher/start` - Überwachung für eine Zone starten
+  ```json
+  {
+    "zone_id": "uuid-here"
+  }
+  ```
+- `POST /api/v1/watcher/stop` - Überwachung stoppen
+  ```json
+  {
+    "zone_id": "uuid-here"
+  }
+  ```
+- `GET /api/v1/watcher/status` - Status aller Watcher abrufen
+
+#### WebSocket (Echtzeit-Kommunikation)
+- `WS /ws/chat` - Bidirektionale Kommunikation für Chat und Status-Updates
+  ```javascript
+  // Beispiel: JavaScript WebSocket Client
+  const ws = new WebSocket('ws://localhost:23456/ws/chat');
+  ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    console.log(message.type, message.data);
+  };
+  ```
+
+### Konfiguration
+
+Erstelle eine `.env`-Datei im Projektverzeichnis (basierend auf `.env.example`):
+
+```bash
+cp .env.example .env
+```
+
+Passe die API-Konfiguration an:
+```
+API_PORT=23456
+API_HOST=127.0.0.1
+API_LOG_LEVEL=info
+```
+
+### Sicherheitshinweise
+
+⚠️ **Wichtig für die Produktion:**
+- Der API-Server läuft standardmäßig nur auf `localhost` (127.0.0.1)
+- Für externe Verbindungen `API_HOST=0.0.0.0` setzen (nicht empfohlen ohne zusätzliche Sicherheitsmaßnahmen)
+- CORS ist standardmäßig für `localhost` konfiguriert
+- Für Produktionsumgebungen zusätzliche Authentifizierung implementieren
+
+### Integration mit Swift (macOS App)
+
+Beispiel für HTTP-Request in Swift:
+
+```swift
+import Foundation
+
+// Datei verarbeiten
+let url = URL(string: "http://localhost:23456/api/v1/process")!
+var request = URLRequest(url: url)
+request.httpMethod = "POST"
+request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+let body: [String: Any] = ["filepath": "/Users/username/Desktop/document.pdf"]
+request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+URLSession.shared.dataTask(with: request) { data, response, error in
+    // Handle response
+}.resume()
+```
+
+Beispiel für WebSocket in Swift:
+
+```swift
+import Foundation
+
+let url = URL(string: "ws://localhost:23456/ws/chat")!
+let webSocket = URLSession.shared.webSocketTask(with: url)
+webSocket.resume()
+
+// Nachricht empfangen
+webSocket.receive { result in
+    switch result {
+    case .success(let message):
+        // Handle message
+    case .failure(let error):
+        print("WebSocket error: \(error)")
+    }
+}
+```
+
+**Hinweis:** Die API ist optional und wird nur für die native macOS-App benötigt. Die CLI-Funktionalität bleibt unverändert.

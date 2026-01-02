@@ -51,6 +51,10 @@ filterwarnings = [
     # These are triggered by google-generativeai dependencies and not our code
     "ignore::DeprecationWarning:httplib2",
     "ignore::DeprecationWarning:pyparsing",
+    # Ignore Starlette deprecation warning (HTTP_422 constant renamed)
+    # This is a FastAPI/Starlette internal issue, not our code
+    "ignore::DeprecationWarning:starlette.*",
+    "ignore:'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated:DeprecationWarning",
 ]
 markers = [
     "integration: Integration tests that test complete workflows",

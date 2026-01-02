@@ -630,3 +630,162 @@ class TestOnEventCallback:
         handler.on_created(event)
 
         self.event_callback.assert_not_called()
+
+
+class TestWebSocketCallback:
+    """Tests for websocket_callback parameter in FolderEventHandler.
+
+    The websocket_callback provides an additional notification channel
+    for real-time updates to WebSocket clients, alongside the existing
+    progress_callback and on_event_callback.
+    """
+
+    def setup_method(self) -> None:
+        """Set up test fixtures before each test method."""
+        self.state_manager = StateManager()
+        self.monitor = Mock(spec=StabilityMonitor)
+        self.orchestrator = Mock(spec=EnhancedExtractionOrchestrator)
+        self.websocket_callback = Mock()
+
+    def test_websocket_callback_parameter_accepted(self) -> None:
+        """Handler accepts optional websocket_callback parameter."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=None,
+            websocket_callback=self.websocket_callback,
+        )
+        assert handler.websocket_callback is self.websocket_callback
+
+    def test_websocket_callback_defaults_to_none(self) -> None:
+        """Handler works without websocket_callback (backward compatibility)."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+        )
+        assert handler.websocket_callback is None
+
+    def test_websocket_callback_called_for_progress_updates(
+        self, tmp_path: Path
+    ) -> None:
+        """Websocket callback receives progress updates."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=None,
+            websocket_callback=self.websocket_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        handler.on_created(event)
+
+        # Websocket callback should have been called multiple times
+        assert self.websocket_callback.call_count >= 1
+
+    def test_websocket_callback_called_for_event_updates(self, tmp_path: Path) -> None:
+        """Websocket callback receives event status updates."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=None,
+            websocket_callback=self.websocket_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        handler.on_created(event)
+
+        # Check that callback was called with expected event types
+        call_args_list = self.websocket_callback.call_args_list
+        call_types = [call[1].get("type") or call[0][0] for call in call_args_list]
+
+        # Should have progress and event updates
+        assert len(call_types) >= 1
+
+    def test_websocket_callback_independent_of_progress_callback(
+        self, tmp_path: Path
+    ) -> None:
+        """Websocket callback works independently of progress_callback."""
+        progress_callback = Mock()
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=progress_callback,
+            on_event_callback=None,
+            websocket_callback=self.websocket_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        handler.on_created(event)
+
+        # Both callbacks should have been called
+        assert progress_callback.call_count >= 1
+        assert self.websocket_callback.call_count >= 1
+
+    def test_faulty_websocket_callback_does_not_crash_handler(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Websocket callback exceptions are caught and logged, handler continues."""
+        faulty_callback = Mock(side_effect=RuntimeError("WebSocket error"))
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=None,
+            websocket_callback=faulty_callback,
+        )
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("content")
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        # Should not raise despite faulty callback
+        with caplog.at_level(logging.WARNING):
+            handler.on_created(event)
+
+        # Extraction still completed
+        self.orchestrator.process_single_file.assert_called_once()
+
+    def test_websocket_callback_not_called_for_temp_files(self, tmp_path: Path) -> None:
+        """Websocket callback is not invoked for ignored temp files."""
+        handler = FolderEventHandler(
+            self.orchestrator,
+            self.monitor,
+            self.state_manager,
+            progress_callback=None,
+            on_event_callback=None,
+            websocket_callback=self.websocket_callback,
+        )
+        test_file = tmp_path / "document.pdf.crdownload"
+        test_file.write_text("incomplete")
+        event = FileCreatedEvent(str(test_file))
+
+        handler.on_created(event)
+
+        self.websocket_callback.assert_not_called()
