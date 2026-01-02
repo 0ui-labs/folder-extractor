@@ -17,6 +17,24 @@ from folder_extractor.config.settings import settings
 from folder_extractor.core.state_manager import reset_state_manager
 
 
+# Helper: Check if CLI app can be imported (fails on Python 3.8 due to google-generativeai)
+def _can_import_cli_app() -> bool:
+    """Check if the CLI app module can be imported."""
+    try:
+        from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+# Skip marker for tests requiring CLI app import
+requires_cli_app = pytest.mark.skipif(
+    not _can_import_cli_app(),
+    reason="CLI app requires google-generativeai (Python 3.9+)",
+)
+
+
 @pytest.fixture
 def compat_test_env(tmp_path):
     """Set up test environment for backward compatibility tests.
@@ -108,6 +126,7 @@ class TestBackwardCompatibility:
         assert state_manager.get_value("file_type_filter") == "pdf"
         assert state_manager.get_value("dry_run") is True
 
+    @requires_cli_app
     def test_enhanced_cli_with_legacy_args(self, compat_test_env):
         """Test enhanced CLI with legacy command line arguments."""
         from folder_extractor.cli.app import EnhancedFolderExtractorCLI
