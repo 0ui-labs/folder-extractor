@@ -725,6 +725,263 @@ class FileMover:
         self.abort_signal = abort_signal
         self.indexing_callback = indexing_callback
 
+    def _perform_move(
+        self,
+        source_path: Path,
+        dest_path: Path,
+        filename: str,
+        dry_run: bool,
+        hash_index: Optional[Dict[str, List[Path]]] = None,
+    ) -> Tuple[bool, bool, Optional[Dict[str, Any]]]:
+        """
+        Perform a single file move operation with optional hash index update.
+
+        This is a helper method that encapsulates the common move logic
+        used by both move_files() and move_files_sorted().
+
+        Args:
+            source_path: Path to the source file
+            dest_path: Destination directory path
+            filename: Original filename of the file
+            dry_run: If True, simulate the operation without moving
+            hash_index: Optional hash index to update after move
+
+        Returns:
+            Tuple of (success, renamed, history_entry) where:
+            - success: True if file was successfully moved
+            - renamed: True if file was renamed (unique_name != filename)
+            - history_entry: History entry dict or None for dry-run
+        """
+        # Step 1: Generate unique name
+        unique_name = self.file_ops.generate_unique_name(dest_path, filename)
+
+        # Step 2: Check if renamed
+        renamed = unique_name != filename
+
+        # Step 3: Create final destination
+        final_dest = dest_path / unique_name
+
+        # Step 4: Move file
+        success = self.file_ops.move_file(source_path, final_dest, dry_run)
+
+        # Step 5: If not successful, return failure
+        if not success:
+            return (False, False, None)
+
+        # Step 6: Update hash index (when success AND hash_index given AND not dry_run)
+        if hash_index is not None and not dry_run:
+            try:
+                file_hash = self.file_ops.calculate_file_hash(final_dest)
+                hash_index.setdefault(file_hash, []).append(final_dest)
+            except FileOperationError:
+                # Hash calculation error is caught silently
+                pass
+
+        # Step 7: Create history entry (only when success AND not dry_run)
+        history_entry: Optional[Dict[str, Any]] = None
+        if not dry_run:
+            history_entry = {
+                "original_pfad": str(source_path),
+                "neuer_pfad": str(final_dest),
+                "original_name": filename,
+                "neuer_name": unique_name,
+                "zeitstempel": datetime.now().isoformat(),
+            }
+
+        # Step 8: Return results
+        return (success, renamed, history_entry)
+
+    def _prepare_global_hash_index(
+        self,
+        files: Sequence[Union[str, Path]],
+        dest_path: Path,
+    ) -> Tuple[Sequence[Union[str, Path]], Dict[str, List[Path]]]:
+        """
+        Prepare hash index for global deduplication.
+
+        Sorts files by modification time (oldest first), builds a hash index
+        of all existing files in the destination, and filters out source files
+        to prevent false duplicate detection.
+
+        Args:
+            files: List of file paths to process
+            dest_path: Destination directory path
+
+        Returns:
+            Tuple of (sorted_files, hash_index) where:
+            - sorted_files: Files sorted by mtime, name length, and name
+            - hash_index: Dict mapping file hashes to lists of file paths
+
+        Note:
+            BUGFIX: Source files in subdirectories are removed from the hash
+            index to prevent data loss when identical source files would
+            otherwise match each other and be deleted.
+        """
+        # Sort files by modification time (oldest first) so that when
+        # duplicates are found, the ORIGINAL (older) file is kept and
+        # the newer copy is detected as duplicate.
+        # Secondary sort by filename length then alphabetically, so that
+        # when mtimes are equal, shorter/simpler names (likely originals)
+        # are processed first (e.g., "test.md" before "test kopie.md").
+        sorted_files: Sequence[Union[str, Path]] = files
+        with contextlib.suppress(OSError):
+            sorted_files = sorted(
+                files,
+                key=lambda f: (
+                    Path(f).stat().st_mtime,  # Primary: oldest first
+                    len(Path(f).name),  # Secondary: shortest name first
+                    Path(f).name,  # Tertiary: alphabetically
+                ),
+            )
+
+        hash_index: Dict[str, List[Path]] = {}
+
+        try:
+            # Signal indexing start
+            if self.indexing_callback:
+                self.indexing_callback("start")
+            # Get all existing hashes in destination for dedup
+            hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
+
+            # BUGFIX: Remove source files from the hash index to prevent
+            # them from matching each other. Without this, two identical
+            # source files would both be detected as "already exists"
+            # and deleted, resulting in data loss.
+            # IMPORTANT: Only remove files from SUBDIRECTORIES, not from root
+            # or from type folders (when using sort-by-type).
+            dest_resolved = dest_path.resolve()
+            # Get known type folder names for filtering
+            known_type_folders = set(FILE_TYPE_FOLDERS.values())
+            source_paths = set()
+            for f in sorted_files:
+                fp = Path(f).resolve()
+                parent = fp.parent
+                # Skip files in root directory
+                if parent == dest_resolved:
+                    continue
+                # Skip files already in a type folder (e.g., TEXT/doc.txt)
+                if parent.parent == dest_resolved and parent.name in known_type_folders:
+                    continue
+                source_paths.add(fp)
+            for hash_value in list(hash_index.keys()):
+                hash_index[hash_value] = [
+                    p for p in hash_index[hash_value] if p.resolve() not in source_paths
+                ]
+                # Remove empty entries
+                if not hash_index[hash_value]:
+                    del hash_index[hash_value]
+        except FileOperationError:
+            # If we can't build index, continue without global dedup
+            hash_index = {}
+        finally:
+            # Signal indexing end
+            if self.indexing_callback:
+                self.indexing_callback("end")
+
+        return sorted_files, hash_index
+
+    def _check_local_duplicate(
+        self,
+        source_path: Path,
+        existing_dest: Path,
+        dry_run: bool,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if source file is a content duplicate of an existing destination file.
+
+        This handles the case where source and destination have the same name
+        AND the same content. The source file is deleted (not moved) and a
+        history entry is returned.
+
+        Args:
+            source_path: Path to the source file
+            existing_dest: Path to the existing destination file
+            dry_run: If True, don't actually delete the source file
+
+        Returns:
+            History entry dict if duplicate detected, None otherwise.
+            Returns None on hash calculation errors to allow fallback behavior.
+        """
+        if not existing_dest.exists():
+            return None
+
+        try:
+            source_hash = self.file_ops.calculate_file_hash(source_path)
+            dest_hash = self.file_ops.calculate_file_hash(existing_dest)
+
+            if source_hash == dest_hash:
+                # Identical content - delete source, return history entry
+                if not dry_run:
+                    source_path.unlink()
+
+                return {
+                    "original_pfad": str(source_path),
+                    "neuer_pfad": str(existing_dest),
+                    "original_name": source_path.name,
+                    "neuer_name": existing_dest.name,
+                    "zeitstempel": datetime.now().isoformat(),
+                    "content_duplicate": True,
+                    "duplicate_of": str(existing_dest),
+                }
+        except (FileOperationError, OSError):
+            # Hash calculation failed - fall back to normal behavior
+            pass
+
+        return None
+
+    def _check_global_duplicate(
+        self,
+        source_path: Path,
+        hash_index: Dict[str, List[Path]],
+        dry_run: bool,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if source file is a global duplicate (same content, different name).
+
+        This handles the case where the source file's content already exists
+        somewhere in the destination tree under a different filename.
+        The source file is deleted (not moved) and a history entry is returned.
+
+        Args:
+            source_path: Path to the source file
+            hash_index: Dict mapping file hashes to lists of file paths
+            dry_run: If True, don't actually delete the source file
+
+        Returns:
+            History entry dict if duplicate detected, None otherwise.
+            Returns None on hash calculation errors to allow fallback behavior.
+        """
+        try:
+            source_hash = self.file_ops.calculate_file_hash(source_path)
+
+            if source_hash in hash_index:
+                # Find files that are NOT the source file itself
+                matching_files = [
+                    p
+                    for p in hash_index[source_hash]
+                    if p.resolve() != source_path.resolve()
+                ]
+
+                if matching_files:
+                    # Content exists in another file - delete source
+                    if not dry_run:
+                        source_path.unlink()
+
+                    return {
+                        "original_pfad": str(source_path),
+                        "neuer_pfad": str(matching_files[0]),
+                        "original_name": source_path.name,
+                        "neuer_name": matching_files[0].name,
+                        "zeitstempel": datetime.now().isoformat(),
+                        "global_duplicate": True,
+                        "duplicate_of": str(matching_files[0]),
+                    }
+        except FileOperationError:
+            # Hash calculation failed - fall back to normal behavior
+            pass
+
+        return None
+
     def move_files(
         self,
         files: Sequence[Union[str, Path]],
@@ -767,68 +1024,7 @@ class FileMover:
         # Build hash index for global deduplication
         hash_index: Dict[str, List[Path]] = {}
         if global_dedup:
-            # Sort files by modification time (oldest first) so that when
-            # duplicates are found, the ORIGINAL (older) file is kept and
-            # the newer copy is detected as duplicate.
-            # Secondary sort by filename length then alphabetically, so that
-            # when mtimes are equal, shorter/simpler names (likely originals)
-            # are processed first (e.g., "test.md" before "test kopie.md").
-            with contextlib.suppress(OSError):
-                files = sorted(
-                    files,
-                    key=lambda f: (
-                        Path(f).stat().st_mtime,  # Primary: oldest first
-                        len(Path(f).name),  # Secondary: shortest name first
-                        Path(f).name,  # Tertiary: alphabetically
-                    ),
-                )
-
-            try:
-                # Signal indexing start
-                if self.indexing_callback:
-                    self.indexing_callback("start")
-                # Get all existing hashes in destination for dedup
-                hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
-
-                # BUGFIX: Remove source files from the hash index to prevent
-                # them from matching each other. Without this, two identical
-                # source files would both be detected as "already exists"
-                # and deleted, resulting in data loss.
-                # IMPORTANT: Only remove files from SUBDIRECTORIES, not from root
-                # or from type folders (when using sort-by-type).
-                dest_resolved = dest_path.resolve()
-                # Get known type folder names for filtering
-                known_type_folders = set(FILE_TYPE_FOLDERS.values())
-                source_paths = set()
-                for f in files:
-                    fp = Path(f).resolve()
-                    parent = fp.parent
-                    # Skip files in root directory
-                    if parent == dest_resolved:
-                        continue
-                    # Skip files already in a type folder (e.g., TEXT/doc.txt)
-                    if (
-                        parent.parent == dest_resolved
-                        and parent.name in known_type_folders
-                    ):
-                        continue
-                    source_paths.add(fp)
-                for hash_value in list(hash_index.keys()):
-                    hash_index[hash_value] = [
-                        p
-                        for p in hash_index[hash_value]
-                        if p.resolve() not in source_paths
-                    ]
-                    # Remove empty entries
-                    if not hash_index[hash_value]:
-                        del hash_index[hash_value]
-            except FileOperationError:
-                # If we can't build index, continue without global dedup
-                pass
-            finally:
-                # Signal indexing end
-                if self.indexing_callback:
-                    self.indexing_callback("end")
+            files, hash_index = self._prepare_global_hash_index(files, dest_path)
 
         for i, file_path in enumerate(files):  # pragma: no branch
             # Check abort signal
@@ -859,98 +1055,43 @@ class FileMover:
                 # Note: Also runs when global_dedup is True, because identical
                 # files with same name should be deduplicated regardless
                 if existing_dest.exists() and (deduplicate or global_dedup):
-                    # Try hash comparison for deduplication
-                    try:
-                        source_hash = self.file_ops.calculate_file_hash(source_path)
-                        dest_hash = self.file_ops.calculate_file_hash(existing_dest)
-
-                        if source_hash == dest_hash:
-                            # Identical content - skip move, delete source
-                            content_duplicates += 1
-                            if not dry_run:
-                                source_path.unlink()
-                                history.append(
-                                    {
-                                        "original_pfad": str(source_path),
-                                        "neuer_pfad": str(existing_dest),
-                                        "original_name": filename,
-                                        "neuer_name": filename,
-                                        "zeitstempel": datetime.now().isoformat(),
-                                        "content_duplicate": True,
-                                        "duplicate_of": str(existing_dest),
-                                    }
-                                )
-                            continue
-                    except (FileOperationError, OSError):
-                        # Hash calculation failed - fall back to rename behavior
-                        pass
+                    history_entry = self._check_local_duplicate(
+                        source_path, existing_dest, dry_run
+                    )
+                    if history_entry:
+                        content_duplicates += 1
+                        if not dry_run:
+                            history.append(history_entry)
+                        continue
 
                 # Global dedup check - AFTER content duplicate check
                 # Only runs when no file with same name exists
                 # Catches files with different names but matching content
                 if global_dedup and not existing_dest.exists():
-                    try:
-                        source_hash = self.file_ops.calculate_file_hash(source_path)
-                        if source_hash in hash_index:
-                            # Check content in DIFFERENT file (not source)
-                            matching_files = [
-                                p
-                                for p in hash_index[source_hash]
-                                if p.resolve() != source_path.resolve()
-                            ]
-                            if matching_files:
-                                # Content in another file = global duplicate
-                                global_duplicates += 1
-                                if not dry_run:
-                                    source_path.unlink()
-                                    history.append(
-                                        {
-                                            "original_pfad": str(source_path),
-                                            "neuer_pfad": str(matching_files[0]),
-                                            "original_name": filename,
-                                            "neuer_name": matching_files[0].name,
-                                            "zeitstempel": datetime.now().isoformat(),
-                                            "global_duplicate": True,
-                                            "duplicate_of": str(matching_files[0]),
-                                        }
-                                    )
-                                continue
-                    except FileOperationError:
-                        # Hash calculation failed - continue with normal move
-                        pass
+                    history_entry = self._check_global_duplicate(
+                        source_path, hash_index, dry_run
+                    )
+                    if history_entry:
+                        global_duplicates += 1
+                        if not dry_run:
+                            history.append(history_entry)
+                        continue
 
-                # Generate unique name if needed (normal duplicate handling)
-                unique_name = self.file_ops.generate_unique_name(dest_path, filename)
-                if unique_name != filename:
-                    duplicates += 1
+                # Call helper method to perform the move
+                success, renamed, history_entry = self._perform_move(
+                    source_path,
+                    dest_path,
+                    filename,
+                    dry_run,
+                    hash_index if global_dedup else None,
+                )
 
-                final_dest = dest_path / unique_name
-
-                # Move file
-                if self.file_ops.move_file(
-                    source_path, final_dest, dry_run
-                ):  # pragma: no branch
+                if success:
                     moved += 1
-
-                    # Update hash index for subsequent files
-                    if global_dedup and not dry_run:
-                        try:
-                            file_hash = self.file_ops.calculate_file_hash(final_dest)
-                            hash_index.setdefault(file_hash, []).append(final_dest)
-                        except FileOperationError:
-                            pass
-
-                    # Record in history (use strings for JSON serialization)
-                    if not dry_run:
-                        history.append(
-                            {
-                                "original_pfad": str(source_path),
-                                "neuer_pfad": str(final_dest),
-                                "original_name": filename,
-                                "neuer_name": unique_name,
-                                "zeitstempel": datetime.now().isoformat(),
-                            }
-                        )
+                    if renamed:
+                        duplicates += 1
+                    if history_entry:
+                        history.append(history_entry)
 
             except Exception as e:  # pragma: no branch
                 errors += 1
@@ -1016,68 +1157,7 @@ class FileMover:
         # Build hash index for global deduplication
         hash_index: Dict[str, List[Path]] = {}
         if global_dedup:
-            # Sort files by modification time (oldest first) so that when
-            # duplicates are found, the ORIGINAL (older) file is kept and
-            # the newer copy is detected as duplicate.
-            # Secondary sort by filename length then alphabetically, so that
-            # when mtimes are equal, shorter/simpler names (likely originals)
-            # are processed first (e.g., "test.md" before "test kopie.md").
-            with contextlib.suppress(OSError):
-                files = sorted(
-                    files,
-                    key=lambda f: (
-                        Path(f).stat().st_mtime,  # Primary: oldest first
-                        len(Path(f).name),  # Secondary: shortest name first
-                        Path(f).name,  # Tertiary: alphabetically
-                    ),
-                )
-
-            try:
-                # Signal indexing start
-                if self.indexing_callback:
-                    self.indexing_callback("start")
-                # Get all existing hashes in destination for dedup
-                hash_index = self.file_ops.build_hash_index(dest_path, include_all=True)
-
-                # BUGFIX: Remove source files from the hash index to prevent
-                # them from matching each other. Without this, two identical
-                # source files would both be detected as "already exists"
-                # and deleted, resulting in data loss.
-                # IMPORTANT: Only remove files from SUBDIRECTORIES, not from root
-                # or from type folders (when using sort-by-type).
-                dest_resolved = dest_path.resolve()
-                # Get known type folder names for filtering
-                known_type_folders = set(FILE_TYPE_FOLDERS.values())
-                source_paths = set()
-                for f in files:
-                    fp = Path(f).resolve()
-                    parent = fp.parent
-                    # Skip files in root directory
-                    if parent == dest_resolved:
-                        continue
-                    # Skip files already in a type folder (e.g., TEXT/doc.txt)
-                    if (
-                        parent.parent == dest_resolved
-                        and parent.name in known_type_folders
-                    ):
-                        continue
-                    source_paths.add(fp)
-                for hash_value in list(hash_index.keys()):
-                    hash_index[hash_value] = [
-                        p
-                        for p in hash_index[hash_value]
-                        if p.resolve() not in source_paths
-                    ]
-                    # Remove empty entries
-                    if not hash_index[hash_value]:
-                        del hash_index[hash_value]
-            except FileOperationError:
-                # If we can't build index, continue without global dedup
-                pass
-            finally:
-                # Signal indexing end
-                if self.indexing_callback:
-                    self.indexing_callback("end")
+            files, hash_index = self._prepare_global_hash_index(files, dest_path)
 
         for i, file_path in enumerate(files):  # pragma: no branch
             # Check abort signal
@@ -1140,98 +1220,43 @@ class FileMover:
                 # Note: Also runs when global_dedup is True, because identical
                 # files with same name should be deduplicated regardless
                 if existing_dest.exists() and (deduplicate or global_dedup):
-                    # Try hash comparison for deduplication
-                    try:
-                        source_hash = self.file_ops.calculate_file_hash(source_path)
-                        dest_hash = self.file_ops.calculate_file_hash(existing_dest)
-
-                        if source_hash == dest_hash:
-                            # Identical content - skip move, delete source
-                            content_duplicates += 1
-                            if not dry_run:
-                                source_path.unlink()
-                                history.append(
-                                    {
-                                        "original_pfad": str(source_path),
-                                        "neuer_pfad": str(existing_dest),
-                                        "original_name": filename,
-                                        "neuer_name": filename,
-                                        "zeitstempel": datetime.now().isoformat(),
-                                        "content_duplicate": True,
-                                        "duplicate_of": str(existing_dest),
-                                    }
-                                )
-                            continue
-                    except (FileOperationError, OSError):
-                        # Hash calculation failed - fall back to rename behavior
-                        pass
+                    history_entry = self._check_local_duplicate(
+                        source_path, existing_dest, dry_run
+                    )
+                    if history_entry:
+                        content_duplicates += 1
+                        if not dry_run:
+                            history.append(history_entry)
+                        continue
 
                 # Global dedup check - AFTER content duplicate check
                 # Only runs when no file with same name exists
                 # Catches files with different names but matching content
                 if global_dedup and not existing_dest.exists():
-                    try:
-                        source_hash = self.file_ops.calculate_file_hash(source_path)
-                        if source_hash in hash_index:
-                            # Check content in DIFFERENT file (not source)
-                            matching_files = [
-                                p
-                                for p in hash_index[source_hash]
-                                if p.resolve() != source_path.resolve()
-                            ]
-                            if matching_files:
-                                # Content in another file = global duplicate
-                                global_duplicates += 1
-                                if not dry_run:
-                                    source_path.unlink()
-                                    history.append(
-                                        {
-                                            "original_pfad": str(source_path),
-                                            "neuer_pfad": str(matching_files[0]),
-                                            "original_name": filename,
-                                            "neuer_name": matching_files[0].name,
-                                            "zeitstempel": datetime.now().isoformat(),
-                                            "global_duplicate": True,
-                                            "duplicate_of": str(matching_files[0]),
-                                        }
-                                    )
-                                continue
-                    except FileOperationError:
-                        # Hash calculation failed - continue with normal move
-                        pass
+                    history_entry = self._check_global_duplicate(
+                        source_path, hash_index, dry_run
+                    )
+                    if history_entry:
+                        global_duplicates += 1
+                        if not dry_run:
+                            history.append(history_entry)
+                        continue
 
-                # Generate unique name
-                unique_name = self.file_ops.generate_unique_name(type_path, filename)
-                if unique_name != filename:
-                    duplicates += 1
+                # Call helper method to perform the move
+                success, renamed, history_entry = self._perform_move(
+                    source_path,
+                    type_path,  # Note: type_path instead of dest_path
+                    filename,
+                    dry_run,
+                    hash_index if global_dedup else None,
+                )
 
-                final_dest = type_path / unique_name
-
-                # Move file
-                if self.file_ops.move_file(
-                    source_path, final_dest, dry_run
-                ):  # pragma: no branch
+                if success:
                     moved += 1
-
-                    # Update hash index for subsequent files
-                    if global_dedup and not dry_run:
-                        try:
-                            file_hash = self.file_ops.calculate_file_hash(final_dest)
-                            hash_index.setdefault(file_hash, []).append(final_dest)
-                        except FileOperationError:
-                            pass
-
-                    # Record in history (use strings for JSON serialization)
-                    if not dry_run:
-                        history.append(
-                            {
-                                "original_pfad": str(source_path),
-                                "neuer_pfad": str(final_dest),
-                                "original_name": filename,
-                                "neuer_name": unique_name,
-                                "zeitstempel": datetime.now().isoformat(),
-                            }
-                        )
+                    if renamed:
+                        duplicates += 1
+                    if history_entry:
+                        history.append(history_entry)
 
             except Exception as e:  # pragma: no branch
                 errors += 1
