@@ -4,18 +4,33 @@ Provides smart debouncing and robust error handling for filesystem monitoring.
 The FolderEventHandler class handles file system events from watchdog. It filters
 temporary files, waits for file stability, and triggers extraction via the
 orchestrator. Errors are caught and logged to prevent the watcher from crashing.
+
+SmartFolderEventHandler extends this with AI-powered categorization via SmartSorter,
+supporting template-based path building with placeholders.
 """
 
+from __future__ import annotations
+
+import asyncio
+import fnmatch
 import logging
+import mimetypes
+import re
+import shutil
+from datetime import datetime
 from pathlib import Path
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 
 from folder_extractor.config.constants import TEMP_EXTENSIONS
 from folder_extractor.core.extractor import EnhancedExtractionOrchestrator
+from folder_extractor.core.file_operations import FileOperations
 from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.state_manager import IStateManager
+
+if TYPE_CHECKING:
+    from folder_extractor.core.smart_sorter import SmartSorter
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +40,10 @@ ProgressCallback = Optional[Callable[[int, int, str, Optional[str]], None]]
 # Type alias for event callback: (status, filename, error) -> None
 # status: "incoming", "waiting", "analyzing", "sorted", "error"
 EventCallback = Optional[Callable[[str, str, Optional[str]], None]]
+
+# Type alias for WebSocket callback: receives structured updates for real-time streaming
+# Can be sync or async - handler checks and schedules appropriately
+WebSocketCallback = Optional[Callable[..., Any]]
 
 
 class FolderEventHandler(FileSystemEventHandler):
@@ -48,6 +67,7 @@ class FolderEventHandler(FileSystemEventHandler):
         state_manager: IStateManager,
         progress_callback: ProgressCallback = None,
         on_event_callback: EventCallback = None,
+        websocket_callback: WebSocketCallback = None,
     ) -> None:
         """Initialize folder event handler for watch mode.
 
@@ -60,6 +80,9 @@ class FolderEventHandler(FileSystemEventHandler):
             on_event_callback: Optional callback for UI event updates.
                 Signature: (status, filename, error) -> None
                 Status values: "incoming", "waiting", "analyzing", "sorted", "error"
+            websocket_callback: Optional callback for WebSocket real-time updates.
+                Receives structured dict with type, data, and filename.
+                Can be sync or async - handler schedules appropriately.
         """
         super().__init__()
         self.orchestrator = orchestrator
@@ -67,6 +90,7 @@ class FolderEventHandler(FileSystemEventHandler):
         self.state_manager = state_manager
         self.progress_callback = progress_callback
         self.on_event_callback = on_event_callback
+        self.websocket_callback = websocket_callback
         self._processing_files: set[str] = set()
 
     def on_created(self, event: FileSystemEvent) -> None:
@@ -118,6 +142,13 @@ class FolderEventHandler(FileSystemEventHandler):
             Exceptions from the callback are logged but suppressed
             to prevent faulty callbacks from crashing the watcher.
         """
+        # Also notify WebSocket callback with progress data
+        self._safe_websocket(
+            type="progress",
+            data={"current": current, "total": total, "error": error},
+            filename=filename,
+        )
+
         if not self.progress_callback:
             return
 
@@ -147,6 +178,13 @@ class FolderEventHandler(FileSystemEventHandler):
             Exceptions from the callback are logged but suppressed
             to prevent faulty callbacks from crashing the watcher.
         """
+        # Also notify WebSocket callback with event data
+        self._safe_websocket(
+            type="status",
+            data={"status": status, "error": error},
+            filename=filename,
+        )
+
         if not self.on_event_callback:
             return
 
@@ -155,6 +193,53 @@ class FolderEventHandler(FileSystemEventHandler):
         except Exception as e:
             logger.warning(
                 f"Event callback raised exception: {e}",
+                exc_info=True,
+            )
+
+    def _safe_websocket(
+        self,
+        type: str,
+        data: dict[str, Any],
+        filename: str,
+    ) -> None:
+        """Safely invoke WebSocket callback, suppressing any exceptions.
+
+        The callback receives a structured dict suitable for WebSocket broadcast.
+        Supports both sync and async callbacks - async callbacks are scheduled
+        via asyncio.create_task when an event loop is running.
+
+        Args:
+            type: Message type (progress, status, etc.).
+            data: Message payload data.
+            filename: Name of file being processed.
+
+        Note:
+            Exceptions from the callback are logged but suppressed
+            to prevent faulty callbacks from crashing the watcher.
+        """
+        if not self.websocket_callback:
+            return
+
+        message = {
+            "type": type,
+            "data": {**data, "filename": filename},
+        }
+
+        try:
+            result = self.websocket_callback(message)
+            # Handle async callbacks
+            if asyncio.iscoroutine(result):
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        asyncio.create_task(result)
+                    else:
+                        loop.run_until_complete(result)
+                except RuntimeError:
+                    asyncio.run(result)
+        except Exception as e:
+            logger.warning(
+                f"WebSocket callback raised exception: {e}",
                 exc_info=True,
             )
 
@@ -258,3 +343,385 @@ class FolderEventHandler(FileSystemEventHandler):
             # Notify UI: error
             self._safe_event("error", filepath.name, str(e))
             self._safe_progress(1, 1, filepath.name, str(e))
+
+
+class SmartFolderEventHandler(FileSystemEventHandler):
+    """Handle file system events with AI-powered smart sorting.
+
+    Processes file creation and move events using SmartSorter for AI-based
+    categorization. Supports template-based path building with placeholders
+    like {category}, {sender}, {year}, {month}, {filename}.
+
+    Attributes:
+        smart_sorter: SmartSorter instance for AI categorization.
+        monitor: Stability monitor for file readiness detection.
+        state_manager: State manager for abort signal handling.
+        base_path: Base directory for the watch zone.
+        folder_structure: Template for target path (e.g., "{category}/{sender}/{year}").
+        file_types: Optional list of allowed file extensions.
+        ignore_patterns: Patterns for files to ignore.
+        exclude_subfolders: Subfolders to exclude when recursive=True.
+        recursive: Whether to watch subdirectories.
+    """
+
+    # Timeout constants
+    CREATED_TIMEOUT = 30  # 30 seconds for newly created files
+    MOVED_TIMEOUT = 2  # 2 seconds for moved files (already complete)
+
+    def __init__(
+        self,
+        smart_sorter: SmartSorter,
+        monitor: StabilityMonitor,
+        state_manager: IStateManager,
+        base_path: Path,
+        folder_structure: str = "{category}/{sender}/{year}",
+        file_types: Optional[list[str]] = None,
+        ignore_patterns: Optional[list[str]] = None,
+        exclude_subfolders: Optional[list[str]] = None,
+        recursive: bool = False,
+        progress_callback: ProgressCallback = None,
+        on_event_callback: EventCallback = None,
+        websocket_callback: WebSocketCallback = None,
+    ) -> None:
+        """Initialize smart folder event handler.
+
+        Args:
+            smart_sorter: SmartSorter instance for AI categorization.
+            monitor: Stability monitor instance.
+            state_manager: State manager instance.
+            base_path: Base directory for the watch zone.
+            folder_structure: Template for target path with placeholders.
+                Supported: {category}, {sender}, {year}, {month}, {filename}
+            file_types: Optional list of allowed file extensions.
+            ignore_patterns: Glob patterns for files to ignore.
+            exclude_subfolders: Subfolder names to exclude when recursive=True.
+            recursive: Whether to watch subdirectories.
+            progress_callback: Optional callback for progress updates.
+            on_event_callback: Optional callback for UI event updates.
+            websocket_callback: Optional callback for WebSocket real-time updates.
+        """
+        super().__init__()
+        self.smart_sorter = smart_sorter
+        self.monitor = monitor
+        self.state_manager = state_manager
+        self.base_path = Path(base_path).resolve()
+        self.folder_structure = folder_structure
+        self.file_types = [ft.lower().lstrip(".") for ft in (file_types or [])]
+        self.ignore_patterns = ignore_patterns or []
+        self.exclude_subfolders = exclude_subfolders or []
+        self.recursive = recursive
+        self.progress_callback = progress_callback
+        self.on_event_callback = on_event_callback
+        self.websocket_callback = websocket_callback
+        self._processing_files: set[str] = set()
+        self._file_ops = FileOperations()
+
+    def on_created(self, event: FileSystemEvent) -> None:
+        """Handle file creation events with 30s stability timeout.
+
+        Args:
+            event: File system event from watchdog.
+        """
+        if event.is_directory:
+            return
+
+        filepath = Path(event.src_path)
+        self._schedule_processing(filepath, timeout=self.CREATED_TIMEOUT)
+
+    def on_moved(self, event: FileSystemEvent) -> None:
+        """Handle file move events with 2s stability timeout.
+
+        Args:
+            event: File system event from watchdog.
+        """
+        if event.is_directory:
+            return
+
+        filepath = Path(event.dest_path)
+        self._schedule_processing(filepath, timeout=self.MOVED_TIMEOUT)
+
+    def _schedule_processing(self, filepath: Path, timeout: int) -> None:
+        """Schedule file processing with the given stability timeout.
+
+        Args:
+            filepath: Path to the file to process.
+            timeout: Stability timeout in seconds.
+        """
+        if self._should_skip_file(filepath):
+            logger.debug(f"Skipping file: {filepath}")
+            return
+
+        # Prevent duplicate processing
+        if str(filepath) in self._processing_files:
+            logger.debug(f"Already processing: {filepath}")
+            return
+
+        self._processing_files.add(str(filepath))
+
+        try:
+            # Run async processing
+            asyncio.run(self._process_file_smart(filepath, timeout))
+        except Exception as e:
+            logger.error(f"Error processing {filepath}: {e}", exc_info=True)
+            self._safe_event("error", filepath.name, str(e))
+        finally:
+            self._processing_files.discard(str(filepath))
+
+    def _should_skip_file(self, filepath: Path) -> bool:
+        """Check if file should be skipped based on filters.
+
+        Checks:
+        - Temp files (extensions and patterns)
+        - File type filter (if configured)
+        - Ignore patterns
+        - Excluded subfolders (when recursive)
+
+        Args:
+            filepath: Path to check.
+
+        Returns:
+            True if file should be skipped.
+        """
+        filename = filepath.name
+        extension = filepath.suffix.lower().lstrip(".")
+
+        # Skip temp files
+        if filepath.suffix.lower() in TEMP_EXTENSIONS:
+            return True
+
+        # Skip browser download temp patterns
+        if any(
+            filename.lower().endswith(ext) for ext in (".crdownload", ".part", ".tmp")
+        ):
+            return True
+
+        # Check file type filter
+        if self.file_types and extension not in self.file_types:
+            return True
+
+        # Check ignore patterns
+        for pattern in self.ignore_patterns:
+            if fnmatch.fnmatch(filename, pattern):
+                return True
+
+        # Check excluded subfolders (when recursive)
+        if self.recursive and self.exclude_subfolders:
+            try:
+                relative = filepath.relative_to(self.base_path)
+                for part in relative.parts[:-1]:  # Exclude filename
+                    if part in self.exclude_subfolders:
+                        return True
+            except ValueError:
+                pass  # Not relative to base_path
+
+        return False
+
+    async def _process_file_smart(self, filepath: Path, timeout: int) -> None:
+        """Process file with SmartSorter for AI categorization.
+
+        Waits for file stability, detects MIME type, calls SmartSorter,
+        builds target path from template, and moves file with duplicate-safe naming.
+
+        Args:
+            filepath: Path to the file to process.
+            timeout: Stability timeout in seconds.
+        """
+        logger.info(f"Detected new file: {filepath.name}")
+        self._safe_event("incoming", filepath.name)
+
+        # Wait for file stability
+        self._safe_event("waiting", filepath.name)
+        self._safe_progress(0, 1, f"⏳ Warte auf {filepath.name}...")
+
+        ready = self.monitor.wait_for_file_ready(filepath, timeout=timeout)
+        if not ready:
+            logger.warning(f"File not ready after {timeout}s timeout: {filepath}")
+            self._safe_event("error", filepath.name, "Timeout: Datei nicht bereit")
+            return
+
+        # Check abort signal
+        if self.state_manager.is_abort_requested():
+            logger.info("Abort requested, skipping file processing")
+            return
+
+        # Verify file still exists
+        if not filepath.exists():
+            logger.warning(f"File no longer exists: {filepath}")
+            return
+
+        # Detect MIME type
+        mime_type, _ = mimetypes.guess_type(str(filepath))
+        if mime_type is None:
+            mime_type = "application/octet-stream"
+
+        # Analyze with SmartSorter
+        self._safe_event("analyzing", filepath.name)
+        self._safe_progress(0, 1, f"🤖 Analysiere {filepath.name}...")
+
+        try:
+            result = await self.smart_sorter.process_file(filepath, mime_type)
+        except Exception as e:
+            logger.error(f"SmartSorter error for {filepath.name}: {e}")
+            self._safe_event("error", filepath.name, str(e))
+            return
+
+        # Build target path
+        target_dir = self._build_target_path(result, filepath)
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate unique filename
+        unique_name = self._file_ops.generate_unique_name(target_dir, filepath.name)
+        target_path = target_dir / unique_name
+
+        # Move file
+        try:
+            shutil.move(str(filepath), str(target_path))
+            logger.info(f"Moved {filepath.name} -> {target_path}")
+            self._safe_event("sorted", filepath.name)
+            self._safe_progress(
+                1, 1, f"✅ {filepath.name} → {result.get('category', 'Sortiert')}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to move {filepath.name}: {e}")
+            self._safe_event("error", filepath.name, str(e))
+
+    def _build_target_path(self, result: dict[str, Any], filepath: Path) -> Path:
+        """Build target directory path from template and AI result.
+
+        Supported placeholders:
+        - {category}: Category from AI analysis (default: "Sonstiges")
+        - {sender}: Sender from AI analysis (default: "Unbekannt")
+        - {year}: Year from AI analysis or current year
+        - {month}: Current month (01-12)
+        - {filename}: Original filename (without extension)
+
+        Args:
+            result: SmartSorter result with category, sender, year.
+            filepath: Original file path.
+
+        Returns:
+            Resolved target directory path.
+        """
+        now = datetime.now()
+
+        # Extract values with defaults
+        category = result.get("category") or "Sonstiges"
+        sender = result.get("sender") or "Unbekannt"
+        year = result.get("year") or str(now.year)
+        month = f"{now.month:02d}"
+        filename = filepath.stem
+
+        # Sanitize values for filesystem
+        category = self._sanitize_path_component(category)
+        sender = self._sanitize_path_component(sender)
+        year = self._sanitize_path_component(str(year))
+        filename = self._sanitize_path_component(filename)
+
+        # Build path from template
+        path_str = self.folder_structure.format(
+            category=category,
+            sender=sender,
+            year=year,
+            month=month,
+            filename=filename,
+        )
+
+        return self.base_path / path_str
+
+    def _sanitize_path_component(self, value: str) -> str:
+        """Sanitize a value for use in filesystem paths.
+
+        Removes or replaces characters that are invalid in paths.
+
+        Args:
+            value: String to sanitize.
+
+        Returns:
+            Sanitized string safe for filesystem use.
+        """
+        # Replace path separators and other problematic chars
+        sanitized = re.sub(r'[<>:"/\\|?*]', "_", value)
+        # Remove leading/trailing whitespace and dots
+        sanitized = sanitized.strip(". ")
+        # Collapse multiple underscores
+        sanitized = re.sub(r"_+", "_", sanitized)
+        return sanitized or "Unbekannt"
+
+    def _safe_progress(
+        self,
+        current: int,
+        total: int,
+        filename: str,
+        error: Optional[str] = None,
+    ) -> None:
+        """Safely invoke progress callback."""
+        # Also notify WebSocket callback with progress data
+        self._safe_websocket(
+            type="progress",
+            data={"current": current, "total": total, "error": error},
+            filename=filename,
+        )
+
+        if not self.progress_callback:
+            return
+        try:
+            self.progress_callback(current, total, filename, error)
+        except Exception as e:
+            logger.warning(f"Progress callback raised exception: {e}")
+
+    def _safe_event(
+        self,
+        status: str,
+        filename: str,
+        error: Optional[str] = None,
+    ) -> None:
+        """Safely invoke event callback."""
+        # Also notify WebSocket callback with event data
+        self._safe_websocket(
+            type="status",
+            data={"status": status, "error": error},
+            filename=filename,
+        )
+
+        if not self.on_event_callback:
+            return
+        try:
+            self.on_event_callback(status, filename, error)
+        except Exception as e:
+            logger.warning(f"Event callback raised exception: {e}")
+
+    def _safe_websocket(
+        self,
+        type: str,
+        data: dict[str, Any],
+        filename: str,
+    ) -> None:
+        """Safely invoke WebSocket callback, suppressing any exceptions.
+
+        Args:
+            type: Message type (progress, status, etc.).
+            data: Message payload data.
+            filename: Name of file being processed.
+        """
+        if not self.websocket_callback:
+            return
+
+        message = {
+            "type": type,
+            "data": {**data, "filename": filename},
+        }
+
+        try:
+            result = self.websocket_callback(message)
+            # Handle async callbacks
+            if asyncio.iscoroutine(result):
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        asyncio.create_task(result)
+                    else:
+                        loop.run_until_complete(result)
+                except RuntimeError:
+                    asyncio.run(result)
+        except Exception as e:
+            logger.warning(f"WebSocket callback raised exception: {e}")

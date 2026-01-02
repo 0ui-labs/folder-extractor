@@ -280,6 +280,15 @@ Zusammenfassung:
     "QUERY_RESULTS_HEADER": "\n📚 Gefundene Dokumente ({count}):",
     "QUERY_RESULT_ITEM": "  • {path}",
     "QUERY_ERROR": "✗ Fehler bei der Abfrage: {error}",
+    # Smart Watch Mode messages
+    "SMART_WATCH_BANNER": "🧠 Smart Watch aktiv",
+    "SMART_WATCH_PATH": "📂 Pfad: {path}",
+    "SMART_WATCH_STRUCTURE": "📁 Struktur: {structure}",
+    "SMART_WATCH_CATEGORIES": "🏷️ Kategorien: {categories}",
+    "SMART_WATCH_RECURSIVE": "🔄 Rekursiv: {recursive}",
+    "SMART_WATCH_EXCLUSIONS": "🚫 Ausgeschlossen: {exclusions}",
+    "SMART_WATCH_FILE_TYPES": "📄 Dateitypen: {file_types}",
+    "SMART_WATCH_STOPPED": "⏹ Smart-Watch beendet",
 }
 
 

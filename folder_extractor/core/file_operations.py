@@ -24,15 +24,18 @@ from folder_extractor.config.constants import (
 )
 
 
-def get_config_directory() -> Path:
-    """Get the application config directory.
+def get_config_dir() -> Path:
+    """Get the application config root directory.
 
     Returns platform-appropriate config directory:
     - macOS/Linux: ~/.config/folder_extractor/
     - Windows: %APPDATA%/folder_extractor/
 
+    This is the root config directory for all application settings.
+    Use get_config_directory() for history-specific storage.
+
     Returns:
-        Path to config directory (created if doesn't exist)
+        Path to config root directory (created if doesn't exist)
     """
     if platform.system() == "Windows":
         base = Path(os.environ.get("APPDATA", Path.home()))
@@ -40,7 +43,25 @@ def get_config_directory() -> Path:
         # macOS and Linux use ~/.config/
         base = Path.home() / ".config"
 
-    config_dir = base / "folder_extractor" / "history"
+    config_dir = base / "folder_extractor"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    return config_dir
+
+
+def get_config_directory() -> Path:
+    """Get the application history config directory.
+
+    Returns platform-appropriate config directory for history storage:
+    - macOS/Linux: ~/.config/folder_extractor/history/
+    - Windows: %APPDATA%/folder_extractor/history/
+
+    This is specifically for history file storage.
+    Use get_config_dir() for the config root directory.
+
+    Returns:
+        Path to history config directory (created if doesn't exist)
+    """
+    config_dir = get_config_dir() / "history"
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
 

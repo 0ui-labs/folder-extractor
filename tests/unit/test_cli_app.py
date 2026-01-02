@@ -8,7 +8,27 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-from folder_extractor.cli.app import EnhancedFolderExtractorCLI, main
+import pytest
+
+
+# Skip entire module if CLI app cannot be imported (Python 3.8 lacks google-generativeai)
+def _can_import_cli_app() -> bool:
+    """Check if the CLI app module can be imported."""
+    try:
+        from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+pytestmark = pytest.mark.skipif(
+    not _can_import_cli_app(),
+    reason="CLI app requires google-generativeai (Python 3.9+)",
+)
+
+# Import after skip marker to avoid import errors on Python 3.8
+from folder_extractor.cli.app import EnhancedFolderExtractorCLI, main  # noqa: E402
 
 
 class TestEnhancedFolderExtractorCLI:
@@ -1017,3 +1037,444 @@ class TestQueryMode:
                         # Undo should be called, query should NOT
                         mock_undo.assert_called_once()
                         mock_query.assert_not_called()
+
+
+class TestSmartWatchMode:
+    """Tests for smart watch mode with AI categorization."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        try:
+            os.getcwd()
+        except (FileNotFoundError, OSError):
+            os.chdir(os.path.expanduser("~"))
+
+        with patch("folder_extractor.cli.app.create_parser"):
+            with patch("folder_extractor.cli.app.create_console_interface"):
+                with patch("folder_extractor.cli.app.get_state_manager"):
+                    self.cli = EnhancedFolderExtractorCLI()
+
+    def test_execute_watch_smart_loads_zone_profile(self):
+        """Test that _execute_watch_smart loads zone configuration."""
+        # Mock state manager to exit immediately
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        # Mock interface methods
+        self.cli.interface.show_smart_watch_status = Mock()
+        self.cli.interface.show_watch_event = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        # Mock ZoneManager
+        mock_zone = {
+            "id": "test-zone-id",
+            "name": "Downloads",
+            "path": "/test/downloads",
+            "enabled": True,
+            "auto_sort": True,
+            "categories": ["Finanzen", "Verträge"],
+        }
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = mock_zone
+
+        # Mock Observer and SmartSorter
+        mock_observer = Mock()
+
+        with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch("folder_extractor.cli.app.AsyncGeminiClient"):
+                    with patch("folder_extractor.cli.app.SmartSorter"):
+                        with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
+                            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                                with patch("time.sleep"):
+                                    result = self.cli._execute_watch_smart(
+                                        "test-zone-id"
+                                    )
+
+        # Should have loaded the zone
+        mock_zone_manager.get_zone.assert_called_once_with("test-zone-id")
+        assert result == 0
+
+    def test_execute_watch_smart_shows_status_banner(self):
+        """Test that _execute_watch_smart shows the status banner."""
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        self.cli.interface.show_smart_watch_status = Mock()
+        self.cli.interface.show_watch_event = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        mock_zone = {
+            "id": "test-zone-id",
+            "name": "Downloads",
+            "path": "/test/downloads",
+            "enabled": True,
+            "auto_sort": True,
+            "categories": ["Finanzen"],
+        }
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = mock_zone
+
+        mock_observer = Mock()
+
+        with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch("folder_extractor.cli.app.AsyncGeminiClient"):
+                    with patch("folder_extractor.cli.app.SmartSorter"):
+                        with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
+                            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                                with patch("time.sleep"):
+                                    self.cli._execute_watch_smart("test-zone-id")
+
+        # Should have shown status banner with profile
+        self.cli.interface.show_smart_watch_status.assert_called_once()
+        call_args = self.cli.interface.show_smart_watch_status.call_args[0][0]
+        assert call_args["path"] == "/test/downloads"
+
+    def test_execute_watch_smart_creates_ai_client_and_smart_sorter(self):
+        """Test that AsyncGeminiClient and SmartSorter are created with zone categories."""
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        self.cli.interface.show_smart_watch_status = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        mock_zone = {
+            "id": "zone-123",
+            "name": "Downloads",
+            "path": "/test/downloads",
+            "enabled": True,
+            "auto_sort": True,
+            "categories": ["Finanzen", "Verträge", "Medizin"],
+        }
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = mock_zone
+
+        mock_observer = Mock()
+        mock_ai_client = Mock()
+        mock_ai_client_class = Mock(return_value=mock_ai_client)
+        mock_smart_sorter_class = Mock()
+
+        with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch(
+                    "folder_extractor.cli.app.AsyncGeminiClient", mock_ai_client_class
+                ):
+                    with patch(
+                        "folder_extractor.cli.app.SmartSorter", mock_smart_sorter_class
+                    ):
+                        with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
+                            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                                with patch("time.sleep"):
+                                    self.cli._execute_watch_smart("zone-123")
+
+        # AsyncGeminiClient and SmartSorter should be created
+        mock_ai_client_class.assert_called_once()
+        mock_smart_sorter_class.assert_called_once()
+        call_kwargs = mock_smart_sorter_class.call_args.kwargs
+        assert call_kwargs.get("client") == mock_ai_client
+        # SmartSorter should receive temp_settings with zone's custom_categories
+        temp_settings = call_kwargs.get("settings")
+        assert temp_settings is not None
+        assert temp_settings.get("custom_categories") == [
+            "Finanzen",
+            "Verträge",
+            "Medizin",
+        ]
+
+    def test_execute_watch_smart_creates_handler_with_smart_sorter(self):
+        """Test that SmartFolderEventHandler is created with SmartSorter."""
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        self.cli.interface.show_smart_watch_status = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        mock_zone = {
+            "id": "zone-456",
+            "name": "Test",
+            "path": "/test/path",
+            "enabled": True,
+            "auto_sort": True,
+            "categories": [],
+        }
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = mock_zone
+
+        mock_observer = Mock()
+        mock_smart_sorter = Mock()
+        mock_monitor = Mock()
+        mock_handler_class = Mock()
+
+        with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch("folder_extractor.cli.app.AsyncGeminiClient"):
+                    with patch(
+                        "folder_extractor.cli.app.SmartSorter",
+                        return_value=mock_smart_sorter,
+                    ):
+                        with patch(
+                            "folder_extractor.cli.app.SmartFolderEventHandler",
+                            mock_handler_class,
+                        ):
+                            with patch(
+                                "folder_extractor.cli.app.StabilityMonitor",
+                                return_value=mock_monitor,
+                            ):
+                                with patch("time.sleep"):
+                                    self.cli._execute_watch_smart("zone-456")
+
+        # SmartFolderEventHandler should be created with SmartSorter
+        mock_handler_class.assert_called_once()
+        handler_args = mock_handler_class.call_args
+        assert handler_args.kwargs.get("smart_sorter") == mock_smart_sorter
+
+    def test_execute_watch_smart_returns_error_for_missing_zone(self):
+        """Test that _execute_watch_smart returns 1 for non-existent zone."""
+        self.cli.interface.show_message = Mock()
+
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = None  # Zone not found
+
+        with patch(
+            "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+        ):
+            result = self.cli._execute_watch_smart("nonexistent-zone")
+
+        assert result == 1
+        # Should have shown error message
+        self.cli.interface.show_message.assert_called_once()
+        call_args = self.cli.interface.show_message.call_args
+        assert call_args.kwargs.get("message_type") == "error"
+
+    def test_execute_watch_smart_handles_keyboard_interrupt(self):
+        """Test that KeyboardInterrupt is handled gracefully."""
+        self.cli.state_manager.is_abort_requested = Mock(return_value=False)
+        self.cli.state_manager.request_abort = Mock()
+
+        self.cli.interface.show_smart_watch_status = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        mock_zone = {
+            "id": "zone-789",
+            "name": "Test",
+            "path": "/test/path",
+            "enabled": True,
+            "auto_sort": True,
+            "categories": [],
+        }
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = mock_zone
+
+        mock_observer = Mock()
+
+        def sleep_interrupt(_):
+            raise KeyboardInterrupt
+
+        with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch("folder_extractor.cli.app.AsyncGeminiClient"):
+                    with patch("folder_extractor.cli.app.SmartSorter"):
+                        with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
+                            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                                with patch("time.sleep", side_effect=sleep_interrupt):
+                                    result = self.cli._execute_watch_smart("zone-789")
+
+        # Should have requested abort
+        self.cli.state_manager.request_abort.assert_called_once()
+
+        # Observer should still be stopped properly
+        mock_observer.stop.assert_called_once()
+        mock_observer.join.assert_called_once()
+
+        assert result == 0
+
+    def test_execute_watch_smart_schedules_with_zone_path(self):
+        """Test that observer schedules handler with zone path."""
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        self.cli.interface.show_smart_watch_status = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        mock_zone = {
+            "id": "zone-abc",
+            "name": "Downloads",
+            "path": "/Users/test/Downloads",
+            "enabled": True,
+            "auto_sort": True,
+            "categories": [],
+        }
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = mock_zone
+
+        mock_observer = Mock()
+        mock_handler = Mock()
+
+        with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch("folder_extractor.cli.app.AsyncGeminiClient"):
+                    with patch("folder_extractor.cli.app.SmartSorter"):
+                        with patch(
+                            "folder_extractor.cli.app.SmartFolderEventHandler",
+                            return_value=mock_handler,
+                        ):
+                            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                                with patch("time.sleep"):
+                                    self.cli._execute_watch_smart("zone-abc")
+
+        # Should have scheduled with correct path
+        mock_observer.schedule.assert_called_once()
+        schedule_args = mock_observer.schedule.call_args
+        assert schedule_args[0][0] == mock_handler
+        assert schedule_args[0][1] == "/Users/test/Downloads"
+
+    def test_execute_watch_smart_shows_stopped_on_exit(self):
+        """Test that show_watch_stopped is called on exit."""
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        self.cli.interface.show_smart_watch_status = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        mock_zone = {
+            "id": "zone-def",
+            "name": "Test",
+            "path": "/test/path",
+            "enabled": True,
+            "auto_sort": True,
+            "categories": [],
+        }
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = mock_zone
+
+        mock_observer = Mock()
+
+        with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch("folder_extractor.cli.app.AsyncGeminiClient"):
+                    with patch("folder_extractor.cli.app.SmartSorter"):
+                        with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
+                            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                                with patch("time.sleep"):
+                                    self.cli._execute_watch_smart("zone-def")
+
+        # Should show watch stopped
+        self.cli.interface.show_watch_stopped.assert_called_once()
+
+    def test_execute_watch_smart_passes_file_types_not_categories_to_handler(self):
+        """Test that handler receives file_types (extensions) not categories."""
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        self.cli.interface.show_smart_watch_status = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        # Zone with both categories (for AI) and file_types (for filtering)
+        mock_zone = {
+            "id": "zone-filetypes",
+            "name": "Test",
+            "path": "/test/path",
+            "enabled": True,
+            "auto_sort": True,
+            "categories": ["Finanzen", "Verträge"],  # AI categories
+            "file_types": ["pdf", "jpg"],  # File extension filter
+            "folder_structure": "{category}/{year}",
+            "recursive": True,
+            "exclude_subfolders": ["Archive"],
+        }
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = mock_zone
+
+        mock_observer = Mock()
+        mock_handler_class = Mock()
+
+        with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch("folder_extractor.cli.app.AsyncGeminiClient"):
+                    with patch("folder_extractor.cli.app.SmartSorter"):
+                        with patch(
+                            "folder_extractor.cli.app.SmartFolderEventHandler",
+                            mock_handler_class,
+                        ):
+                            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                                with patch("time.sleep"):
+                                    self.cli._execute_watch_smart("zone-filetypes")
+
+        # SmartFolderEventHandler should receive file_types, not categories
+        mock_handler_class.assert_called_once()
+        handler_kwargs = mock_handler_class.call_args.kwargs
+
+        # file_types should be the extension list, NOT the AI categories
+        assert handler_kwargs.get("file_types") == ["pdf", "jpg"]
+        # folder_structure should come from zone
+        assert handler_kwargs.get("folder_structure") == "{category}/{year}"
+        # recursive should come from zone
+        assert handler_kwargs.get("recursive") is True
+        # exclude_subfolders should come from zone
+        assert handler_kwargs.get("exclude_subfolders") == ["Archive"]
+
+    def test_execute_watch_smart_builds_complete_profile_from_zone(self):
+        """Test that profile is built with all zone fields and sensible defaults."""
+        self.cli.state_manager.is_abort_requested = Mock(return_value=True)
+        self.cli.state_manager.request_abort = Mock()
+
+        self.cli.interface.show_smart_watch_status = Mock()
+        self.cli.interface.show_watch_stopped = Mock()
+
+        # Zone with all configuration fields
+        mock_zone = {
+            "id": "zone-complete",
+            "name": "Complete Zone",
+            "path": "/complete/path",
+            "enabled": True,
+            "categories": ["Arbeit", "Privat"],
+            "file_types": ["docx", "xlsx"],
+            "folder_structure": "{category}/{sender}",
+            "recursive": True,
+            "exclude_subfolders": ["temp", "cache"],
+            "ignore_patterns": ["*.tmp", ".DS_Store"],
+        }
+        mock_zone_manager = Mock()
+        mock_zone_manager.get_zone.return_value = mock_zone
+
+        mock_observer = Mock()
+
+        with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch("folder_extractor.cli.app.AsyncGeminiClient"):
+                    with patch("folder_extractor.cli.app.SmartSorter"):
+                        with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
+                            with patch("folder_extractor.cli.app.StabilityMonitor"):
+                                with patch("time.sleep"):
+                                    self.cli._execute_watch_smart("zone-complete")
+
+        # Check that show_smart_watch_status received complete profile
+        self.cli.interface.show_smart_watch_status.assert_called_once()
+        profile = self.cli.interface.show_smart_watch_status.call_args[0][0]
+
+        assert profile["path"] == "/complete/path"
+        assert profile["folder_structure"] == "{category}/{sender}"
+        assert profile["categories"] == ["Arbeit", "Privat"]
+        assert profile["file_types"] == ["docx", "xlsx"]
+        assert profile["recursive"] is True
+        assert profile["exclude_subfolders"] == ["temp", "cache"]
+        assert profile["ignore_patterns"] == ["*.tmp", ".DS_Store"]

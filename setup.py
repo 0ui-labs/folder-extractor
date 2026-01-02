@@ -41,9 +41,12 @@ setup(
         "Operating System :: Microsoft :: Windows",
     ],
     python_requires=">=3.8",
+    # Include run_api.py as a standalone module (it's not in the package)
+    py_modules=["run_api"],
     entry_points={
         "console_scripts": [
             "folder-extractor=folder_extractor.main:main",
+            "folder-extractor-api=run_api:main",
         ],
     },
     # Runtime dependencies for modern CLI experience
