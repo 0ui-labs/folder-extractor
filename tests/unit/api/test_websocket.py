@@ -89,7 +89,7 @@ class TestConnectionManager:
     ) -> None:
         """Disconnect removes WebSocket from active connections."""
         await manager.connect(mock_websocket)
-        manager.disconnect(mock_websocket)
+        await manager.disconnect(mock_websocket)
 
         assert mock_websocket not in manager.active_connections
 
@@ -99,7 +99,7 @@ class TestConnectionManager:
     ) -> None:
         """Disconnecting a WebSocket that was never connected is safe."""
         # Should not raise
-        manager.disconnect(mock_websocket)
+        await manager.disconnect(mock_websocket)
         assert len(manager.active_connections) == 0
 
     @pytest.mark.asyncio

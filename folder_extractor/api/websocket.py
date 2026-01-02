@@ -109,20 +109,22 @@ class ConnectionManager:
             self._connections.append(websocket)
         logger.info(f"WebSocket connected. Total connections: {self.connection_count}")
 
-    def disconnect(self, websocket: WebSocket) -> None:
+    async def disconnect(self, websocket: WebSocket) -> None:
         """Remove a WebSocket connection from active connections.
 
         Safe to call even if the WebSocket was never connected.
+        Uses async lock for thread safety (consistent with connect).
 
         Args:
             websocket: WebSocket instance to remove.
         """
-        try:
-            self._connections.remove(websocket)
-            count = self.connection_count
-            logger.info(f"WebSocket disconnected. Remaining: {count}")
-        except ValueError:
-            pass  # WebSocket was not in the list
+        async with self._lock:
+            try:
+                self._connections.remove(websocket)
+                count = self.connection_count
+                logger.info(f"WebSocket disconnected. Remaining: {count}")
+            except ValueError:
+                pass  # WebSocket was not in the list
 
     async def send_personal_message(
         self, message: dict[str, Any], websocket: WebSocket
@@ -158,7 +160,7 @@ class ConnectionManager:
 
         # Remove failed connections
         for ws in disconnected:
-            self.disconnect(ws)
+            await self.disconnect(ws)
 
     async def close_all(self) -> None:
         """Close all active WebSocket connections.

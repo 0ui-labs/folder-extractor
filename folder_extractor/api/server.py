@@ -419,12 +419,12 @@ async def websocket_chat_endpoint(websocket: WebSocket) -> None:
                 logger.warning(f"Unknown WebSocket message type: {msg_type}")
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
         count = manager.connection_count
         logger.info(f"WebSocket client disconnected. Active: {count}")
     except Exception as e:
         logger.error(f"WebSocket error: {e}", exc_info=True)
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
 
 
 async def _handle_chat_message(

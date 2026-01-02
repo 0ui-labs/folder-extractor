@@ -127,9 +127,14 @@ def get_config(args_list: list[str] | None = None) -> dict[str, Any]:
 
     # Determine final values: CLI overrides ENV overrides defaults
     # Check if CLI arg was explicitly provided by checking cli_source
-    final_host = args.host if "--host" in cli_source else env_host
-    final_port = args.port if "--port" in cli_source else env_port
-    final_log_level = args.log_level if "--log-level" in cli_source else env_log_level
+    # Use startswith to match both "--host value" and "--host=value" syntax
+    has_host = any(arg.startswith("--host") for arg in cli_source)
+    has_port = any(arg.startswith("--port") for arg in cli_source)
+    has_log_level = any(arg.startswith("--log-level") for arg in cli_source)
+
+    final_host = args.host if has_host else env_host
+    final_port = args.port if has_port else env_port
+    final_log_level = args.log_level if has_log_level else env_log_level
 
     return {
         "host": final_host,

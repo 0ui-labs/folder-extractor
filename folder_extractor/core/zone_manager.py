@@ -272,9 +272,10 @@ class ZoneManager:
 
             zone = self._zones[zone_id]
 
-            # Validate path if being updated
+            # Validate path if being updated - use resolved path for consistency
             if "path" in kwargs:
-                self._validate_path(kwargs["path"])
+                resolved_path = self._validate_path(kwargs["path"])
+                kwargs["path"] = resolved_path
 
             # Validate name if being updated
             if "name" in kwargs and not kwargs["name"]:
