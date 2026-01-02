@@ -19,7 +19,7 @@ import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import (
     APIRouter,
@@ -579,7 +579,7 @@ async def start_watcher(
 @router.post("/watcher/stop", tags=["Watcher"])
 async def stop_watcher(
     request: WatcherStopRequest,
-) -> dict[str, str]:
+) -> Dict[str, str]:
     """
     Stop filesystem watching for a zone.
 

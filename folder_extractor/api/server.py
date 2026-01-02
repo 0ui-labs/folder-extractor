@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, AsyncGenerator
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -283,7 +283,7 @@ async def ai_client_error_handler(request: Request, exc: AIClientError) -> JSONR
 
 
 @app.get("/", tags=["System"])
-async def root() -> dict[str, str]:
+async def root() -> Dict[str, str]:
     """
     API root endpoint with basic information.
 

@@ -107,8 +107,7 @@ unfixable = []
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 "tests/**/*.py" = ["E501", "B008"]  # Relaxed for tests (long paths, Depends in tests)
-"folder_extractor/api/**/*.py" = ["B008"]  # FastAPI Depends() in function defaults is standard pattern
-"folder_extractor/api/models.py" = ["B008", "UP006"]  # UP006: Pydantic needs List[str] for Python 3.8
+"folder_extractor/api/**/*.py" = ["B008", "UP006"]  # B008: FastAPI Depends() pattern; UP006: FastAPI/Pydantic need List[str]/Dict[str, Any] for Python 3.8
 
 [tool.ruff.format]
 # Use double quotes (Black-compatible)
