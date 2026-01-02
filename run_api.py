@@ -112,7 +112,7 @@ def get_config(args_list: list[str] | None = None) -> dict[str, Any]:
 
     parser = create_parser()
 
-    # Parse CLI arguments: use sys.argv when args_list is None, otherwise use provided list
+    # Parse CLI arguments: use sys.argv when None, otherwise use provided list
     if args_list is None:
         args = parser.parse_args()  # Uses sys.argv[1:]
         cli_source = sys.argv

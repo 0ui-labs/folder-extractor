@@ -14,7 +14,6 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -75,9 +74,7 @@ class TestGetZoneManager:
 
     def test_returns_zone_manager_instance(self) -> None:
         """Dependency returns a valid ZoneManager instance."""
-        with patch(
-            "folder_extractor.api.dependencies.ZoneManager"
-        ) as mock_zm_class:
+        with patch("folder_extractor.api.dependencies.ZoneManager") as mock_zm_class:
             mock_instance = MagicMock()
             mock_zm_class.return_value = mock_instance
 
@@ -88,9 +85,7 @@ class TestGetZoneManager:
 
     def test_returns_singleton_instance(self) -> None:
         """Multiple calls return the same ZoneManager instance (singleton)."""
-        with patch(
-            "folder_extractor.api.dependencies.ZoneManager"
-        ) as mock_zm_class:
+        with patch("folder_extractor.api.dependencies.ZoneManager") as mock_zm_class:
             mock_instance = MagicMock()
             mock_zm_class.return_value = mock_instance
 

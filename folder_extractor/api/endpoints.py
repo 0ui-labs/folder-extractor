@@ -21,12 +21,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
 from fastapi import Path as PathParam
 from watchdog.observers import Observer
 
 from folder_extractor.api.dependencies import get_orchestrator, get_zone_manager
-from folder_extractor.api.websocket import ConnectionManager, WebSocketProgressBroadcaster
 from folder_extractor.api.models import (
     ProcessRequest,
     ProcessResponse,
@@ -38,6 +45,10 @@ from folder_extractor.api.models import (
     ZoneListResponse,
     ZoneResponse,
     ZoneUpdateRequest,
+)
+from folder_extractor.api.websocket import (
+    ConnectionManager,
+    WebSocketProgressBroadcaster,
 )
 from folder_extractor.core.extractor import (
     EnhancedExtractionOrchestrator,
@@ -644,13 +655,13 @@ async def get_watcher_status(
 
     Returns a list of all currently active filesystem watchers with their
     status, zone paths, and processing statistics. The overall_status field
-    indicates whether any watchers are running ("running") or none are active ("stopped").
+    indicates whether any watchers are running or none are active.
 
     Args:
         zone_id: Optional zone ID to filter results.
 
     Returns:
-        WatcherListResponse with overall status, list of active watchers, and total count.
+        WatcherListResponse with overall status and list of active watchers.
 
     Example Response (with active watchers):
         {

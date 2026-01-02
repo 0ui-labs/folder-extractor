@@ -1061,13 +1061,17 @@ class TestSmartWatchMode:
         mock_observer = Mock()
 
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
-            with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
                 with patch("folder_extractor.cli.app.AsyncGeminiClient"):
                     with patch("folder_extractor.cli.app.SmartSorter"):
                         with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
                             with patch("folder_extractor.cli.app.StabilityMonitor"):
                                 with patch("time.sleep"):
-                                    result = self.cli._execute_watch_smart("test-zone-id")
+                                    result = self.cli._execute_watch_smart(
+                                        "test-zone-id"
+                                    )
 
         # Should have loaded the zone
         mock_zone_manager.get_zone.assert_called_once_with("test-zone-id")
@@ -1096,7 +1100,9 @@ class TestSmartWatchMode:
         mock_observer = Mock()
 
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
-            with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
                 with patch("folder_extractor.cli.app.AsyncGeminiClient"):
                     with patch("folder_extractor.cli.app.SmartSorter"):
                         with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
@@ -1134,9 +1140,15 @@ class TestSmartWatchMode:
         mock_smart_sorter_class = Mock()
 
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
-            with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
-                with patch("folder_extractor.cli.app.AsyncGeminiClient", mock_ai_client_class):
-                    with patch("folder_extractor.cli.app.SmartSorter", mock_smart_sorter_class):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
+                with patch(
+                    "folder_extractor.cli.app.AsyncGeminiClient", mock_ai_client_class
+                ):
+                    with patch(
+                        "folder_extractor.cli.app.SmartSorter", mock_smart_sorter_class
+                    ):
                         with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
                             with patch("folder_extractor.cli.app.StabilityMonitor"):
                                 with patch("time.sleep"):
@@ -1150,7 +1162,11 @@ class TestSmartWatchMode:
         # SmartSorter should receive temp_settings with zone's custom_categories
         temp_settings = call_kwargs.get("settings")
         assert temp_settings is not None
-        assert temp_settings.get("custom_categories") == ["Finanzen", "Verträge", "Medizin"]
+        assert temp_settings.get("custom_categories") == [
+            "Finanzen",
+            "Verträge",
+            "Medizin",
+        ]
 
     def test_execute_watch_smart_creates_handler_with_smart_sorter(self):
         """Test that SmartFolderEventHandler is created with SmartSorter."""
@@ -1177,11 +1193,22 @@ class TestSmartWatchMode:
         mock_handler_class = Mock()
 
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
-            with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
                 with patch("folder_extractor.cli.app.AsyncGeminiClient"):
-                    with patch("folder_extractor.cli.app.SmartSorter", return_value=mock_smart_sorter):
-                        with patch("folder_extractor.cli.app.SmartFolderEventHandler", mock_handler_class):
-                            with patch("folder_extractor.cli.app.StabilityMonitor", return_value=mock_monitor):
+                    with patch(
+                        "folder_extractor.cli.app.SmartSorter",
+                        return_value=mock_smart_sorter,
+                    ):
+                        with patch(
+                            "folder_extractor.cli.app.SmartFolderEventHandler",
+                            mock_handler_class,
+                        ):
+                            with patch(
+                                "folder_extractor.cli.app.StabilityMonitor",
+                                return_value=mock_monitor,
+                            ):
                                 with patch("time.sleep"):
                                     self.cli._execute_watch_smart("zone-456")
 
@@ -1197,7 +1224,9 @@ class TestSmartWatchMode:
         mock_zone_manager = Mock()
         mock_zone_manager.get_zone.return_value = None  # Zone not found
 
-        with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
+        with patch(
+            "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+        ):
             result = self.cli._execute_watch_smart("nonexistent-zone")
 
         assert result == 1
@@ -1231,7 +1260,9 @@ class TestSmartWatchMode:
             raise KeyboardInterrupt
 
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
-            with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
                 with patch("folder_extractor.cli.app.AsyncGeminiClient"):
                     with patch("folder_extractor.cli.app.SmartSorter"):
                         with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
@@ -1271,10 +1302,15 @@ class TestSmartWatchMode:
         mock_handler = Mock()
 
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
-            with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
                 with patch("folder_extractor.cli.app.AsyncGeminiClient"):
                     with patch("folder_extractor.cli.app.SmartSorter"):
-                        with patch("folder_extractor.cli.app.SmartFolderEventHandler", return_value=mock_handler):
+                        with patch(
+                            "folder_extractor.cli.app.SmartFolderEventHandler",
+                            return_value=mock_handler,
+                        ):
                             with patch("folder_extractor.cli.app.StabilityMonitor"):
                                 with patch("time.sleep"):
                                     self.cli._execute_watch_smart("zone-abc")
@@ -1307,7 +1343,9 @@ class TestSmartWatchMode:
         mock_observer = Mock()
 
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
-            with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
                 with patch("folder_extractor.cli.app.AsyncGeminiClient"):
                     with patch("folder_extractor.cli.app.SmartSorter"):
                         with patch("folder_extractor.cli.app.SmartFolderEventHandler"):
@@ -1346,10 +1384,15 @@ class TestSmartWatchMode:
         mock_handler_class = Mock()
 
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
-            with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
                 with patch("folder_extractor.cli.app.AsyncGeminiClient"):
                     with patch("folder_extractor.cli.app.SmartSorter"):
-                        with patch("folder_extractor.cli.app.SmartFolderEventHandler", mock_handler_class):
+                        with patch(
+                            "folder_extractor.cli.app.SmartFolderEventHandler",
+                            mock_handler_class,
+                        ):
                             with patch("folder_extractor.cli.app.StabilityMonitor"):
                                 with patch("time.sleep"):
                                     self.cli._execute_watch_smart("zone-filetypes")
@@ -1394,7 +1437,9 @@ class TestSmartWatchMode:
         mock_observer = Mock()
 
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
-            with patch("folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager):
+            with patch(
+                "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
+            ):
                 with patch("folder_extractor.cli.app.AsyncGeminiClient"):
                     with patch("folder_extractor.cli.app.SmartSorter"):
                         with patch("folder_extractor.cli.app.SmartFolderEventHandler"):

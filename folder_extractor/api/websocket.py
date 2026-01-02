@@ -81,7 +81,7 @@ class ConnectionManager:
         self._lock = asyncio.Lock()
 
     @property
-    def active_connections(self) -> list["WebSocket"]:
+    def active_connections(self) -> list[WebSocket]:
         """Get list of active WebSocket connections.
 
         Returns:
@@ -98,7 +98,7 @@ class ConnectionManager:
         """
         return len(self._connections)
 
-    async def connect(self, websocket: "WebSocket") -> None:
+    async def connect(self, websocket: WebSocket) -> None:
         """Accept and register a new WebSocket connection.
 
         Args:
@@ -109,7 +109,7 @@ class ConnectionManager:
             self._connections.append(websocket)
         logger.info(f"WebSocket connected. Total connections: {self.connection_count}")
 
-    def disconnect(self, websocket: "WebSocket") -> None:
+    def disconnect(self, websocket: WebSocket) -> None:
         """Remove a WebSocket connection from active connections.
 
         Safe to call even if the WebSocket was never connected.
@@ -119,14 +119,13 @@ class ConnectionManager:
         """
         try:
             self._connections.remove(websocket)
-            logger.info(
-                f"WebSocket disconnected. Remaining connections: {self.connection_count}"
-            )
+            count = self.connection_count
+            logger.info(f"WebSocket disconnected. Remaining: {count}")
         except ValueError:
             pass  # WebSocket was not in the list
 
     async def send_personal_message(
-        self, message: dict[str, Any], websocket: "WebSocket"
+        self, message: dict[str, Any], websocket: WebSocket
     ) -> None:
         """Send a message to a specific WebSocket client.
 
@@ -148,7 +147,7 @@ class ConnectionManager:
         if not self._connections:
             return
 
-        disconnected: list["WebSocket"] = []
+        disconnected: list[WebSocket] = []
 
         for connection in self._connections:
             try:

@@ -1757,7 +1757,9 @@ class TestSmartWatchUI:
         call_args_str = str(mock_console.print.call_args_list)
         assert "/Users/test/Downloads" in call_args_str
 
-    def test_show_smart_watch_status_displays_folder_structure(self, mock_console_class):
+    def test_show_smart_watch_status_displays_folder_structure(
+        self, mock_console_class
+    ):
         """Test show_smart_watch_status displays the folder structure template."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1793,7 +1795,9 @@ class TestSmartWatchUI:
         assert "Finanzen" in call_args_str
         assert "Verträge" in call_args_str
 
-    def test_show_smart_watch_status_displays_recursive_status(self, mock_console_class):
+    def test_show_smart_watch_status_displays_recursive_status(
+        self, mock_console_class
+    ):
         """Test show_smart_watch_status displays recursion status."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console

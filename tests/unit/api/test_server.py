@@ -7,7 +7,7 @@ and exception handling. Uses pytest-asyncio and httpx for async testing.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

@@ -118,10 +118,14 @@ class ZoneManager:
                 logger.warning("Invalid zones config format, starting with empty zones")
                 self._zones = {}
         except json.JSONDecodeError as e:
-            logger.warning(f"Corrupted zones config file: {e}, starting with empty zones")
+            logger.warning(
+                f"Corrupted zones config file: {e}, starting with empty zones"
+            )
             self._zones = {}
         except OSError as e:
-            logger.warning(f"Failed to read zones config: {e}, starting with empty zones")
+            logger.warning(
+                f"Failed to read zones config: {e}, starting with empty zones"
+            )
             self._zones = {}
 
     def _save_zones(self) -> None:

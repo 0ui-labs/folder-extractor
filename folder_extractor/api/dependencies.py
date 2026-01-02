@@ -109,7 +109,7 @@ def get_orchestrator() -> EnhancedExtractionOrchestrator:
 # =============================================================================
 
 
-def get_smart_sorter_from_app_state(request: Request) -> "SmartSorter":
+def get_smart_sorter_from_app_state(request: Request) -> SmartSorter:
     """
     Get SmartSorter from FastAPI app state.
 
@@ -137,7 +137,7 @@ def get_smart_sorter_from_app_state(request: Request) -> "SmartSorter":
     return request.app.state.smart_sorter
 
 
-def get_knowledge_graph_from_app_state(request: Request) -> "KnowledgeGraph":
+def get_knowledge_graph_from_app_state(request: Request) -> KnowledgeGraph:
     """
     Get KnowledgeGraph from FastAPI app state.
 

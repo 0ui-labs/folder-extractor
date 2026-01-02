@@ -19,7 +19,7 @@ import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 
@@ -370,7 +370,7 @@ class SmartFolderEventHandler(FileSystemEventHandler):
 
     def __init__(
         self,
-        smart_sorter: "SmartSorter",
+        smart_sorter: SmartSorter,
         monitor: StabilityMonitor,
         state_manager: IStateManager,
         base_path: Path,
@@ -392,8 +392,8 @@ class SmartFolderEventHandler(FileSystemEventHandler):
             base_path: Base directory for the watch zone.
             folder_structure: Template for target path with placeholders.
                 Supported: {category}, {sender}, {year}, {month}, {filename}
-            file_types: Optional list of allowed file extensions (e.g., ["pdf", "jpg"]).
-            ignore_patterns: Glob patterns for files to ignore (e.g., ["*.tmp", ".DS_Store"]).
+            file_types: Optional list of allowed file extensions.
+            ignore_patterns: Glob patterns for files to ignore.
             exclude_subfolders: Subfolder names to exclude when recursive=True.
             recursive: Whether to watch subdirectories.
             progress_callback: Optional callback for progress updates.
@@ -490,7 +490,9 @@ class SmartFolderEventHandler(FileSystemEventHandler):
             return True
 
         # Skip browser download temp patterns
-        if any(filename.lower().endswith(ext) for ext in (".crdownload", ".part", ".tmp")):
+        if any(
+            filename.lower().endswith(ext) for ext in (".crdownload", ".part", ".tmp")
+        ):
             return True
 
         # Check file type filter
@@ -576,7 +578,9 @@ class SmartFolderEventHandler(FileSystemEventHandler):
             shutil.move(str(filepath), str(target_path))
             logger.info(f"Moved {filepath.name} -> {target_path}")
             self._safe_event("sorted", filepath.name)
-            self._safe_progress(1, 1, f"✅ {filepath.name} → {result.get('category', 'Sortiert')}")
+            self._safe_progress(
+                1, 1, f"✅ {filepath.name} → {result.get('category', 'Sortiert')}"
+            )
         except Exception as e:
             logger.error(f"Failed to move {filepath.name}: {e}")
             self._safe_event("error", filepath.name, str(e))

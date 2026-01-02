@@ -10,10 +10,8 @@ These tests verify the behavior of the API server entry point:
 
 from __future__ import annotations
 
-import argparse
-import sys
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -96,13 +94,19 @@ class TestArgumentParser:
         from run_api import create_parser
 
         parser = create_parser()
-        args = parser.parse_args([
-            "--host", "0.0.0.0",
-            "--port", "9000",
-            "--log-level", "debug",
-            "--workers", "2",
-            "--reload",
-        ])
+        args = parser.parse_args(
+            [
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "9000",
+                "--log-level",
+                "debug",
+                "--workers",
+                "2",
+                "--reload",
+            ]
+        )
 
         assert args.host == "0.0.0.0"
         assert args.port == 9000
@@ -231,7 +235,9 @@ class TestServerStartup:
         from run_api import main
 
         # Call main with explicit CLI args
-        exit_code = main(["--port", "8000", "--host", "0.0.0.0", "--log-level", "debug"])
+        exit_code = main(
+            ["--port", "8000", "--host", "0.0.0.0", "--log-level", "debug"]
+        )
 
         # Verify the values were passed to uvicorn
         assert exit_code == 0
@@ -247,6 +253,7 @@ class TestErrorHandling:
         self, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """KeyboardInterrupt (Ctrl+C) prints a graceful shutdown message."""
+
         # Mock uvicorn.run to raise KeyboardInterrupt
         def mock_run(*args: Any, **kwargs: Any) -> None:
             raise KeyboardInterrupt()

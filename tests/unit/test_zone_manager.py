@@ -41,7 +41,7 @@ def zone_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def zone_manager(config_dir: Path) -> "ZoneManager":
+def zone_manager(config_dir: Path) -> ZoneManager:
     """Create a ZoneManager with temporary config directory."""
     from folder_extractor.core.zone_manager import ZoneManager
 
@@ -72,7 +72,7 @@ def sample_zone_data(zone_path: Path) -> dict:
 class TestZoneManagerInit:
     """Tests for ZoneManager initialization."""
 
-    def test_initializes_with_empty_zones(self, zone_manager: "ZoneManager") -> None:
+    def test_initializes_with_empty_zones(self, zone_manager: ZoneManager) -> None:
         """ZoneManager starts with no zones configured."""
         zones = zone_manager.list_zones()
 
@@ -104,7 +104,7 @@ class TestAddZone:
     """Tests for adding zones."""
 
     def test_add_zone_returns_uuid(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Adding a zone returns a valid UUID string."""
         zone_id = zone_manager.add_zone(name="Downloads", path=str(zone_path))
@@ -114,7 +114,7 @@ class TestAddZone:
         assert len(zone_id) == 36  # UUID format: 8-4-4-4-12
 
     def test_add_zone_stores_configuration(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Added zone can be retrieved with correct configuration."""
         zone_id = zone_manager.add_zone(
@@ -135,7 +135,7 @@ class TestAddZone:
         assert zone["categories"] == ["pdf", "docx"]
 
     def test_add_zone_with_defaults(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Zone uses default values when not specified."""
         zone_id = zone_manager.add_zone(name="Test", path=str(zone_path))
@@ -147,7 +147,7 @@ class TestAddZone:
         assert zone["categories"] == []
 
     def test_add_zone_sets_created_at_timestamp(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Adding a zone sets the created_at timestamp in ISO 8601 format."""
         from datetime import datetime
@@ -163,7 +163,7 @@ class TestAddZone:
         assert created_at is not None
 
     def test_add_zone_invalid_path_raises_error(
-        self, zone_manager: "ZoneManager"
+        self, zone_manager: ZoneManager
     ) -> None:
         """Adding a zone with non-existent path raises error."""
         from folder_extractor.core.zone_manager import ZoneManagerError
@@ -176,7 +176,7 @@ class TestRemoveZone:
     """Tests for removing zones."""
 
     def test_remove_existing_zone_returns_true(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Removing an existing zone returns True."""
         zone_id = zone_manager.add_zone(name="Test", path=str(zone_path))
@@ -186,7 +186,7 @@ class TestRemoveZone:
         assert result is True
 
     def test_remove_zone_deletes_from_storage(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Removed zone is no longer retrievable."""
         zone_id = zone_manager.add_zone(name="Test", path=str(zone_path))
@@ -197,7 +197,7 @@ class TestRemoveZone:
         assert zone_manager.zone_exists(zone_id) is False
 
     def test_remove_nonexistent_zone_returns_false(
-        self, zone_manager: "ZoneManager"
+        self, zone_manager: ZoneManager
     ) -> None:
         """Removing a non-existent zone returns False."""
         result = zone_manager.remove_zone("nonexistent-id")
@@ -209,7 +209,7 @@ class TestGetZone:
     """Tests for retrieving zones."""
 
     def test_get_existing_zone(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Getting an existing zone returns its configuration."""
         zone_id = zone_manager.add_zone(name="Downloads", path=str(zone_path))
@@ -220,9 +220,7 @@ class TestGetZone:
         assert zone["id"] == zone_id
         assert zone["name"] == "Downloads"
 
-    def test_get_nonexistent_zone_returns_none(
-        self, zone_manager: "ZoneManager"
-    ) -> None:
+    def test_get_nonexistent_zone_returns_none(self, zone_manager: ZoneManager) -> None:
         """Getting a non-existent zone returns None."""
         zone = zone_manager.get_zone("nonexistent-id")
 
@@ -232,14 +230,14 @@ class TestGetZone:
 class TestListZones:
     """Tests for listing zones."""
 
-    def test_list_zones_empty(self, zone_manager: "ZoneManager") -> None:
+    def test_list_zones_empty(self, zone_manager: ZoneManager) -> None:
         """Listing zones returns empty list when no zones exist."""
         zones = zone_manager.list_zones()
 
         assert zones == []
 
     def test_list_zones_returns_all(
-        self, zone_manager: "ZoneManager", tmp_path: Path
+        self, zone_manager: ZoneManager, tmp_path: Path
     ) -> None:
         """Listing zones returns all configured zones."""
         # Create two zone directories
@@ -262,7 +260,7 @@ class TestUpdateZone:
     """Tests for updating zones."""
 
     def test_update_zone_changes_fields(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Updating a zone changes the specified fields."""
         zone_id = zone_manager.add_zone(name="Original", path=str(zone_path))
@@ -275,7 +273,7 @@ class TestUpdateZone:
         assert zone["auto_sort"] is True
 
     def test_update_zone_preserves_unchanged_fields(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Updating a zone preserves fields not specified."""
         zone_id = zone_manager.add_zone(
@@ -292,7 +290,7 @@ class TestUpdateZone:
         assert zone["categories"] == ["pdf"]
 
     def test_update_nonexistent_zone_returns_false(
-        self, zone_manager: "ZoneManager"
+        self, zone_manager: ZoneManager
     ) -> None:
         """Updating a non-existent zone returns False."""
         result = zone_manager.update_zone("nonexistent-id", name="Test")
@@ -300,7 +298,7 @@ class TestUpdateZone:
         assert result is False
 
     def test_update_zone_with_invalid_path_raises_error(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """Updating zone with non-existent path raises error."""
         from folder_extractor.core.zone_manager import ZoneManagerError
@@ -320,7 +318,7 @@ class TestHelperMethods:
     """Tests for helper methods."""
 
     def test_get_enabled_zones_filters_correctly(
-        self, zone_manager: "ZoneManager", tmp_path: Path
+        self, zone_manager: ZoneManager, tmp_path: Path
     ) -> None:
         """get_enabled_zones returns only enabled zones."""
         zone1 = tmp_path / "zone1"
@@ -337,7 +335,7 @@ class TestHelperMethods:
         assert enabled[0]["name"] == "Enabled"
 
     def test_zone_exists_returns_true_for_existing(
-        self, zone_manager: "ZoneManager", zone_path: Path
+        self, zone_manager: ZoneManager, zone_path: Path
     ) -> None:
         """zone_exists returns True for existing zones."""
         zone_id = zone_manager.add_zone(name="Test", path=str(zone_path))
@@ -345,13 +343,13 @@ class TestHelperMethods:
         assert zone_manager.zone_exists(zone_id) is True
 
     def test_zone_exists_returns_false_for_nonexistent(
-        self, zone_manager: "ZoneManager"
+        self, zone_manager: ZoneManager
     ) -> None:
         """zone_exists returns False for non-existent zones."""
         assert zone_manager.zone_exists("nonexistent-id") is False
 
     def test_clear_all_zones_removes_all(
-        self, zone_manager: "ZoneManager", tmp_path: Path
+        self, zone_manager: ZoneManager, tmp_path: Path
     ) -> None:
         """clear_all_zones removes all configured zones."""
         zone1 = tmp_path / "zone1"
@@ -396,9 +394,7 @@ class TestPersistence:
         assert zone is not None
         assert zone["name"] == "Persistent"
 
-    def test_zones_saved_as_valid_json(
-        self, config_dir: Path, zone_path: Path
-    ) -> None:
+    def test_zones_saved_as_valid_json(self, config_dir: Path, zone_path: Path) -> None:
         """Zones are saved as valid, readable JSON."""
         from folder_extractor.core.zone_manager import ZoneManager
 
@@ -454,7 +450,7 @@ class TestThreadSafety:
     """Tests for thread-safe operations."""
 
     def test_concurrent_add_zone_is_safe(
-        self, zone_manager: "ZoneManager", tmp_path: Path
+        self, zone_manager: ZoneManager, tmp_path: Path
     ) -> None:
         """Multiple threads can add zones concurrently without data loss."""
         num_threads = 10
@@ -465,9 +461,7 @@ class TestThreadSafety:
             try:
                 zone_dir = tmp_path / f"zone_{index}"
                 zone_dir.mkdir(exist_ok=True)
-                zone_id = zone_manager.add_zone(
-                    name=f"Zone{index}", path=str(zone_dir)
-                )
+                zone_id = zone_manager.add_zone(name=f"Zone{index}", path=str(zone_dir))
                 results.append(zone_id)
             except Exception as e:
                 errors.append(e)
@@ -494,14 +488,14 @@ class TestThreadSafety:
 class TestValidation:
     """Tests for input validation."""
 
-    def test_validates_name_required(self, zone_manager: "ZoneManager") -> None:
+    def test_validates_name_required(self, zone_manager: ZoneManager) -> None:
         """Zone name is required."""
         from folder_extractor.core.zone_manager import ZoneManagerError
 
         with pytest.raises((ZoneManagerError, TypeError)):
             zone_manager.add_zone(name="", path="/some/path")  # type: ignore
 
-    def test_validates_path_required(self, zone_manager: "ZoneManager") -> None:
+    def test_validates_path_required(self, zone_manager: ZoneManager) -> None:
         """Zone path is required."""
         from folder_extractor.core.zone_manager import ZoneManagerError
 

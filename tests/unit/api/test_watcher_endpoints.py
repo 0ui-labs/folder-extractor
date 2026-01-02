@@ -9,13 +9,11 @@ Following TDD approach: tests define expected behavior before implementation.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # =============================================================================
 # Fixtures
@@ -205,7 +203,10 @@ class TestWatcherStartEndpoint:
 
         assert response.status_code == 404
         data = response.json()
-        assert "nicht gefunden" in data["detail"].lower() or "not found" in data["detail"].lower()
+        assert (
+            "nicht gefunden" in data["detail"].lower()
+            or "not found" in data["detail"].lower()
+        )
 
     def test_start_watcher_for_already_watched_zone_returns_409(
         self,
@@ -227,7 +228,9 @@ class TestWatcherStartEndpoint:
 
         assert response.status_code == 409
         data = response.json()
-        assert "bereits" in data["detail"].lower() or "already" in data["detail"].lower()
+        assert (
+            "bereits" in data["detail"].lower() or "already" in data["detail"].lower()
+        )
 
     def test_start_watcher_creates_observer_with_zone_path(
         self,
@@ -304,7 +307,10 @@ class TestWatcherStopEndpoint:
 
         assert response.status_code == 404
         data = response.json()
-        assert "nicht aktiv" in data["detail"].lower() or "not active" in data["detail"].lower()
+        assert (
+            "nicht aktiv" in data["detail"].lower()
+            or "not active" in data["detail"].lower()
+        )
 
     def test_stop_watcher_calls_request_abort(
         self,
@@ -473,7 +479,9 @@ class TestWatcherStatusEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["overall_status"] == "running"  # Still running - filter doesn't affect this
+        assert (
+            data["overall_status"] == "running"
+        )  # Still running - filter doesn't affect this
         assert data["total_count"] == 0  # But filtered list is empty
 
 

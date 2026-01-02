@@ -508,10 +508,7 @@ class ConsoleInterface(IUserInterface):
 
         # Categories (show "Standard" if empty or not provided)
         categories = profile.get("categories", [])
-        if categories:
-            cat_str = ", ".join(categories)
-        else:
-            cat_str = "Standard"
+        cat_str = ", ".join(categories) if categories else "Standard"
         self._print(MESSAGES["SMART_WATCH_CATEGORIES"].format(categories=cat_str))
 
         # File types (only show if not empty)

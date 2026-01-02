@@ -106,7 +106,8 @@ unfixable = []
 # Per-file ignores for common patterns
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
-"tests/**/*.py" = ["E501"]  # Relaxed line length for test files with long mock paths
+"tests/**/*.py" = ["E501", "B008"]  # Relaxed for tests (long paths, Depends in tests)
+"folder_extractor/api/**/*.py" = ["B008"]  # FastAPI Depends() in function defaults is standard pattern
 
 [tool.ruff.format]
 # Use double quotes (Black-compatible)

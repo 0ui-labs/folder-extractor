@@ -17,11 +17,11 @@ from folder_extractor.cli.interface import create_console_interface
 from folder_extractor.cli.parser import create_parser
 from folder_extractor.config.constants import MESSAGES
 from folder_extractor.config.settings import Settings, configure_from_args
+from folder_extractor.core.ai_async import AsyncGeminiClient
 from folder_extractor.core.extractor import (
     EnhancedExtractionOrchestrator,
     EnhancedFileExtractor,
 )
-from folder_extractor.core.ai_async import AsyncGeminiClient
 from folder_extractor.core.memory.graph import KnowledgeGraph
 from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.smart_sorter import SmartSorter
@@ -331,8 +331,7 @@ class EnhancedFolderExtractorCLI:
             self.interface.show_watch_event("file", filename, status, error)
 
         # Create SmartFolderEventHandler with profile configuration
-        # Note: file_types are file extensions (e.g., ["pdf", "jpg"]) for filtering
-        #       categories are passed to SmartSorter via temp_settings for AI categorization
+        # file_types: extensions for filtering, categories: for AI categorization
         handler = SmartFolderEventHandler(
             smart_sorter=smart_sorter,
             monitor=monitor,

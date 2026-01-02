@@ -8,15 +8,12 @@ Following TDD principles: these tests are written before the implementation.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from datetime import datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from starlette.testclient import TestClient
-from starlette.websockets import WebSocketDisconnect
 
 from folder_extractor.api.websocket import (
     ConnectionManager,
@@ -24,7 +21,6 @@ from folder_extractor.api.websocket import (
     WebSocketMessage,
     WebSocketProgressBroadcaster,
 )
-
 
 # =============================================================================
 # WebSocketMessage Tests
@@ -302,6 +298,7 @@ class TestWebSocketLogHandler:
     def mock_manager(self) -> MagicMock:
         """Create a mock ConnectionManager."""
         manager = MagicMock(spec=ConnectionManager)
+
         # Use a regular MagicMock that returns a coroutine for broadcast
         async def mock_broadcast(msg: dict[str, Any]) -> None:
             manager._broadcast_calls.append(msg)
@@ -464,8 +461,7 @@ class TestWebSocketEndpoint:
 
         # Chat response format
         response = WebSocketMessage(
-            type="chat",
-            data={"message": "Hello!", "sender": "ai"}
+            type="chat", data={"message": "Hello!", "sender": "ai"}
         )
         result = response.to_dict()
 
@@ -481,7 +477,7 @@ class TestWebSocketEndpoint:
         # Abort response format
         response = WebSocketMessage(
             type="status",
-            data={"status": "abort_requested", "message": "Abbruch angefordert"}
+            data={"status": "abort_requested", "message": "Abbruch angefordert"},
         )
         result = response.to_dict()
 
@@ -496,7 +492,7 @@ class TestWebSocketEndpoint:
         # Error response format
         response = WebSocketMessage(
             type="error",
-            data={"message": "KI nicht verfügbar", "code": "AI_UNAVAILABLE"}
+            data={"message": "KI nicht verfügbar", "code": "AI_UNAVAILABLE"},
         )
         result = response.to_dict()
 

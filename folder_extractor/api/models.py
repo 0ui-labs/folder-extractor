@@ -12,7 +12,6 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-
 # =============================================================================
 # Request Models
 # =============================================================================
@@ -49,7 +48,9 @@ class ZoneConfig(BaseModel):
     path: str = Field(..., min_length=1, description="Absolute path to directory")
     enabled: bool = Field(default=True, description="Zone is active")
     auto_sort: bool = Field(default=False, description="Auto-sort by type")
-    categories: list[str] = Field(default_factory=list, description="Allowed file types")
+    categories: list[str] = Field(
+        default_factory=list, description="Allowed file types"
+    )
 
 
 class ZoneUpdateRequest(BaseModel):
@@ -65,11 +66,15 @@ class ZoneUpdateRequest(BaseModel):
         categories: New list of allowed file types.
     """
 
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Zone name")
-    path: Optional[str] = Field(default=None, min_length=1, description="Absolute path to directory")
+    name: Optional[str] = Field(
+        default=None, min_length=1, max_length=100, description="Zone name"
+    )
+    path: Optional[str] = Field(default=None, min_length=1, description="Absolute path")
     enabled: Optional[bool] = Field(default=None, description="Zone is active")
-    auto_sort: Optional[bool] = Field(default=None, description="Auto-sort by type")
-    categories: Optional[list[str]] = Field(default=None, description="Allowed file types")
+    auto_sort: Optional[bool] = Field(default=None, description="Auto-sort")
+    categories: Optional[list[str]] = Field(
+        default=None, description="Allowed file types"
+    )
 
 
 class WatcherStartRequest(BaseModel):
@@ -132,7 +137,9 @@ class ZoneResponse(BaseModel):
     enabled: bool = Field(..., description="Zone is active")
     auto_sort: bool = Field(..., description="Auto-sort enabled")
     categories: list[str] = Field(..., description="Allowed file types")
-    created_at: Optional[datetime] = Field(default=None, description="Creation timestamp")
+    created_at: Optional[datetime] = Field(
+        default=None, description="Creation timestamp"
+    )
 
 
 class ZoneListResponse(BaseModel):
@@ -176,20 +183,24 @@ class WatcherStatusResponse(BaseModel):
 
     running: bool = Field(..., description="Watcher is running")
     zones: list[str] = Field(..., description="Watched zone IDs")
-    active_since: Optional[datetime] = Field(default=None, description="Start timestamp")
+    active_since: Optional[datetime] = Field(
+        default=None, description="Start timestamp"
+    )
 
 
 class WatcherListResponse(BaseModel):
     """Response for listing all active watchers.
 
     Attributes:
-        overall_status: Aggregated status ("running" if any watcher active, "stopped" if none).
+        overall_status: "running" if any watcher active, "stopped" if none.
         active_watchers: List of active watcher status objects.
         total_count: Total number of active watchers.
     """
 
     overall_status: str = Field(..., description="Overall status: running or stopped")
-    active_watchers: list[SingleWatcherStatus] = Field(..., description="Active watchers")
+    active_watchers: list[SingleWatcherStatus] = Field(
+        ..., description="Active watchers"
+    )
     total_count: int = Field(..., description="Total active watcher count")
 
 

@@ -15,7 +15,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -193,7 +192,10 @@ class TestProcessEndpoint:
 
         assert response.status_code == 404
         data = response.json()
-        assert "nicht gefunden" in data["detail"].lower() or "not found" in data["detail"].lower()
+        assert (
+            "nicht gefunden" in data["detail"].lower()
+            or "not found" in data["detail"].lower()
+        )
 
     def test_process_empty_filepath_returns_422(
         self,
@@ -366,7 +368,10 @@ class TestZoneCreateEndpoint:
 
         assert response.status_code == 409
         data = response.json()
-        assert "existiert bereits" in data["detail"].lower() or "exists" in data["detail"].lower()
+        assert (
+            "existiert bereits" in data["detail"].lower()
+            or "exists" in data["detail"].lower()
+        )
 
     def test_create_zone_with_empty_name_returns_422(
         self,
@@ -451,7 +456,10 @@ class TestZoneDeleteEndpoint:
 
         assert response.status_code == 404
         data = response.json()
-        assert "nicht gefunden" in data["detail"].lower() or "not found" in data["detail"].lower()
+        assert (
+            "nicht gefunden" in data["detail"].lower()
+            or "not found" in data["detail"].lower()
+        )
 
 
 # =============================================================================

@@ -23,6 +23,11 @@ from fastapi.responses import JSONResponse
 
 from folder_extractor.api.endpoints import router as api_router
 from folder_extractor.api.models import HealthResponse
+from folder_extractor.api.websocket import (
+    ConnectionManager,
+    WebSocketLogHandler,
+    WebSocketMessage,
+)
 from folder_extractor.config.constants import VERSION
 from folder_extractor.core.ai_async import AIClientError, AsyncGeminiClient
 from folder_extractor.core.memory.graph import (
@@ -32,15 +37,9 @@ from folder_extractor.core.memory.graph import (
 )
 from folder_extractor.core.security import APIKeyError
 from folder_extractor.core.smart_sorter import SmartSorter
-from folder_extractor.api.websocket import (
-    ConnectionManager,
-    WebSocketLogHandler,
-    WebSocketMessage,
-    WebSocketProgressBroadcaster,
-)
 
 if TYPE_CHECKING:
-    from folder_extractor.config.settings import Settings
+    pass
 
 # Load environment variables
 load_dotenv()
@@ -212,7 +211,7 @@ tags_metadata = [
 
 app = FastAPI(
     title="Folder Extractor API",
-    description="REST API für native macOS Integration mit KI-gestützter Dokumentenanalyse",
+    description="REST API für native macOS Integration mit KI-Dokumentenanalyse",
     version=VERSION,
     lifespan=lifespan,
     docs_url="/docs",
@@ -269,9 +268,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 @app.exception_handler(AIClientError)
-async def ai_client_error_handler(
-    request: Request, exc: AIClientError
-) -> JSONResponse:
+async def ai_client_error_handler(request: Request, exc: AIClientError) -> JSONResponse:
     """Handle AI client errors with 503 Service Unavailable."""
     logger.warning(f"AI client error: {exc}")
     return JSONResponse(
@@ -392,7 +389,9 @@ async def websocket_chat_endpoint(websocket: WebSocket) -> None:
     manager: ConnectionManager = app.state.connection_manager
 
     await manager.connect(websocket)
-    logger.info(f"WebSocket client connected. Active connections: {manager.connection_count}")
+    logger.info(
+        f"WebSocket client connected. Active connections: {manager.connection_count}"
+    )
 
     try:
         while True:
@@ -421,7 +420,8 @@ async def websocket_chat_endpoint(websocket: WebSocket) -> None:
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-        logger.info(f"WebSocket client disconnected. Active connections: {manager.connection_count}")
+        count = manager.connection_count
+        logger.info(f"WebSocket client disconnected. Active: {count}")
     except Exception as e:
         logger.error(f"WebSocket error: {e}", exc_info=True)
         manager.disconnect(websocket)
@@ -465,9 +465,8 @@ async def _handle_chat_message(
         # Use AI client for chat response
         ai_client = app.state.ai_client
         if ai_client:
-            response_text = await ai_client.generate_response(
-                prompt=f"Benutzer fragt: {message}\n\nAntworte kurz und hilfreich auf Deutsch.",
-            )
+            prompt = f"Benutzer fragt: {message}\n\nAntworte kurz auf Deutsch."
+            response_text = await ai_client.generate_response(prompt=prompt)
         else:
             response_text = "KI-Client nicht initialisiert."
 

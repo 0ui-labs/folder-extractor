@@ -6,7 +6,6 @@ before implementation (TDD approach).
 """
 
 from datetime import datetime, timezone
-from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -167,9 +166,7 @@ class TestProcessResponse:
         valid_statuses = ["started", "processing", "completed", "failed"]
 
         for status in valid_statuses:
-            response = ProcessResponse(
-                task_id="test", status=status, message="Test"
-            )
+            response = ProcessResponse(task_id="test", status=status, message="Test")
             assert response.status == status
 
 
