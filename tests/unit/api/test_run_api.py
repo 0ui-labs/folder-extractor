@@ -16,6 +16,24 @@ from unittest.mock import MagicMock
 import pytest
 
 
+# Helper: Check if API server can be imported (fails on Python 3.8 due to google-generativeai)
+def _can_import_api_server() -> bool:
+    """Check if the API server module can be imported."""
+    try:
+        from folder_extractor.api import server  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+# Skip marker for tests requiring API server import
+requires_api_server = pytest.mark.skipif(
+    not _can_import_api_server(),
+    reason="API server requires google-generativeai (Python 3.9+)",
+)
+
+
 class TestArgumentParser:
     """Test suite for CLI argument parsing behavior."""
 
@@ -217,6 +235,7 @@ class TestServerStartup:
         captured = capsys.readouterr()
         assert "/docs" in captured.out
 
+    @requires_api_server
     def test_main_passes_cli_args_to_uvicorn(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -249,6 +268,7 @@ class TestServerStartup:
 class TestErrorHandling:
     """Test suite for error handling in the entry point."""
 
+    @requires_api_server
     def test_keyboard_interrupt_prints_graceful_message(
         self, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
