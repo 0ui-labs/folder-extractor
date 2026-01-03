@@ -80,7 +80,7 @@ class TestGlobalDedupSameNameBug:
                 history,
             ) = file_mover.move_files(
                 files=[file1, file2],
-                destination=str(dest),
+                destination=dest,
                 dry_run=False,
                 deduplicate=False,  # Note: deduplicate is False!
                 global_dedup=True,
@@ -159,7 +159,7 @@ class TestGlobalDedupSameNameBug:
                 history,
             ) = file_mover.move_files(
                 files=[file1, file2],
-                destination=str(dest),
+                destination=dest,
                 dry_run=False,
                 deduplicate=False,
                 global_dedup=True,
@@ -209,7 +209,7 @@ class TestGlobalDedupSameNameBug:
                 history,
             ) = file_mover.move_files(
                 files=[file1, file2],
-                destination=str(dest),
+                destination=dest,
                 dry_run=False,
                 deduplicate=True,  # This makes it work!
                 global_dedup=True,
@@ -273,7 +273,7 @@ class TestGlobalDedupKeepsOriginalNotCopy:
                 history,
             ) = file_mover.move_files(
                 files=[copy, original],  # Copy listed first!
-                destination=str(dest),
+                destination=dest,
                 dry_run=False,
                 deduplicate=False,
                 global_dedup=True,
@@ -332,7 +332,7 @@ class TestGlobalDedupKeepsOriginalNotCopy:
                 history,
             ) = file_mover.move_files(
                 files=[file_b, file_a],  # B first, A second
-                destination=str(dest),
+                destination=dest,
                 dry_run=False,
                 deduplicate=False,
                 global_dedup=True,
@@ -389,7 +389,7 @@ class TestGlobalDedupKeepsOriginalNotCopy:
                 history,
             ) = file_mover.move_files(
                 files=[new_file, old_file],
-                destination=str(dest),
+                destination=dest,
                 dry_run=False,
                 deduplicate=False,
                 global_dedup=True,
@@ -445,7 +445,7 @@ class TestGlobalDedupSameNameBugSorted:
                 created_folders,
             ) = file_mover.move_files_sorted(
                 files=[file1, file2],
-                destination=str(dest),
+                destination=dest,
                 dry_run=False,
                 deduplicate=False,
                 global_dedup=True,

@@ -10,7 +10,10 @@ import tempfile
 from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    from folder_extractor.core.archives import IArchiveHandler
 
 from folder_extractor.config.constants import HISTORY_FILE_NAME, MESSAGES
 from folder_extractor.config.settings import settings
@@ -37,7 +40,7 @@ ProgressCallback = Optional[Callable[[int, int, str, Optional[str]], None]]
 class ExtractionError(Exception):
     """Base exception for extraction errors."""
 
-    pass
+    ...
 
 
 class IEnhancedExtractor(ABC):
@@ -46,12 +49,12 @@ class IEnhancedExtractor(ABC):
     @abstractmethod
     def validate_security(self, path: Path) -> None:
         """Validate that the path is safe for operations."""
-        pass
+        ...
 
     @abstractmethod
     def discover_files(self, path: Path) -> List[str]:
         """Discover files based on current settings."""
-        pass
+        ...
 
     @abstractmethod
     def extract_files(
@@ -63,12 +66,12 @@ class IEnhancedExtractor(ABC):
         indexing_callback: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Extract files to destination with operation tracking."""
-        pass
+        ...
 
     @abstractmethod
     def undo_last_operation(self, path: Path) -> Dict[str, Any]:
         """Undo the last operation."""
-        pass
+        ...
 
 
 class EnhancedFileExtractor(IEnhancedExtractor):
@@ -132,7 +135,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         # Check plain TAR files
         return suffix_lower in self._TAR_EXTENSIONS
 
-    def _get_archive_handler(self, filepath: Path) -> Optional[Any]:
+    def _get_archive_handler(self, filepath: Path) -> "Optional[IArchiveHandler]":
         """
         Get the appropriate handler for an archive file.
 
