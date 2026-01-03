@@ -71,7 +71,7 @@ class TestEnhancedFileExtractor:
 
         assert len(files) == 2
         self.mock_file_discovery.find_files.assert_called_once_with(
-            directory=str(tmp_path),
+            directory=tmp_path,
             max_depth=0,
             file_type_filter=None,
             include_hidden=False,
@@ -105,7 +105,7 @@ class TestEnhancedFileExtractor:
 
         # Verify history was saved (line 195)
         self.mock_history_manager.save_history.assert_called_once_with(
-            history, str(destination)
+            history, destination
         )
         assert result["moved"] == 3
         assert len(result["history"]) == 3
@@ -1325,30 +1325,6 @@ class TestEnhancedExtractionOrchestrator:
         # Verify result is passed through
         assert result == expected_result
 
-    def test_execute_undo_with_string_path(self, tmp_path):
-        """Test undo with string path conversion."""
-        # Setup
-        path_str = str(tmp_path / "test")
-        Path(path_str).mkdir()
-
-        expected_result = {
-            "status": "success",
-            "restored": 3,
-            "errors": 0,
-            "aborted": False,
-        }
-
-        # Configure mock
-        self.mock_extractor.undo_last_operation.return_value = expected_result
-
-        # Execute undo with string path
-        result = self.orchestrator.execute_undo(path_str)
-
-        # Verify extractor method was called with Path object
-        self.mock_extractor.undo_last_operation.assert_called_once_with(Path(path_str))
-
-        # Verify result
-        assert result == expected_result
 
 
 class TestProcessSingleFile:

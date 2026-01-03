@@ -51,7 +51,7 @@ if not _can_import_google_generativeai():
 @pytest.fixture
 def temp_dir(tmp_path):
     """Create a temporary directory for testing."""
-    yield str(tmp_path)
+    yield tmp_path
     # Cleanup handled automatically by pytest
 
 
@@ -95,7 +95,7 @@ def safe_test_dir():
     """Create a test directory in a safe location (Desktop)."""
     desktop = Path.home() / "Desktop" / "folder_extractor_test"
     desktop.mkdir(exist_ok=True)
-    yield str(desktop)
+    yield desktop
     # Cleanup
     if desktop.exists():
         shutil.rmtree(desktop)
@@ -190,8 +190,8 @@ def binary_test_file(temp_dir):
             result = calculate_hash(file_path)
             assert result == expected_hash
     """
-    file_path = Path(temp_dir) / "test_binary.bin"
+    file_path = temp_dir / "test_binary.bin"
     content = b"Test binary content for hashing"
     file_path.write_bytes(content)
     expected_hash = hashlib.sha256(content).hexdigest()
-    return str(file_path), expected_hash
+    return file_path, expected_hash

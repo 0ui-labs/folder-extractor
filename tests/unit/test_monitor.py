@@ -220,13 +220,13 @@ class TestStabilityMonitor:
 
         assert all(results), "All files should be ready"
 
-    def test_path_string_converted_to_path_object(self, tmp_path):
-        """String paths are automatically converted to Path objects."""
-        test_file = tmp_path / "string_path_test.txt"
+    def test_accepts_path_object(self, tmp_path):
+        """Path objects are accepted as filepath parameter."""
+        test_file = tmp_path / "path_object_test.txt"
         test_file.write_text("content")
 
-        # Pass as string instead of Path
-        result = self.monitor.wait_for_file_ready(str(test_file), timeout=5)
+        # Pass as Path object
+        result = self.monitor.wait_for_file_ready(test_file, timeout=5)
 
         assert result is True
 

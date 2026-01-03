@@ -399,21 +399,6 @@ class TestCalculateFileHashEdgeCases:
         expected = hashlib.sha256(content).hexdigest()
         assert result == expected
 
-    def test_hash_file_accepts_string_path(self, temp_dir):
-        """Method accepts both str and Path objects for filepath.
-
-        API should be flexible in accepting path types.
-        """
-        file_ops = FileOperations()
-        file_path = Path(temp_dir) / "string_path.txt"
-        content = b"String path test"
-        file_path.write_bytes(content)
-
-        # Call with string instead of Path
-        result = file_ops.calculate_file_hash(str(file_path))
-
-        expected = hashlib.sha256(content).hexdigest()
-        assert result == expected
 
     def test_hash_exactly_chunk_size(self, temp_dir):
         """File with exactly chunk size (8192 bytes) is hashed correctly.

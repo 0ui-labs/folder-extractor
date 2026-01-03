@@ -57,7 +57,7 @@ class TestPrepareGlobalHashIndexSorting:
 
             # Call with files in wrong order (new first)
             sorted_files, _ = file_mover._prepare_global_hash_index(
-                files=[str(new_file), str(old_file)],
+                files=[new_file, old_file],
                 dest_path=dest,
             )
 
@@ -93,7 +93,7 @@ class TestPrepareGlobalHashIndexSorting:
             file_mover = FileMover(file_ops)
 
             sorted_files, _ = file_mover._prepare_global_hash_index(
-                files=[str(long_name), str(short_name)],
+                files=[long_name, short_name],
                 dest_path=dest,
             )
 
@@ -124,7 +124,7 @@ class TestPrepareGlobalHashIndexSorting:
             file_mover = FileMover(file_ops)
 
             sorted_files, _ = file_mover._prepare_global_hash_index(
-                files=[str(file_b), str(file_a)],
+                files=[file_b, file_a],
                 dest_path=dest,
             )
 
@@ -161,7 +161,7 @@ class TestPrepareGlobalHashIndexFiltering:
             file_mover = FileMover(file_ops)
 
             _, hash_index = file_mover._prepare_global_hash_index(
-                files=[str(file1), str(file2)],
+                files=[file1, file2],
                 dest_path=dest,
             )
 
@@ -200,7 +200,7 @@ class TestPrepareGlobalHashIndexFiltering:
             file_mover = FileMover(file_ops)
 
             _, hash_index = file_mover._prepare_global_hash_index(
-                files=[str(source_file)],
+                files=[source_file],
                 dest_path=dest,
             )
 
@@ -238,7 +238,7 @@ class TestPrepareGlobalHashIndexFiltering:
             file_mover = FileMover(file_ops)
 
             _, hash_index = file_mover._prepare_global_hash_index(
-                files=[str(source_file)],
+                files=[source_file],
                 dest_path=dest,
             )
 
@@ -276,7 +276,7 @@ class TestPrepareGlobalHashIndexCallbacks:
             file_mover = FileMover(file_ops, indexing_callback=callback)
 
             file_mover._prepare_global_hash_index(
-                files=[str(file1)],
+                files=[file1],
                 dest_path=dest,
             )
 
@@ -310,7 +310,7 @@ class TestPrepareGlobalHashIndexCallbacks:
 
             # Should not raise - error is caught internally
             _, hash_index = file_mover._prepare_global_hash_index(
-                files=[str(file1)],
+                files=[file1],
                 dest_path=dest,
             )
 
@@ -340,7 +340,7 @@ class TestPrepareGlobalHashIndexReturnValue:
             file_mover = FileMover(file_ops)
 
             result = file_mover._prepare_global_hash_index(
-                files=[str(file1)],
+                files=[file1],
                 dest_path=dest,
             )
 

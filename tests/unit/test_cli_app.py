@@ -271,7 +271,7 @@ class TestEnhancedFolderExtractorCLI:
                 assert result == 0
 
                 # Check orchestrator called
-                mock_orchestrator.execute_undo.assert_called_once_with("/test/path")
+                mock_orchestrator.execute_undo.assert_called_once_with(Path("/test/path"))
 
                 # Check messages shown
                 assert self.cli.interface.show_message.call_count >= 2

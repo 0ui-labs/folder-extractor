@@ -54,13 +54,6 @@ class TestFileOperations:
             name = self.file_ops.generate_unique_name(temp_path, "README")
             assert name == "README_1"
 
-    def test_generate_unique_name_with_string(self):
-        """Test unique name generation with string path (backward compatibility)."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Test with string (backward compatibility)
-            name = self.file_ops.generate_unique_name(temp_dir, "test.txt")
-            assert name == "test.txt"
-
     def test_move_file_success(self):
         """Test successful file move."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -109,36 +102,6 @@ class TestFileOperations:
                 assert dest.exists()
                 assert dest.read_text() == "content"
 
-    def test_move_file_with_string(self):
-        """Test file move with string paths (backward compatibility)."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            source = temp_path / "source.txt"
-            source.write_text("content")
-
-            # Move file using strings
-            dest_str = str(temp_path / "dest.txt")
-            result = self.file_ops.move_file(str(source), dest_str)
-
-            assert result is True
-            assert not source.exists()
-            assert Path(dest_str).exists()
-
-    def test_move_file_mixed_types(self):
-        """Test file move with mixed Path and str arguments."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            source = temp_path / "source.txt"
-            source.write_text("content")
-
-            # Move file using Path source and str destination
-            dest = temp_path / "dest.txt"
-            result = self.file_ops.move_file(source, str(dest))
-
-            assert result is True
-            assert not source.exists()
-            assert dest.exists()
-
     def test_move_file_copy_failure_raises_error(self):
         """Test that FileOperationError is raised when copy fails after rename fails."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -159,20 +122,20 @@ class TestFileOperations:
 
     def test_determine_type_folder_known_types(self):
         """Test folder determination for known file types."""
-        assert self.file_ops.determine_type_folder("document.pdf") == "PDF"
-        assert self.file_ops.determine_type_folder("script.py") == "PYTHON"
-        assert self.file_ops.determine_type_folder("IMAGE.JPG") == "JPEG"
-        assert self.file_ops.determine_type_folder("page.html") == "HTML"
+        assert self.file_ops.determine_type_folder(Path("document.pdf")) == "PDF"
+        assert self.file_ops.determine_type_folder(Path("script.py")) == "PYTHON"
+        assert self.file_ops.determine_type_folder(Path("IMAGE.JPG")) == "JPEG"
+        assert self.file_ops.determine_type_folder(Path("page.html")) == "HTML"
 
     def test_determine_type_folder_unknown_type(self):
         """Test folder determination for unknown file types."""
-        assert self.file_ops.determine_type_folder("file.xyz") == "XYZ"
-        assert self.file_ops.determine_type_folder("data.custom") == "CUSTOM"
+        assert self.file_ops.determine_type_folder(Path("file.xyz")) == "XYZ"
+        assert self.file_ops.determine_type_folder(Path("data.custom")) == "CUSTOM"
 
     def test_determine_type_folder_no_extension(self):
         """Test folder determination for files without extension."""
-        assert self.file_ops.determine_type_folder("README") == "OHNE_ERWEITERUNG"
-        assert self.file_ops.determine_type_folder("Makefile") == "OHNE_ERWEITERUNG"
+        assert self.file_ops.determine_type_folder(Path("README")) == "OHNE_ERWEITERUNG"
+        assert self.file_ops.determine_type_folder(Path("Makefile")) == "OHNE_ERWEITERUNG"
 
     def test_determine_type_folder_with_path(self):
         """Test folder determination with Path object."""
@@ -201,18 +164,6 @@ class TestFileOperations:
             assert not (temp_path / "empty2").exists()
             assert non_empty.exists()
 
-    def test_remove_empty_directories_with_string(self):
-        """Test removing empty directories with string path (backward compatibility)."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            # Create empty directory
-            (temp_path / "empty").mkdir()
-
-            # Test with string (backward compatibility)
-            removed = self.file_ops.remove_empty_directories(temp_dir)
-
-            assert removed == 1
-            assert not (temp_path / "empty").exists()
 
     def test_remove_empty_directories_with_hidden(self):
         """Test removing directories with hidden files."""
@@ -449,7 +400,7 @@ class TestFileOperations:
             (photos / "unique1.png").write_bytes(b"unique png data")
             (docs / "unique2.docx").write_bytes(b"unique docx data different size")
 
-            result = self.file_ops.build_hash_index(temp_dir)
+            result = self.file_ops.build_hash_index(base)
 
             # Should find exactly 2 duplicate groups
             assert len(result) == 2
@@ -495,7 +446,7 @@ class TestFileOperations:
             abort_signal.set()
 
             file_ops = FileOperations(abort_signal=abort_signal)
-            result = file_ops.build_hash_index(temp_dir)
+            result = file_ops.build_hash_index(base)
 
             # With abort set, should return empty or partial result
             # (depends on timing, but should not process all files)
@@ -531,7 +482,7 @@ class TestFileOperations:
             with patch.object(
                 file_ops, "calculate_file_hash", side_effect=hash_with_abort
             ):
-                result = file_ops.build_hash_index(temp_dir)
+                result = file_ops.build_hash_index(base)
 
             # Should have processed some but not all files
             assert isinstance(result, dict)
@@ -567,18 +518,6 @@ class TestHistoryManager:
             assert len(loaded["operationen"]) == 1
             assert loaded["operationen"][0]["original_pfad"] == "/old/path/file.txt"
 
-    def test_save_and_load_history_with_string(self):
-        """Test saving and loading history with string path (backward compatibility)."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            operations = [{"test": "data"}]
-
-            # Save history with string
-            history_file = HistoryManager.save_history(operations, temp_dir)
-            assert Path(history_file).exists()
-
-            # Load history with string
-            loaded = HistoryManager.load_history(temp_dir)
-            assert loaded is not None
 
     def test_load_nonexistent_history(self):
         """Test loading when no history exists."""
@@ -657,30 +596,6 @@ class TestFileMover:
                 dest_file = dest_dir / f"file{i}.txt"
                 assert dest_file.exists()
                 assert dest_file.read_text() == f"content{i}"
-
-    def test_move_files_with_strings(self):
-        """Test moving multiple files with string paths (backward compatibility)."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            source_dir = temp_path / "source"
-            source_dir.mkdir()
-            dest_dir = temp_path / "dest"
-            dest_dir.mkdir()
-
-            # Create test files - use strings
-            files = []
-            for i in range(2):
-                file_path = source_dir / f"file{i}.txt"
-                file_path.write_text(f"content{i}")
-                files.append(str(file_path))
-
-            # Move files with string destination
-            moved, errors, duplicates, _, _, history = self.file_mover.move_files(
-                files, str(dest_dir)
-            )
-
-            assert moved == 2
-            assert errors == 0
 
     def test_move_files_with_duplicates(self):
         """Test moving files with duplicate names."""
@@ -771,27 +686,6 @@ class TestFileMover:
             assert (dest_dir / "JPEG" / "image.jpg").exists()
             assert (dest_dir / "PYTHON" / "script.py").exists()
             assert (dest_dir / "JSON" / "data.json").exists()
-
-    def test_move_files_sorted_with_strings(self):
-        """Test moving files sorted by type with strings (backward compatibility)."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            source_dir = temp_path / "source"
-            source_dir.mkdir()
-            dest_dir = temp_path / "dest"
-            dest_dir.mkdir()
-
-            # Create test file - use string
-            file_path = source_dir / "test.pdf"
-            file_path.touch()
-
-            # Move files sorted with string paths
-            moved, errors, duplicates, _, _, history, created_folders = (
-                self.file_mover.move_files_sorted([str(file_path)], str(dest_dir))
-            )
-
-            assert moved == 1
-            assert "PDF" in created_folders
 
     def test_move_files_with_progress_callback(self):
         """Test progress callback during file move."""

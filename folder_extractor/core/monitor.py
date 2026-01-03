@@ -9,7 +9,6 @@ being written by other applications.
 import logging
 import time
 from pathlib import Path
-from typing import Union
 
 from folder_extractor.core.state_manager import IStateManager
 
@@ -36,7 +35,7 @@ class StabilityMonitor:
         self.state_manager = state_manager
 
     def wait_for_file_ready(
-        self, filepath: Union[str, Path], timeout: int = 60
+        self, filepath: Path, timeout: int = 60
     ) -> bool:
         """Wait until file is fully written and ready for processing.
 
@@ -52,7 +51,6 @@ class StabilityMonitor:
             True if file is ready for processing.
             False if timeout reached, abort requested, or file doesn't exist.
         """
-        filepath = Path(filepath)
         start_time = time.monotonic()
         last_size = -1
 

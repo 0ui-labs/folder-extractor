@@ -28,7 +28,7 @@ class TestFileDiscovery:
         (tmp_path / "subdir2" / "file3.txt").touch()
 
         # Find files
-        files = self.file_discovery.find_files(str(tmp_path))
+        files = self.file_discovery.find_files(tmp_path)
 
         assert len(files) == 3
         filenames = [Path(f).name for f in files]
@@ -48,13 +48,13 @@ class TestFileDiscovery:
         (deep_path / "file3.txt").touch()
 
         # Test different depths
-        files_depth1 = self.file_discovery.find_files(str(tmp_path), max_depth=1)
+        files_depth1 = self.file_discovery.find_files(tmp_path, max_depth=1)
         assert len(files_depth1) == 1  # Only file1.txt
 
-        files_depth2 = self.file_discovery.find_files(str(tmp_path), max_depth=2)
+        files_depth2 = self.file_discovery.find_files(tmp_path, max_depth=2)
         assert len(files_depth2) == 2  # file1.txt and file2.txt
 
-        files_unlimited = self.file_discovery.find_files(str(tmp_path), max_depth=0)
+        files_unlimited = self.file_discovery.find_files(tmp_path, max_depth=0)
         assert len(files_unlimited) == 3  # All files
 
     def test_find_files_type_filter(self, tmp_path):
@@ -70,14 +70,14 @@ class TestFileDiscovery:
 
         # Filter for specific types
         txt_files = self.file_discovery.find_files(
-            str(tmp_path), file_type_filter=[".txt"]
+            tmp_path, file_type_filter=[".txt"]
         )
         assert len(txt_files) == 1
         assert txt_files[0].endswith("doc.txt")
 
         # Multiple types
         doc_files = self.file_discovery.find_files(
-            str(tmp_path), file_type_filter=[".txt", ".pdf"]
+            tmp_path, file_type_filter=[".txt", ".pdf"]
         )
         assert len(doc_files) == 2
 
@@ -94,12 +94,12 @@ class TestFileDiscovery:
         (hidden_dir / "file.txt").touch()
 
         # Without include_hidden
-        files = self.file_discovery.find_files(str(tmp_path), include_hidden=False)
+        files = self.file_discovery.find_files(tmp_path, include_hidden=False)
         assert len(files) == 1
         assert files[0].endswith("visible.txt")
 
         # With include_hidden
-        files = self.file_discovery.find_files(str(tmp_path), include_hidden=True)
+        files = self.file_discovery.find_files(tmp_path, include_hidden=True)
         assert len(files) == 3
 
     def test_find_files_abort_signal(self, tmp_path):
@@ -117,7 +117,7 @@ class TestFileDiscovery:
         abort_signal.set()
 
         # Should return fewer files due to abort
-        files = file_discovery.find_files(str(tmp_path))
+        files = file_discovery.find_files(tmp_path)
         assert len(files) < 10
 
     def test_check_url_file(self, tmp_path):
@@ -130,12 +130,12 @@ class TestFileDiscovery:
 
         # Check domain
         assert (
-            self.file_discovery.check_weblink_domain(str(url_file), ["youtube.com"])
+            self.file_discovery.check_weblink_domain(url_file, ["youtube.com"])
             is True
         )
 
         assert (
-            self.file_discovery.check_weblink_domain(str(url_file), ["github.com"])
+            self.file_discovery.check_weblink_domain(url_file, ["github.com"])
             is False
         )
 
@@ -156,19 +156,19 @@ class TestFileDiscovery:
 
         # Check domain
         assert (
-            self.file_discovery.check_weblink_domain(str(webloc_file), ["github.com"])
+            self.file_discovery.check_weblink_domain(webloc_file, ["github.com"])
             is True
         )
 
         assert (
-            self.file_discovery.check_weblink_domain(str(webloc_file), ["youtube.com"])
+            self.file_discovery.check_weblink_domain(webloc_file, ["youtube.com"])
             is False
         )
 
     def test_check_weblink_nonexistent(self):
         """Test checking non-existent weblink files."""
         result = self.file_discovery.check_weblink_domain(
-            "/nonexistent/file.url", ["any.com"]
+            Path("/nonexistent/file.url"), ["any.com"]
         )
         assert result is False
 
@@ -179,7 +179,7 @@ class TestFileDiscovery:
         invalid_url.write_text("Not a valid URL file")
 
         assert (
-            self.file_discovery.check_weblink_domain(str(invalid_url), ["any.com"])
+            self.file_discovery.check_weblink_domain(invalid_url, ["any.com"])
             is False
         )
 
@@ -188,23 +188,9 @@ class TestFileDiscovery:
         invalid_webloc.write_text("Not valid XML")
 
         assert (
-            self.file_discovery.check_weblink_domain(str(invalid_webloc), ["any.com"])
+            self.file_discovery.check_weblink_domain(invalid_webloc, ["any.com"])
             is False
         )
-
-    def test_find_files_accepts_string_path(self, tmp_path):
-        """Verify backward compatibility with string paths."""
-        # Create test structure
-        subdir = tmp_path / "subdir"
-        subdir.mkdir()
-        (subdir / "file.txt").touch()
-
-        # Test with string path
-        files = self.file_discovery.find_files(str(tmp_path))
-
-        assert len(files) == 1
-        assert files[0].endswith("file.txt")
-        assert isinstance(files[0], str)
 
     def test_find_files_accepts_path_object(self, tmp_path):
         """Verify Path objects are accepted."""
@@ -263,7 +249,7 @@ class TestFileDiscovery:
         txt_file.write_text("https://example.com")
 
         result = self.file_discovery.check_weblink_domain(
-            str(txt_file), ["example.com"]
+            txt_file, ["example.com"]
         )
         assert result is False
 
@@ -292,16 +278,12 @@ class TestFileDiscovery:
         assert self.file_discovery._calculate_depth(tmp_path, level3) == 3
 
     def test_calculate_depth_accepts_path_objects(self, tmp_path):
-        """Test that _calculate_depth accepts both strings and Path objects."""
+        """Test that _calculate_depth accepts Path objects."""
         subdir = tmp_path / "subdir"
         subdir.mkdir()
 
         # Test with Path objects
         assert self.file_discovery._calculate_depth(tmp_path, subdir) == 1
-        # Test with strings
-        assert self.file_discovery._calculate_depth(str(tmp_path), str(subdir)) == 1
-        # Test mixed
-        assert self.file_discovery._calculate_depth(tmp_path, str(subdir)) == 1
 
     def test_calculate_depth_unrelated_paths(self, tmp_path):
         """Test depth calculation with unrelated paths."""
@@ -417,7 +399,7 @@ class TestFileDiscoveryEdgeCases:
         # Set abort immediately - should abort during file iteration
         abort_signal.set()
 
-        files = file_discovery.find_files(str(tmp_path))
+        files = file_discovery.find_files(tmp_path)
         # Should return early due to abort
         assert len(files) < 5
 
@@ -435,7 +417,7 @@ class TestFileDiscoveryEdgeCases:
         # Set abort after starting
         abort_signal.set()
 
-        files = file_discovery.find_files(str(tmp_path))
+        files = file_discovery.find_files(tmp_path)
         # Should return early
         assert len(files) < 5
 
@@ -456,7 +438,7 @@ class TestFileDiscoveryEdgeCases:
 
         with patch("folder_extractor.core.file_discovery.os.walk", mock_os_walk):
             # Should handle the error gracefully
-            files = file_discovery.find_files(str(tmp_path))
+            files = file_discovery.find_files(tmp_path)
             # Should return empty list when permission denied at root
             assert isinstance(files, list)
             assert files == []
@@ -470,7 +452,7 @@ class TestFileDiscoveryEdgeCases:
         url_file.write_bytes(b"\xff\xfe\x00\x00")  # Invalid encoding
 
         # Should return False on exception
-        result = file_discovery.check_weblink_domain(str(url_file), ["example.com"])
+        result = file_discovery.check_weblink_domain(url_file, ["example.com"])
         assert result is False
 
     def test_check_webloc_alternative_structure(self, tmp_path):
@@ -493,7 +475,7 @@ class TestFileDiscoveryEdgeCases:
         webloc_file.write_text(plist_content)
 
         # Should extract domain correctly
-        result = file_discovery.check_weblink_domain(str(webloc_file), ["github.com"])
+        result = file_discovery.check_weblink_domain(webloc_file, ["github.com"])
         assert result is True
 
     def test_check_url_domain_exception(self, tmp_path):
@@ -526,7 +508,7 @@ class TestFileDiscoveryEdgeCases:
 </plist>""")
 
         # Should return False (no URL key found)
-        result = file_discovery.check_weblink_domain(str(webloc_file), ["example.com"])
+        result = file_discovery.check_weblink_domain(webloc_file, ["example.com"])
         assert result is False
 
     def test_url_file_without_url_line(self, tmp_path):
@@ -536,7 +518,7 @@ class TestFileDiscoveryEdgeCases:
         url_file = tmp_path / "nourl.url"
         url_file.write_text("[InternetShortcut]\nIconIndex=0\n")
 
-        result = file_discovery.check_weblink_domain(str(url_file), ["example.com"])
+        result = file_discovery.check_weblink_domain(url_file, ["example.com"])
         assert result is False
 
     def test_webloc_with_alternative_xml_structure(self, tmp_path):
@@ -570,7 +552,7 @@ class TestFileDiscoveryEdgeCases:
         webloc_file.write_text(plist_content)
 
         # Should extract domain correctly via alternative path (lines 224-227)
-        result = file_discovery.check_weblink_domain(str(webloc_file), ["github.com"])
+        result = file_discovery.check_weblink_domain(webloc_file, ["github.com"])
         assert result is True
 
     def test_check_url_domain_with_none_url(self):

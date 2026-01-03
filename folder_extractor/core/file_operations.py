@@ -95,38 +95,38 @@ class IFileOperations(ABC):  # pragma: no cover
     @abstractmethod
     def move_file(
         self,
-        source: Union[str, Path],
-        destination: Union[str, Path],
+        source: Path,
+        destination: Path,
         dry_run: bool = False,
     ) -> bool:
         """Move a single file."""
         pass
 
     @abstractmethod
-    def generate_unique_name(self, directory: Union[str, Path], filename: str) -> str:
+    def generate_unique_name(self, directory: Path, filename: str) -> str:
         """Generate a unique filename in the given directory."""
         pass
 
     @abstractmethod
     def remove_empty_directories(
-        self, path: Union[str, Path], include_hidden: bool = False
+        self, path: Path, include_hidden: bool = False
     ) -> int:
         """Remove empty directories recursively."""
         pass
 
     @abstractmethod
-    def determine_type_folder(self, filename: Union[str, Path]) -> str:
+    def determine_type_folder(self, filename: Path) -> str:
         """Determine the folder name for a file type."""
         pass
 
     @abstractmethod
     def calculate_file_hash(
-        self, filepath: Union[str, Path], algorithm: str = "sha256"
+        self, filepath: Path, algorithm: str = "sha256"
     ) -> str:
         """Calculate the hash of a file.
 
         Args:
-            filepath: Path to the file to hash
+            filepath: Path object to the file to hash
             algorithm: Hash algorithm to use (default: sha256)
 
         Returns:
@@ -136,7 +136,7 @@ class IFileOperations(ABC):  # pragma: no cover
 
     @abstractmethod
     def build_hash_index(
-        self, directory: Union[str, Path], include_all: bool = False
+        self, directory: Path, include_all: bool = False
     ) -> Dict[str, List[Path]]:
         """Build a hash index of all files in a directory tree.
 
@@ -145,7 +145,7 @@ class IFileOperations(ABC):  # pragma: no cover
         (unless include_all is True).
 
         Args:
-            directory: Root directory to scan (str or Path)
+            directory: Root directory to scan (Path object)
             include_all: If True, hash ALL files (for global deduplication).
                         If False, only hash files with matching sizes (optimization).
 
@@ -170,16 +170,16 @@ class FileOperations(IFileOperations):
 
     def move_file(
         self,
-        source: Union[str, Path],
-        destination: Union[str, Path],
+        source: Path,
+        destination: Path,
         dry_run: bool = False,
     ) -> bool:
         """
         Move a single file from source to destination.
 
         Args:
-            source: Source file path (str or Path)
-            destination: Destination file path (str or Path)
+            source: Source file path (Path object)
+            destination: Destination file path (Path object)
             dry_run: If True, don't actually move the file
 
         Returns:
@@ -191,40 +191,33 @@ class FileOperations(IFileOperations):
         if dry_run:
             return True
 
-        # Convert to Path objects
-        source_path = Path(source)
-        dest_path = Path(destination)
-
         try:
             # Try to move using rename (fastest)
-            source_path.rename(dest_path)
+            source.rename(destination)
             return True
         except OSError:
             # Fall back to copy and delete (works across filesystems)
             try:
-                shutil.copy2(source_path, dest_path)
-                source_path.unlink()
+                shutil.copy2(source, destination)
+                source.unlink()
                 return True
             except Exception as e:
                 raise FileOperationError(f"Failed to move file: {str(e)}") from e
 
-    def generate_unique_name(self, directory: Union[str, Path], filename: str) -> str:
+    def generate_unique_name(self, directory: Path, filename: str) -> str:
         """
         Generate a unique filename in the given directory.
 
         If a file with the given name already exists, appends _1, _2, etc.
 
         Args:
-            directory: Directory to check for existing files (str or Path)
+            directory: Directory to check for existing files (Path object)
             filename: Original filename
 
         Returns:
             Unique filename that doesn't exist in the directory
         """
-        # Convert to Path object
-        dir_path = Path(directory)
-
-        if not (dir_path / filename).exists():
+        if not (directory / filename).exists():
             return filename
 
         # Use Path for extension handling
@@ -236,30 +229,28 @@ class FileOperations(IFileOperations):
         counter = 1
         while True:
             new_name = f"{base_name}_{counter}{extension}"
-            if not (dir_path / new_name).exists():
+            if not (directory / new_name).exists():
                 return new_name
             counter += 1
 
     def remove_empty_directories(
-        self, path: Union[str, Path], include_hidden: bool = False
+        self, path: Path, include_hidden: bool = False
     ) -> int:
         """
         Remove empty directories recursively.
 
         Args:
-            path: Root path to start from (str or Path)
+            path: Root path to start from (Path object)
             include_hidden: Whether to consider hidden files
 
         Returns:
             Number of directories removed
         """
-        # Convert to Path object
-        root_path = Path(path)
         removed_count = 0
 
         # Walk directory tree bottom-up using sorted list of all subdirectories
         all_dirs = sorted(
-            root_path.rglob("*"), key=lambda p: len(p.parts), reverse=True
+            path.rglob("*"), key=lambda p: len(p.parts), reverse=True
         )
 
         for dir_path in all_dirs:
@@ -268,7 +259,7 @@ class FileOperations(IFileOperations):
                 continue
 
             # Skip root directory itself (defensive, rglob shouldn't return it)
-            if dir_path == root_path:  # pragma: no cover
+            if dir_path == path:  # pragma: no cover
                 continue
 
             # Check if directory is empty
@@ -307,19 +298,17 @@ class FileOperations(IFileOperations):
 
         return removed_count
 
-    def determine_type_folder(self, filename: Union[str, Path]) -> str:
+    def determine_type_folder(self, filename: Path) -> str:
         """
         Determine the folder name for a file based on its type.
 
         Args:
-            filename: Name of the file (str or Path)
+            filename: Name of the file (Path object)
 
         Returns:
             Folder name for the file type
         """
-        # Convert to Path object and get extension
-        file_path = Path(filename)
-        ext = file_path.suffix.lower()  # suffix includes the dot, e.g., '.pdf'
+        ext = filename.suffix.lower()  # suffix includes the dot, e.g., '.pdf'
 
         # Look up in mapping
         if ext in FILE_TYPE_FOLDERS:
@@ -332,7 +321,7 @@ class FileOperations(IFileOperations):
             return NO_EXTENSION_FOLDER
 
     def calculate_file_hash(
-        self, filepath: Union[str, Path], algorithm: str = "sha256"
+        self, filepath: Path, algorithm: str = "sha256"
     ) -> str:
         """
         Calculate the hash of a file using the specified algorithm.
@@ -341,7 +330,7 @@ class FileOperations(IFileOperations):
         for large files (e.g., videos).
 
         Args:
-            filepath: Path to the file to hash (str or Path)
+            filepath: Path to the file to hash (Path object)
             algorithm: Hash algorithm to use (default: "sha256")
                        Supported: "md5", "sha1", "sha256", "sha512", etc.
 
@@ -355,21 +344,18 @@ class FileOperations(IFileOperations):
 
         Example:
             >>> ops = FileOperations()
-            >>> hash_value = ops.calculate_file_hash("video.mp4")
+            >>> hash_value = ops.calculate_file_hash(Path("video.mp4"))
             >>> print(hash_value)
             'a1b2c3d4...'
         """
-        # Convert to Path object
-        file_path = Path(filepath)
-
         # Validate file exists
-        if not file_path.exists():
-            raise FileOperationError(f"Datei existiert nicht: {file_path}")
+        if not filepath.exists():
+            raise FileOperationError(f"Datei existiert nicht: {filepath}")
 
         # Validate it's a file, not a directory
-        if file_path.is_dir():
+        if filepath.is_dir():
             raise FileOperationError(
-                f"Pfad ist ein Verzeichnis, keine Datei: {file_path}"
+                f"Pfad ist ein Verzeichnis, keine Datei: {filepath}"
             )
 
         # Create hash object - ValueError is raised by hashlib for invalid algorithms
@@ -382,7 +368,7 @@ class FileOperations(IFileOperations):
         chunk_size = 8192  # 8KB chunks - optimal for I/O performance
 
         try:
-            with file_path.open("rb") as f:
+            with filepath.open("rb") as f:
                 while True:
                     chunk = f.read(chunk_size)
                     if not chunk:
@@ -390,17 +376,17 @@ class FileOperations(IFileOperations):
                     hash_obj.update(chunk)
         except PermissionError as e:
             raise FileOperationError(
-                f"Keine Berechtigung zum Lesen der Datei: {file_path}"
+                f"Keine Berechtigung zum Lesen der Datei: {filepath}"
             ) from e
         except OSError as e:
             raise FileOperationError(
-                f"Fehler beim Lesen der Datei: {file_path} - {e}"
+                f"Fehler beim Lesen der Datei: {filepath} - {e}"
             ) from e
 
         return hash_obj.hexdigest()
 
     def build_hash_index(
-        self, directory: Union[str, Path], include_all: bool = False
+        self, directory: Path, include_all: bool = False
     ) -> Dict[str, List[Path]]:
         """
         Build a hash index of all files in a directory tree.
@@ -410,7 +396,7 @@ class FileOperations(IFileOperations):
         (unless include_all is True).
 
         Args:
-            directory: Root directory to scan (str or Path)
+            directory: Root directory to scan (Path object)
             include_all: If True, hash ALL files (for global deduplication).
                         If False, only hash files with matching sizes (optimization).
 
@@ -426,40 +412,37 @@ class FileOperations(IFileOperations):
 
         Example:
             >>> ops = FileOperations()
-            >>> index = ops.build_hash_index("/media/photos")
+            >>> index = ops.build_hash_index(Path("/media/photos"))
             >>> # Find all duplicate groups
             >>> duplicates = {h: paths for h, paths in index.items() if len(paths) > 1}
             >>> print(f"Found {len(duplicates)} groups of duplicates")
         """
         from collections import defaultdict
 
-        # Convert to Path object
-        dir_path = Path(directory)
-
         # Validate directory exists
-        if not dir_path.exists():
-            raise FileOperationError(f"Verzeichnis existiert nicht: {dir_path}")
+        if not directory.exists():
+            raise FileOperationError(f"Verzeichnis existiert nicht: {directory}")
 
         # Validate it's a directory, not a file
-        if not dir_path.is_dir():
+        if not directory.is_dir():
             raise FileOperationError(
-                f"Pfad ist eine Datei, kein Verzeichnis: {dir_path}"
+                f"Pfad ist eine Datei, kein Verzeichnis: {directory}"
             )
 
         # Check if we can read the directory
         try:
             # Try to list the directory to check permissions
-            next(dir_path.iterdir(), None)
+            next(directory.iterdir(), None)
         except PermissionError as e:
             raise FileOperationError(
-                f"Keine Leseberechtigung für Verzeichnis: {dir_path}"
+                f"Keine Leseberechtigung für Verzeichnis: {directory}"
             ) from e
 
         # Phase 1: Group files by size (fast metadata operation)
         size_groups: Dict[int, List[Path]] = defaultdict(list)
 
         try:
-            for path in dir_path.rglob("*"):
+            for path in directory.rglob("*"):
                 # Check abort signal
                 if self.abort_signal and self.abort_signal.is_set():
                     break
@@ -476,7 +459,7 @@ class FileOperations(IFileOperations):
                     continue
         except PermissionError as e:
             raise FileOperationError(
-                f"Keine Leseberechtigung für Verzeichnis: {dir_path}"
+                f"Keine Leseberechtigung für Verzeichnis: {directory}"
             ) from e
 
         # Phase 2: Hash files based on include_all flag
@@ -520,11 +503,11 @@ class HistoryManager:
     """
 
     @staticmethod
-    def _get_history_file_path(directory: Union[str, Path]) -> Path:
+    def _get_history_file_path(directory: Path) -> Path:
         """Get the path to the history file for a directory.
 
         Args:
-            directory: The working directory
+            directory: The working directory (Path object)
 
         Returns:
             Path to the history file in the central config location
@@ -534,23 +517,23 @@ class HistoryManager:
         return config_dir / filename
 
     @staticmethod
-    def _get_legacy_history_file(directory: Union[str, Path]) -> Path:
+    def _get_legacy_history_file(directory: Path) -> Path:
         """Get the path to the legacy (local) history file.
 
         Args:
-            directory: The working directory
+            directory: The working directory (Path object)
 
         Returns:
             Path to the legacy history file in the working directory
         """
-        return Path(directory) / HISTORY_FILE_NAME
+        return directory / HISTORY_FILE_NAME
 
     @staticmethod
-    def _migrate_legacy_history(directory: Union[str, Path]) -> bool:
+    def _migrate_legacy_history(directory: Path) -> bool:
         """Migrate legacy history file from working directory to central location.
 
         Args:
-            directory: The working directory
+            directory: The working directory (Path object)
 
         Returns:
             True if migration occurred, False otherwise
@@ -608,14 +591,14 @@ class HistoryManager:
 
     @staticmethod
     def save_history(
-        operations: List[Dict[str, Any]], directory: Union[str, Path]
+        operations: List[Dict[str, Any]], directory: Path
     ) -> str:
         """
         Save operation history to file in central config location.
 
         Args:
             operations: List of operation records
-            directory: Working directory (used to identify the history file)
+            directory: Working directory (Path object, used to identify the history file)
 
         Returns:
             Path to the history file (as string)
@@ -626,7 +609,7 @@ class HistoryManager:
         HistoryManager._set_immutable(history_file, False)
 
         # Store the working directory path in the history for reference
-        dir_path = Path(directory).resolve()
+        dir_path = directory.resolve()
         history_data = {
             "zeitstempel": datetime.now().isoformat(),
             "version": "2.0",
@@ -643,7 +626,7 @@ class HistoryManager:
         return str(history_file)
 
     @staticmethod
-    def load_history(directory: Union[str, Path]) -> Optional[Dict[str, Any]]:
+    def load_history(directory: Path) -> Optional[Dict[str, Any]]:
         """
         Load operation history from file.
 
@@ -651,7 +634,7 @@ class HistoryManager:
         Then loads from central config location.
 
         Args:
-            directory: Working directory (used to identify the history file)
+            directory: Working directory (Path object, used to identify the history file)
 
         Returns:
             History data or None if not found
@@ -672,14 +655,14 @@ class HistoryManager:
             return None
 
     @staticmethod
-    def delete_history(directory: Union[str, Path]) -> bool:
+    def delete_history(directory: Path) -> bool:
         """
         Delete history file from central config location.
 
         Also removes any legacy history file in the working directory.
 
         Args:
-            directory: Working directory (used to identify the history file)
+            directory: Working directory (Path object, used to identify the history file)
 
         Returns:
             True if deleted, False if not found
@@ -793,9 +776,9 @@ class FileMover:
 
     def _prepare_global_hash_index(
         self,
-        files: Sequence[Union[str, Path]],
+        files: Sequence[Path],
         dest_path: Path,
-    ) -> Tuple[Sequence[Union[str, Path]], Dict[str, List[Path]]]:
+    ) -> Tuple[Sequence[Path], Dict[str, List[Path]]]:
         """
         Prepare hash index for global deduplication.
 
@@ -823,14 +806,14 @@ class FileMover:
         # Secondary sort by filename length then alphabetically, so that
         # when mtimes are equal, shorter/simpler names (likely originals)
         # are processed first (e.g., "test.md" before "test kopie.md").
-        sorted_files: Sequence[Union[str, Path]] = files
+        sorted_files: Sequence[Path] = files
         with contextlib.suppress(OSError):
             sorted_files = sorted(
                 files,
                 key=lambda f: (
-                    Path(f).stat().st_mtime,  # Primary: oldest first
-                    len(Path(f).name),  # Secondary: shortest name first
-                    Path(f).name,  # Tertiary: alphabetically
+                    f.stat().st_mtime,  # Primary: oldest first
+                    len(f.name),  # Secondary: shortest name first
+                    f.name,  # Tertiary: alphabetically
                 ),
             )
 
@@ -984,8 +967,8 @@ class FileMover:
 
     def move_files(
         self,
-        files: Sequence[Union[str, Path]],
-        destination: Union[str, Path],
+        files: Sequence[Path],
+        destination: Path,
         dry_run: bool = False,
         progress_callback: Optional[Callable[..., None]] = None,
         deduplicate: bool = False,
@@ -1110,12 +1093,12 @@ class FileMover:
 
     def move_files_sorted(
         self,
-        files: Sequence[Union[str, Path]],
-        destination: Union[str, Path],
+        files: Sequence[Path],
+        destination: Path,
         dry_run: bool = False,
         progress_callback: Optional[Callable[..., None]] = None,
         folder_override_callback: Optional[
-            Callable[[Union[str, Path]], Optional[str]]
+            Callable[[Path], Optional[str]]
         ] = None,
         deduplicate: bool = False,
         global_dedup: bool = False,
@@ -1205,7 +1188,7 @@ class FileMover:
 
                 # Fall back to default type folder determination
                 if not type_folder:
-                    type_folder = self.file_ops.determine_type_folder(filename)
+                    type_folder = self.file_ops.determine_type_folder(source_path)
 
                 type_path = dest_path / type_folder
 

@@ -6,6 +6,7 @@ modular implementation. This ensures backwards compatibility with
 existing tests and code that imports from folder_extractor.main.
 """
 
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from folder_extractor.core.file_discovery import FileDiscovery
@@ -31,7 +32,7 @@ def generiere_eindeutigen_namen(directory: str, filename: str) -> str:
     Returns:
         Unique filename that doesn't exist in the directory
     """
-    return _file_ops.generate_unique_name(directory, filename)
+    return _file_ops.generate_unique_name(Path(directory), filename)
 
 
 def ist_sicherer_pfad(path: str) -> bool:
@@ -62,7 +63,7 @@ def entferne_leere_ordner(path: str, include_hidden: bool = False) -> int:
     Returns:
         Number of directories removed
     """
-    return _file_ops.remove_empty_directories(path, include_hidden)
+    return _file_ops.remove_empty_directories(Path(path), include_hidden)
 
 
 def pruefe_weblink_domain(filepath: str, allowed_domains: List[str]) -> bool:
@@ -72,13 +73,13 @@ def pruefe_weblink_domain(filepath: str, allowed_domains: List[str]) -> bool:
     Legacy wrapper for FileDiscovery.check_weblink_domain().
 
     Args:
-        filepath: Path to the weblink file
+        filepath: Path to the weblink file (as string)
         allowed_domains: List of allowed domains
 
     Returns:
         True if the file is from an allowed domain
     """
-    return _file_discovery.check_weblink_domain(filepath, allowed_domains)
+    return _file_discovery.check_weblink_domain(Path(filepath), allowed_domains)
 
 
 def finde_dateien(
@@ -93,7 +94,7 @@ def finde_dateien(
     Legacy wrapper for FileDiscovery.find_files().
 
     Args:
-        directory: Root directory to search
+        directory: Root directory to search (as string)
         max_tiefe: Maximum depth to search (0 = unlimited)
         dateityp_filter: List of allowed file extensions
         include_hidden: Whether to include hidden files
@@ -102,7 +103,7 @@ def finde_dateien(
         List of file paths found
     """
     return _file_discovery.find_files(
-        directory,
+        Path(directory),
         max_depth=max_tiefe,
         file_type_filter=dateityp_filter,
         include_hidden=include_hidden,
@@ -127,7 +128,10 @@ def verschiebe_dateien(
         Tuple of (moved_count, error_count, duplicate_count, content_duplicates,
                   global_duplicates, history)
     """
-    return _file_mover.move_files(files, destination, dry_run, progress_callback)
+    # Convert strings to Path objects for core layer
+    file_paths = [Path(f) for f in files]
+    dest_path = Path(destination)
+    return _file_mover.move_files(file_paths, dest_path, dry_run, progress_callback)
 
 
 # Legacy parsers compatibility - delegate to new parsers

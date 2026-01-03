@@ -8,7 +8,7 @@ import os
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 from urllib.parse import urlparse
 
 from folder_extractor.config.constants import HIDDEN_FILE_PREFIX
@@ -24,7 +24,7 @@ class IFileDiscovery(ABC):
     @abstractmethod
     def find_files(
         self,
-        directory: Union[str, Path],
+        directory: Path,
         max_depth: int = 0,
         file_type_filter: Optional[List[str]] = None,
         include_hidden: bool = False,
@@ -34,13 +34,13 @@ class IFileDiscovery(ABC):
 
     @abstractmethod
     def check_weblink_domain(
-        self, filepath: Union[str, Path], allowed_domains: List[str]
+        self, filepath: Path, allowed_domains: List[str]
     ) -> bool:
         """Check if a weblink file matches allowed domains."""
         pass
 
     @abstractmethod
-    def extract_weblink_domain(self, filepath: Union[str, Path]) -> Optional[str]:
+    def extract_weblink_domain(self, filepath: Path) -> Optional[str]:
         """Extract the domain from a weblink file (.url or .webloc)."""
         pass
 
@@ -81,7 +81,7 @@ class FileDiscovery(IFileDiscovery):
 
     def find_files(
         self,
-        directory: Union[str, Path],
+        directory: Path,
         max_depth: int = 0,
         file_type_filter: Optional[List[str]] = None,
         include_hidden: bool = False,
@@ -100,7 +100,7 @@ class FileDiscovery(IFileDiscovery):
             - No RecursionError risk at any depth
 
         Args:
-            directory: Root directory to search
+            directory: Root directory to search (Path object)
             max_depth: Maximum depth to search (0 = unlimited)
                        Uses dirs[:] = [] pattern for early traversal termination
             file_type_filter: List of allowed file extensions (e.g., ['.txt', '.pdf'])
@@ -118,19 +118,18 @@ class FileDiscovery(IFileDiscovery):
 
         Example:
             >>> discovery = FileDiscovery()
-            >>> files = discovery.find_files('/path/to/dir', max_depth=3)
+            >>> files = discovery.find_files(Path('/path/to/dir'), max_depth=3)
             >>> # Finds files up to 3 levels deep, no RecursionError risk
         """
-        base_path = Path(directory)
         found_files = []
 
         # Pre-calculate base path parts count for fast depth calculation
-        base_parts_count = len(base_path.parts)
+        base_parts_count = len(directory.parts)
 
         # Iterative traversal with os.walk() - no recursion, no stack overflow risk
         # topdown=True enables in-place dirs[:] modification for early pruning
         try:
-            for root, dirs, files in os.walk(str(base_path), topdown=True):
+            for root, dirs, files in os.walk(directory, topdown=True):
                 # Check abort signal
                 if self.abort_signal and self.abort_signal.is_set():
                     return found_files
@@ -173,28 +172,27 @@ class FileDiscovery(IFileDiscovery):
         return found_files
 
     def check_weblink_domain(
-        self, filepath: Union[str, Path], allowed_domains: List[str]
+        self, filepath: Path, allowed_domains: List[str]
     ) -> bool:
         """
         Check if a weblink file (.url or .webloc) is from an allowed domain.
 
         Args:
-            filepath: Path to the weblink file
+            filepath: Path object to the weblink file
             allowed_domains: List of allowed domains
 
         Returns:
             True if the file is from an allowed domain
         """
-        file_path = Path(filepath)
-        if not file_path.exists():
+        if not filepath.exists():
             return False
 
         try:
             # Determine file type using Path.suffix
-            if file_path.suffix == ".url":
-                return self._check_url_file(str(file_path), allowed_domains)
-            elif file_path.suffix == ".webloc":
-                return self._check_webloc_file(str(file_path), allowed_domains)
+            if filepath.suffix == ".url":
+                return self._check_url_file(filepath, allowed_domains)
+            elif filepath.suffix == ".webloc":
+                return self._check_webloc_file(filepath, allowed_domains)
             else:
                 return False
         except Exception:  # pragma: no cover
@@ -202,20 +200,20 @@ class FileDiscovery(IFileDiscovery):
             return False
 
     def _calculate_depth(
-        self, base_dir: Union[str, Path], current_dir: Union[str, Path]
+        self, base_dir: Path, current_dir: Path
     ) -> int:
         """
         Calculate the depth of current directory relative to base.
 
         Args:
-            base_dir: Base directory
-            current_dir: Current directory
+            base_dir: Base directory (Path object)
+            current_dir: Current directory (Path object)
 
         Returns:
             Depth level (0 = base directory)
         """
-        base_path = Path(base_dir).resolve()
-        current_path = Path(current_dir).resolve()
+        base_path = base_dir.resolve()
+        current_path = current_dir.resolve()
 
         # Get relative path
         try:
@@ -227,12 +225,12 @@ class FileDiscovery(IFileDiscovery):
             # Paths are on different drives or not relative
             return 0
 
-    def _check_url_file(self, filepath: str, allowed_domains: List[str]) -> bool:
+    def _check_url_file(self, filepath: Path, allowed_domains: List[str]) -> bool:
         """
         Check Windows .url file for allowed domains.
 
         Args:
-            filepath: Path to .url file
+            filepath: Path object to .url file
             allowed_domains: List of allowed domains
 
         Returns:
@@ -249,12 +247,12 @@ class FileDiscovery(IFileDiscovery):
 
         return False
 
-    def _check_webloc_file(self, filepath: str, allowed_domains: List[str]) -> bool:
+    def _check_webloc_file(self, filepath: Path, allowed_domains: List[str]) -> bool:
         """
         Check macOS .webloc file for allowed domains.
 
         Args:
-            filepath: Path to .webloc file
+            filepath: Path object to .webloc file
             allowed_domains: List of allowed domains
 
         Returns:
@@ -314,31 +312,30 @@ class FileDiscovery(IFileDiscovery):
         except Exception:
             return False
 
-    def extract_weblink_domain(self, filepath: Union[str, Path]) -> Optional[str]:
+    def extract_weblink_domain(self, filepath: Path) -> Optional[str]:
         """
         Extract the domain from a weblink file (.url or .webloc).
 
         Args:
-            filepath: Path to the weblink file
+            filepath: Path object to the weblink file
 
         Returns:
             Domain string (e.g., 'youtube.com') or None if extraction fails
         """
-        file_path = Path(filepath)
-        if not file_path.exists():
+        if not filepath.exists():
             return None
 
         try:
-            if file_path.suffix == ".url":
-                return self._extract_domain_from_url_file(str(file_path))
-            elif file_path.suffix == ".webloc":
-                return self._extract_domain_from_webloc_file(str(file_path))
+            if filepath.suffix == ".url":
+                return self._extract_domain_from_url_file(filepath)
+            elif filepath.suffix == ".webloc":
+                return self._extract_domain_from_webloc_file(filepath)
             else:
                 return None
         except Exception:
             return None
 
-    def _extract_domain_from_url_file(self, filepath: str) -> Optional[str]:
+    def _extract_domain_from_url_file(self, filepath: Path) -> Optional[str]:
         """Extract domain from Windows .url file."""
         with open(filepath, encoding="utf-8", errors="ignore") as f:
             content = f.read()
@@ -349,7 +346,7 @@ class FileDiscovery(IFileDiscovery):
                 return self._extract_domain_from_url(url)
         return None
 
-    def _extract_domain_from_webloc_file(self, filepath: str) -> Optional[str]:
+    def _extract_domain_from_webloc_file(self, filepath: Path) -> Optional[str]:
         """Extract domain from macOS .webloc file."""
         try:
             tree = ET.parse(filepath)

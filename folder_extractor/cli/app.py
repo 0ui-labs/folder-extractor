@@ -9,7 +9,7 @@ import asyncio
 import sys
 import time
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 from watchdog.observers import Observer
 
@@ -85,15 +85,16 @@ class EnhancedFolderExtractorCLI:
             self.interface.show_message(f"Fehler: {str(e)}", message_type="error")
             return 1
 
-    def _execute_extraction(self, path: Union[str, Path]) -> int:
+    def _execute_extraction(self, path: Path) -> int:
         """Execute file extraction operation.
 
         Args:
-            path: Path to extract files from
+            path: Path object to extract files from
 
         Returns:
             Exit code
         """
+        path = Path(path)
         # Create extractor and orchestrator
         extractor = EnhancedFileExtractor(state_manager=self.state_manager)
         orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
@@ -102,7 +103,7 @@ class EnhancedFolderExtractorCLI:
         def progress_callback(
             current: int,
             total: int,
-            filepath: Union[str, Path],
+            filepath: str,
             error: Optional[str] = None,
         ):
             self.interface.show_progress(current, total, filepath, error)
@@ -158,15 +159,16 @@ class EnhancedFolderExtractorCLI:
             )
             return 1
 
-    def _execute_undo(self, path: Union[str, Path]) -> int:
+    def _execute_undo(self, path: Path) -> int:
         """Execute undo operation.
 
         Args:
-            path: Path where history is located
+            path: Path object where history is located
 
         Returns:
             Exit code
         """
+        path = Path(path)
         # Create extractor and orchestrator
         extractor = EnhancedFileExtractor(state_manager=self.state_manager)
         orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
@@ -203,18 +205,19 @@ class EnhancedFolderExtractorCLI:
 
         return 0 if result["status"] == "success" else 1
 
-    def _execute_watch(self, path: Union[str, Path]) -> int:
+    def _execute_watch(self, path: Path) -> int:
         """Execute watch mode operation.
 
         Starts a filesystem watcher that monitors the given path for new files
         and automatically processes them using the extraction orchestrator.
 
         Args:
-            path: Path to watch for new files
+            path: Path object to watch for new files
 
         Returns:
             Exit code (0 for normal exit)
         """
+        path = Path(path)
         # Create monitor and orchestrator
         monitor = StabilityMonitor(self.state_manager)
         extractor = EnhancedFileExtractor(state_manager=self.state_manager)
@@ -224,7 +227,7 @@ class EnhancedFolderExtractorCLI:
         def progress_callback(
             current: int,
             total: int,
-            filepath: Union[str, Path],
+            filepath: str,
             error: Optional[str] = None,
         ) -> None:
             self.interface.show_progress(current, total, filepath, error)

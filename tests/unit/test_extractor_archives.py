@@ -108,7 +108,6 @@ class TestIsArchive:
     def test_recognizes_zip_files(self, extractor, filename):
         """ZIP files are recognized as archives."""
         assert extractor._is_archive(Path(filename)) is True
-        assert extractor._is_archive(filename) is True  # Also accepts str
 
     @pytest.mark.parametrize(
         "filename",
@@ -142,17 +141,6 @@ class TestIsArchive:
         """Non-archive files are not recognized as archives."""
         assert extractor._is_archive(Path(filename)) is False
 
-    def test_handles_path_objects_and_strings(self, extractor):
-        """Method accepts both Path objects and strings."""
-        assert extractor._is_archive(Path("test.zip")) is True
-        assert extractor._is_archive("test.zip") is True
-        assert extractor._is_archive(Path("test.pdf")) is False
-        assert extractor._is_archive("test.pdf") is False
-
-
-# =============================================================================
-# Test _get_archive_handler - Handler Selection
-# =============================================================================
 
 
 class TestGetArchiveHandler:
@@ -188,15 +176,6 @@ class TestGetArchiveHandler:
         handler = extractor._get_archive_handler(Path("document.pdf"))
         assert handler is None
 
-    def test_accepts_string_paths(self, extractor):
-        """Method accepts string paths in addition to Path objects."""
-        handler = extractor._get_archive_handler("test.zip")
-        assert handler is not None
-
-
-# =============================================================================
-# Test _process_archives - Archive Processing Logic
-# =============================================================================
 
 
 class TestProcessArchives:

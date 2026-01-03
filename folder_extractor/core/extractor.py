@@ -44,12 +44,12 @@ class IEnhancedExtractor(ABC):
     """Interface for enhanced file extraction with state management."""
 
     @abstractmethod
-    def validate_security(self, path: Union[str, Path]) -> None:
+    def validate_security(self, path: Path) -> None:
         """Validate that the path is safe for operations."""
         pass
 
     @abstractmethod
-    def discover_files(self, path: Union[str, Path]) -> List[str]:
+    def discover_files(self, path: Path) -> List[str]:
         """Discover files based on current settings."""
         pass
 
@@ -57,7 +57,7 @@ class IEnhancedExtractor(ABC):
     def extract_files(
         self,
         files: List[str],
-        destination: Union[str, Path],
+        destination: Path,
         operation_id: Optional[str] = None,
         progress_callback: ProgressCallback = None,
         indexing_callback: Optional[Callable[[str], None]] = None,
@@ -66,7 +66,7 @@ class IEnhancedExtractor(ABC):
         pass
 
     @abstractmethod
-    def undo_last_operation(self, path: Union[str, Path]) -> Dict[str, Any]:
+    def undo_last_operation(self, path: Path) -> Dict[str, Any]:
         """Undo the last operation."""
         pass
 
@@ -102,7 +102,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
     _COMPRESSED_TAR_SUFFIXES = [".tar.gz", ".tar.bz2", ".tar.xz"]
     _TAR_ALIASES = frozenset([".tgz", ".txz"])
 
-    def _is_archive(self, filepath: Union[str, Path]) -> bool:
+    def _is_archive(self, filepath: Path) -> bool:
         """
         Check if a file is a supported archive based on its extension.
 
@@ -112,7 +112,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         Returns:
             True if the file is a supported archive format
         """
-        path = Path(filepath)
+        path = filepath
         name_lower = path.name.lower()
         suffix_lower = path.suffix.lower()
 
@@ -132,7 +132,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         # Check plain TAR files
         return suffix_lower in self._TAR_EXTENSIONS
 
-    def _get_archive_handler(self, filepath: Union[str, Path]) -> Optional[Any]:
+    def _get_archive_handler(self, filepath: Path) -> Optional[Any]:
         """
         Get the appropriate handler for an archive file.
 
@@ -144,8 +144,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         """
         from folder_extractor.core.archives import get_archive_handler
 
-        path = Path(filepath)
-        return get_archive_handler(path)
+        return get_archive_handler(filepath)
 
     def _process_archives(
         self,
@@ -197,7 +196,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         archives_to_process = []
 
         for filepath in files:
-            if self._is_archive(filepath):
+            file_path = Path(filepath)
+            if self._is_archive(file_path):
                 archives_to_process.append(filepath)
             else:
                 remaining_files.append(filepath)
@@ -213,7 +213,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 )
                 break
 
-            archive_name = Path(archive_path).name
+            archive_path_obj = Path(archive_path)
+            archive_name = archive_path_obj.name
 
             # Notify progress
             if progress_callback:
@@ -231,18 +232,18 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 temp_path = Path(temp_dir)
 
                 # Get appropriate handler
-                handler = self._get_archive_handler(archive_path)
+                handler = self._get_archive_handler(archive_path_obj)
                 if handler is None:
                     # Should not happen since we checked _is_archive, but be safe
                     remaining_files.append(archive_path)
                     continue
 
                 # Extract archive
-                handler.extract(Path(archive_path), temp_path)
+                handler.extract(archive_path_obj, temp_path)
 
                 # Discover extracted files
                 extracted_files = self.file_discovery.find_files(
-                    directory=str(temp_path),
+                    directory=temp_path,
                     max_depth=0,  # Unlimited depth within archive
                     include_hidden=settings.get("include_hidden", False),
                 )
@@ -304,18 +305,15 @@ class EnhancedFileExtractor(IEnhancedExtractor):
 
         return remaining_files, archive_results
 
-    def validate_security(self, path: Union[str, Path]) -> None:
+    def validate_security(self, path: Path) -> None:
         """Validate that the path is safe for operations."""
-        path = Path(path)
-        path_str = str(path)
-        if not is_safe_path(path_str):
-            raise SecurityError(MESSAGES["SECURITY_ERROR"].format(path=path_str))
+        if not is_safe_path(path):
+            raise SecurityError(MESSAGES["SECURITY_ERROR"].format(path=path))
 
-    def discover_files(self, path: Union[str, Path]) -> List[str]:
+    def discover_files(self, path: Path) -> List[str]:
         """Discover files based on current settings."""
-        path = Path(path)
         files = self.file_discovery.find_files(
-            directory=str(path),
+            directory=path,
             max_depth=settings.get("max_depth", 0),
             file_type_filter=settings.get("file_type_filter"),
             include_hidden=settings.get("include_hidden", False),
@@ -331,7 +329,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 if file_path.suffix.lower() in [".url", ".webloc"]:
                     # Only include if domain matches
                     domain_matches = self.file_discovery.check_weblink_domain(
-                        filepath, domain_filter
+                        file_path, domain_filter
                     )
                     if domain_matches:
                         filtered_files.append(filepath)
@@ -345,7 +343,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
     def extract_files(
         self,
         files: List[str],
-        destination: Union[str, Path],
+        destination: Path,
         operation_id: Optional[str] = None,
         progress_callback: ProgressCallback = None,
         indexing_callback: Optional[Callable[[str], None]] = None,
@@ -362,9 +360,6 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         Returns:
             Dictionary with extraction results
         """
-        destination = Path(destination)
-        destination_str = str(destination)
-
         results = {
             "moved": 0,
             "skipped": 0,
@@ -441,17 +436,14 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         if settings.get("sort_by_type", False):
             # Create folder override callback for domain filter
             domain_filter = settings.get("domain_filter")
-            folder_override: Optional[Callable[[Union[str, Path]], Optional[str]]] = (
-                None
-            )
+            folder_override: Optional[Callable[[Path], Optional[str]]] = None
             if domain_filter:
                 # When domain filter is active, use domain as folder name for weblinks
                 def _make_folder_override(
                     discovery: "IFileDiscovery",
-                ) -> Callable[[Union[str, Path]], Optional[str]]:
-                    def _folder_override(filepath: Union[str, Path]) -> Optional[str]:
-                        file_path = Path(filepath)
-                        if file_path.suffix.lower() in [".url", ".webloc"]:
+                ) -> Callable[[Path], Optional[str]]:
+                    def _folder_override(filepath: Path) -> Optional[str]:
+                        if filepath.suffix.lower() in [".url", ".webloc"]:
                             domain = discovery.extract_weblink_domain(filepath)
                             if domain:
                                 return domain
@@ -464,6 +456,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             # Move files sorted by type
             deduplicate = settings.get("deduplicate", False)
             global_dedup = settings.get("global_dedup", False)
+            # Convert string paths to Path objects for core layer
+            file_paths = [Path(f) for f in files]
             (
                 moved,
                 errors,
@@ -473,8 +467,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 history,
                 created_folders,
             ) = file_mover.move_files_sorted(
-                files=files,
-                destination=destination_str,
+                files=file_paths,
+                destination=destination,
                 dry_run=settings.get("dry_run", False),
                 progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
                     c, f, e
@@ -498,6 +492,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             # Move files flat
             deduplicate = settings.get("deduplicate", False)
             global_dedup = settings.get("global_dedup", False)
+            # Convert string paths to Path objects for core layer
+            file_paths = [Path(f) for f in files]
             (
                 moved,
                 errors,
@@ -506,8 +502,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 global_duplicates,
                 history,
             ) = file_mover.move_files(
-                files=files,
-                destination=destination_str,
+                files=file_paths,
+                destination=destination,
                 dry_run=settings.get("dry_run", False),
                 progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
                     c, f, e
@@ -536,7 +532,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         # Save history if not dry run and there are history entries
         # (includes both moved files and content duplicates)
         if not settings.get("dry_run", False) and move_results["history"]:
-            self.history_manager.save_history(move_results["history"], destination_str)
+            self.history_manager.save_history(move_results["history"], destination)
 
         # Check if aborted
         if abort_signal.is_set():
@@ -570,7 +566,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         return results
 
     def _remove_empty_directories(
-        self, path: Union[str, Path], temp_files: list
+        self, path: Path, temp_files: list
     ) -> Dict[str, Any]:
         """Remove empty directories after extraction.
 
@@ -581,7 +577,6 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         Returns:
             Dictionary with 'removed' count and 'skipped' list of (path, reason)
         """
-        path = Path(path)
         removed_count = 0
         skipped_dirs = []
 
@@ -650,7 +645,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
 
         return {"removed": removed_count, "skipped": skipped_dirs}
 
-    def undo_last_operation(self, path: Union[str, Path]) -> Dict[str, Any]:
+    def undo_last_operation(self, path: Path) -> Dict[str, Any]:
         """Undo the last operation.
 
         Args:
@@ -659,11 +654,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         Returns:
             Dictionary with undo results
         """
-        path = Path(path)
-        path_str = str(path)
-
         # Load history
-        history_data = self.history_manager.load_history(path_str)
+        history_data = self.history_manager.load_history(path)
 
         if not history_data or "operationen" not in history_data:
             return {
@@ -721,8 +713,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                             entry.get("neuer_pfad", entry.get("new_path"))
                         )
                         self.file_operations.move_file(
-                            str(source_path),
-                            str(original_path),
+                            source_path,
+                            original_path,
                         )
 
                     restored += 1
@@ -747,7 +739,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
 
             # Clear history after successful undo
             if restored > 0 and not op.abort_signal.is_set():
-                self.history_manager.delete_history(path_str)
+                self.history_manager.delete_history(path)
 
             # Clean up empty directories after undo (e.g., empty type folders)
             removed_dirs = 0
@@ -788,7 +780,7 @@ class EnhancedExtractionOrchestrator:
 
     def execute_extraction(
         self,
-        source_path: Union[str, Path],
+        source_path: Path,
         confirmation_callback: Optional[Callable[[int], bool]] = None,
         progress_callback: ProgressCallback = None,
         indexing_callback: Optional[Callable[[str], None]] = None,
@@ -804,7 +796,6 @@ class EnhancedExtractionOrchestrator:
         Returns:
             Dictionary with operation results
         """
-        source_path = Path(source_path)
 
         # Start operation
         with ManagedOperation(self.state_manager, "extraction") as op:
@@ -877,8 +868,8 @@ class EnhancedExtractionOrchestrator:
 
     def process_single_file(
         self,
-        filepath: Union[str, Path],
-        destination: Union[str, Path],
+        filepath: Path,
+        destination: Path,
         progress_callback: ProgressCallback = None,
     ) -> Dict[str, Any]:
         """Process a single file without directory discovery.
@@ -942,7 +933,7 @@ class EnhancedExtractionOrchestrator:
                     "error": True,
                 }
 
-    def execute_undo(self, path: Union[str, Path]) -> Dict[str, Any]:
+    def execute_undo(self, path: Path) -> Dict[str, Any]:
         """Execute undo operation.
 
         Args:
@@ -951,5 +942,4 @@ class EnhancedExtractionOrchestrator:
         Returns:
             Dictionary with undo results
         """
-        path = Path(path)
         return self.extractor.undo_last_operation(path)

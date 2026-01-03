@@ -160,7 +160,7 @@ class TestEnhancedFileExtractor:
         (new_dir / "file.txt").write_text("content")
 
         # Save history using the extractor's history manager
-        self.extractor.history_manager.save_history(operations, str(tmp_path))
+        self.extractor.history_manager.save_history(operations, tmp_path)
 
         # Undo - now returns a dict
         result = self.extractor.undo_last_operation(tmp_path)
@@ -355,7 +355,7 @@ class TestIntegration:
             orchestrator = EnhancedExtractionOrchestrator(extractor)
 
             # Execute extraction
-            result = orchestrator.execute_extraction(str(test_dir))
+            result = orchestrator.execute_extraction(test_dir)
 
             assert result["status"] == "success"
             assert result["moved"] == 2  # Hidden file excluded by default
@@ -368,7 +368,7 @@ class TestIntegration:
             assert not (source_dir / "img.jpg").exists()
 
             # Test undo
-            undo_result = orchestrator.execute_undo(str(test_dir))
+            undo_result = orchestrator.execute_undo(test_dir)
             assert undo_result["restored"] == 2
 
             # Files should be back

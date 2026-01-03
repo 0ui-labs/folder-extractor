@@ -46,7 +46,7 @@ class IUserInterface(ABC):
         self,
         current: int,
         total: int,
-        filepath: Union[str, Path],
+        filepath: str,
         error: Optional[str] = None,
     ) -> None:
         """Show operation progress."""
@@ -145,7 +145,7 @@ class ConsoleInterface(IUserInterface):
         self,
         current: int,
         total: int,
-        filepath: Union[str, Path],
+        filepath: str,
         error: Optional[str] = None,
     ) -> None:
         """Show operation progress.

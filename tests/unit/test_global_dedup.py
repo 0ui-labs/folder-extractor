@@ -681,7 +681,7 @@ class TestBuildHashIndexProperties:
                 files.append(file_path)
 
             ops = FileOperations()
-            result = ops.build_hash_index(temp_dir)
+            result = ops.build_hash_index(base)
 
             assert len(result) == 1
             hash_value = list(result.keys())[0]
@@ -716,7 +716,7 @@ class TestBuildHashIndexProperties:
                     file_path.write_bytes(content)
 
             ops = FileOperations()
-            result = ops.build_hash_index(temp_dir)
+            result = ops.build_hash_index(base)
 
             assert len(result) == num_groups
             for _hash_value, paths in result.items():
@@ -748,8 +748,8 @@ class TestBuildHashIndexProperties:
 
             ops = FileOperations()
 
-            result1 = ops.build_hash_index(temp_dir)
-            result2 = ops.build_hash_index(temp_dir)
+            result1 = ops.build_hash_index(base)
+            result2 = ops.build_hash_index(base)
 
             # Same keys
             assert set(result1.keys()) == set(result2.keys())
