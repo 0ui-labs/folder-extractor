@@ -3,7 +3,6 @@ Unit tests for file operation functions.
 """
 
 import os
-import tempfile
 from pathlib import Path
 
 from folder_extractor.main import (
