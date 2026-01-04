@@ -4,6 +4,171 @@ Alle bemerkenswerten Änderungen an diesem Projekt werden in dieser Datei dokume
 
 Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [2.0.0] - 2025-02-04
+
+### 🚀 Hauptfeatures
+
+Diese Version stellt eine signifikante Erweiterung dar mit neuen Betriebsmodi und AI-Integration.
+
+#### **Archive Extraction** (#6)
+- Automatisches Entpacken von ZIP-, TAR-, TAR.GZ- und TGZ-Archiven
+- Neue Option `--extract-archives` für sichere Archive-Extraktion
+- Neue Option `--delete-archives` zum Löschen von Archiven nach erfolgreichem Entpacken
+- **Zip Slip Protection**: Schutz gegen Path Traversal Angriffe
+  - Validierung aller extrahierten Pfade
+  - Ablehnung von absoluten Pfaden in Archives
+  - Symlink-Auflösung zur Verhinderung von Escapes
+- Deep extraction: Verschachtelte Archive werden rekursiv entpackt
+- Unterstützte Formate: ZIP, TAR, TAR.GZ, TGZ
+- Integration mit allen existierenden Optionen (Sortierung, Deduplizierung, etc.)
+
+#### **AI-Powered Smart Sorting** (#7, #8, #9)
+- **Async Gemini Client** mit retry handling und rate limiting
+- **Gemini 3 Flash Preview Model** für schnelle und präzise Kategorisierung
+- **Self-Healing Mechanism** mit automatischer Fehlerkorrektur
+  - Document Preprocessor für Text-Extraktion
+  - Resilience patterns mit exponential backoff
+  - Automatische Wiederholung bei API-Fehlern
+- **Intelligente Dokumenten-Kategorisierung**:
+  - Automatische Erkennung von Kategorie, Sender, Jahr
+  - Entity Extraction (Personen, Organisationen, Daten)
+  - Template-basierte Pfadgenerierung
+- End-to-end Integration Tests für Smart Sorting workflows
+- **Anforderung**: Python 3.9+ und `google-generativeai` package
+
+#### **Watch Mode** (#10)
+- Neue Option `--watch` für automatische Ordnerüberwachung
+- Automatische Verarbeitung neuer Dateien bei Erkennung
+- **File Stability Monitoring**: Wartet bis Downloads vollständig sind
+  - Konfigurierbare Stabilitätsprüfung
+  - Verhindert Verarbeitung unvollständiger Transfers
+- Smart debouncing für effiziente Event-Verarbeitung
+- Integration mit allen Extraktionsoptionen
+- Graceful shutdown mit Ctrl+C
+- **Anforderung**: Python 3.9+ und `watchdog` package
+
+#### **Knowledge Graph** (#11)
+- **KùzuDB-Integration** für graph-basierte Metadaten-Speicherung
+- Document metadata storage mit Entity relationships
+- **Natural Language Queries** mit `--ask` Option
+  - Beispiel: `folder-extractor --ask "Welche Versicherungsdokumente habe ich?"`
+  - Cypher query translation für komplexe Abfragen
+- Thread-safe operations mit connection pooling
+- Automatisches Schema-Management
+- **Anforderung**: Python 3.9+ und `kuzu` package
+
+#### **REST API & WebSocket** (#12)
+- **FastAPI-basierte REST API** für native App-Integration
+- Neuer Entry Point: `folder-extractor-api`
+- **REST Endpoints**:
+  - `GET /health` - Health check
+  - `POST /api/v1/process` - Einzeldatei verarbeiten
+  - `GET /api/v1/zones` - Dropzones auflisten
+  - `POST /api/v1/zones` - Dropzone erstellen
+  - `DELETE /api/v1/zones/{zone_id}` - Dropzone löschen
+  - `POST /api/v1/watcher/start` - Watcher starten
+  - `POST /api/v1/watcher/stop` - Watcher stoppen
+  - `GET /api/v1/watcher/status` - Watcher-Status abfragen
+- **WebSocket Support** (`/ws/chat`):
+  - Bidirektionale Kommunikation
+  - Real-time Status-Updates
+  - Broadcast capabilities
+- **Dropzone Management**:
+  - Multi-zone Konfiguration
+  - Path templates mit Platzhaltern
+  - Persistente Speicherung in `~/.config/folder_extractor/zones.json`
+- CORS-Konfiguration für localhost
+- **Anforderung**: Python 3.9+ und `fastapi`, `uvicorn`, `pydantic>=2.0.0`, `websockets`
+
+### 🎯 Verbesserungen
+
+#### Performance
+- Parallele Test-Ausführung mit `pytest-xdist`
+- Optimierte Hash-Indexierung für große Ordner
+- Connection pooling für Datenbank-Operationen
+- Chunked file reading (8KB) für Memory-Effizienz
+
+#### Developer Experience
+- **Pyright Integration** für statische Typ-Prüfung
+- **LSP Support** für bessere IDE-Integration
+- Property-based Tests mit Hypothesis (#4)
+- Erweiterte Test-Suite:
+  - Unit Tests für alle neuen Module
+  - Integration Tests für komplette Workflows
+  - Performance Benchmarks
+  - Security Tests (Zip Slip, Path Traversal)
+- Umfassende Dokumentation:
+  - ARCHITECTURE.md mit Dual-Mode Architektur
+  - CLAUDE.md mit Python Version Compatibility
+  - ANLEITUNG.md mit neuen Features
+
+#### Code Quality
+- Path objects statt Strings durchgehend in Tests
+- Helper methods extraction für bessere Lesbarkeit
+- CodeRabbit und Cubic Review-Vorschläge implementiert
+- Ruff linting und formatting durchgehend angewendet
+
+### 🔧 Behoben
+
+- **Undo-Funktion**: Deduplizierte Dateien werden jetzt korrekt wiederhergestellt (#245d4b6)
+- **Python 3.8 Kompatibilität**:
+  - AI/API Module von Coverage ausgeschlossen auf Python 3.8
+  - AI Tests werden auf Python 3.8 übersprungen
+  - `from __future__ import annotations` für Kompatibilität
+- **CI/CD**: Coverage threshold angepasst, Deep Directory Tests korrigiert
+- Diverse Lint-Fehler behoben (E501, B007, F841, SIM108, SIM105)
+
+### 📦 Abhängigkeiten
+
+#### Runtime (CLI Mode - Python 3.8+)
+- `rich>=13.0.0` - Enhanced terminal output
+
+#### Optional (API/AI Mode - Python 3.9+)
+- `fastapi` - REST API framework
+- `uvicorn[standard]` - ASGI server
+- `pydantic>=2.0.0` - Data validation
+- `websockets` - WebSocket support
+- `python-dotenv` - Environment configuration
+- `google-generativeai` - Gemini AI client
+- `watchdog` - File system monitoring
+- `kuzu` - Graph database
+
+#### Development
+- `pytest>=7.0` - Testing framework
+- `pytest-cov>=4.0` - Coverage reporting
+- `pytest-benchmark>=4.0` - Performance benchmarking
+- `pytest-xdist>=3.0` - Parallel test execution
+- `hypothesis>=6.0` - Property-based testing
+
+### ⚠️ Breaking Changes
+
+Keine Breaking Changes für CLI-Nutzer. Alle existierenden Befehle funktionieren weiterhin.
+
+**Neue Anforderungen für erweiterte Features:**
+- Python 3.9+ erforderlich für AI/API Features (CLI Mode läuft weiterhin auf Python 3.8+)
+- Zusätzliche Packages für optionale Features (siehe Abhängigkeiten)
+
+### 🔄 Migration
+
+Keine Migration erforderlich für bestehende CLI-Nutzer.
+
+**Für erweiterte Features:**
+```bash
+# AI/API Features installieren (Python 3.9+)
+pip install fastapi uvicorn[standard] pydantic>=2.0.0 websockets python-dotenv google-generativeai kuzu watchdog
+
+# API Server starten
+folder-extractor-api
+
+# Watch Mode nutzen
+folder-extractor --watch --sort-by-type
+
+# Knowledge Graph abfragen
+folder-extractor --ask "Welche Rechnungen habe ich?"
+```
+
+---
+
 ## [1.3.3] - 2025-01-31
 
 ### Hinzugefügt

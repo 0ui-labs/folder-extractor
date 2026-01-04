@@ -189,6 +189,87 @@ folder-extractor --global-dedup
 
 ---
 
+### Archive automatisch entpacken
+
+Hast du ZIP-, TAR- oder GZ-Dateien in deinen Unterordnern? Mit dieser Option werden sie automatisch entpackt:
+
+```bash
+folder-extractor --extract-archives
+```
+
+**Was passiert:**
+1. Archive werden erkannt (ZIP, TAR, TAR.GZ, TGZ)
+2. Inhalte werden sicher extrahiert (mit Schutz gegen Zip Slip Angriffe)
+3. Extrahierte Dateien werden wie normale Dateien behandelt
+4. Leere Archiv-Dateien bleiben standardmäßig erhalten
+
+**Archive nach dem Entpacken löschen:**
+```bash
+folder-extractor --extract-archives --delete-archives
+```
+
+⚠️ **Sicherheitshinweis:** `--delete-archives` funktioniert nur zusammen mit `--extract-archives` und löscht die Original-Archive nach erfolgreichem Entpacken.
+
+**Kombiniert mit anderen Optionen:**
+```bash
+# Archive entpacken und nach Typ sortieren
+folder-extractor --extract-archives --sort-by-type
+
+# Nur Archive mit bestimmten Inhalten extrahieren
+folder-extractor --extract-archives --type pdf,jpg
+```
+
+---
+
+### Ordner automatisch überwachen (Watch Mode)
+
+Du möchtest, dass neue Dateien automatisch verarbeitet werden, sobald sie in einem Ordner landen?
+
+```bash
+folder-extractor --watch
+```
+
+**Was passiert:**
+1. Das Tool überwacht den aktuellen Ordner
+2. Neue Dateien werden automatisch erkannt
+3. Nach kurzer Wartezeit (um sicherzustellen, dass der Download fertig ist) werden sie verarbeitet
+4. Das Tool läuft weiter, bis du Ctrl+C drückst
+
+**Kombiniert mit anderen Optionen:**
+```bash
+# Überwachen und nach Typ sortieren
+folder-extractor --watch --sort-by-type
+
+# Überwachen und Archive entpacken
+folder-extractor --watch --extract-archives --delete-archives
+```
+
+⚠️ **Hinweis:** Watch Mode ist ideal für Download-Ordner, die du regelmäßig organisieren möchtest.
+
+---
+
+### Knowledge Graph abfragen
+
+Wenn du AI-Features aktiviert hast (Python 3.9+ mit `google-generativeai`), kannst du deine Dateien mit natürlicher Sprache abfragen:
+
+```bash
+# Nach Dokumenttypen suchen
+folder-extractor --ask "Welche Versicherungsdokumente habe ich?"
+
+# Nach Sender filtern
+folder-extractor --ask "Zeig mir Rechnungen von Apple"
+
+# Nach Zeitraum suchen
+folder-extractor --ask "Welche Dokumente habe ich aus 2024?"
+```
+
+**Voraussetzungen:**
+- Python 3.9 oder höher
+- Installation: `pip install google-generativeai kuzu`
+- API-Key konfiguriert (siehe API-Dokumentation)
+
+---
+
 ### Nur bestimmte Web-Links
 
 Hast du `.url` oder `.webloc` Dateien (Browser-Lesezeichen) und willst nur bestimmte Domains?
@@ -254,6 +335,26 @@ folder-extractor --type jpg,jpeg,png,heic --deduplicate
 
 ---
 
+### Archive organisieren
+
+```bash
+cd ~/Downloads
+folder-extractor --extract-archives --delete-archives --sort-by-type
+```
+→ Entpackt alle Archive, löscht die Originale und sortiert den Inhalt nach Typ.
+
+---
+
+### Download-Ordner automatisch organisieren
+
+```bash
+cd ~/Downloads
+folder-extractor --watch --sort-by-type --extract-archives
+```
+→ Überwacht den Download-Ordner, sortiert neue Dateien nach Typ und entpackt Archive automatisch.
+
+---
+
 ### Sicheres Testen
 
 ```bash
@@ -268,7 +369,7 @@ folder-extractor --dry-run --type pdf
 
 | Taste | Aktion |
 |-------|--------|
-| **Ctrl+C** | Operation abbrechen (während des Verschiebens) |
+| **Ctrl+C** | Operation abbrechen (während des Verschiebens oder im Watch Mode) |
 | **j** | Ja, fortfahren |
 | **n** | Nein, abbrechen |
 
@@ -289,6 +390,10 @@ folder-extractor --dry-run --type pdf
 | `--deduplicate` | – | Inhalts-Duplikate vermeiden |
 | `--global-dedup` | – | Globale Duplikat-Prüfung |
 | `--domain DOMAINS` | – | Nur Web-Links von Domains |
+| `--extract-archives` | – | Archive (ZIP/TAR/GZ) entpacken |
+| `--delete-archives` | – | Archive nach Entpacken löschen |
+| `--watch` | – | Ordner überwachen (automatische Verarbeitung) |
+| `--ask FRAGE` | – | Knowledge Graph abfragen (Python 3.9+) |
 
 ---
 
@@ -327,6 +432,28 @@ cd ~/Pictures/Urlaub
 folder-extractor --type jpg,jpeg,png,heic,gif --deduplicate --global-dedup
 ```
 
+### 4. Backup-Archive organisieren
+
+```bash
+cd ~/Documents/Backups
+
+# Archive entpacken und nach Typ sortieren
+folder-extractor --extract-archives --sort-by-type
+
+# Originale behalten für Sicherheit
+# ODER mit --delete-archives die Archive nach dem Entpacken löschen
+```
+
+### 5. Download-Ordner automatisch organisieren
+
+```bash
+cd ~/Downloads
+
+# Automatische Überwachung mit Sortierung
+folder-extractor --watch --sort-by-type --extract-archives
+# Mit Ctrl+C beenden, wenn du fertig bist
+```
+
 ---
 
 ## Fehlerbehebung
@@ -352,6 +479,58 @@ cd ~/Downloads
 Wenn du während des Verschiebens **Ctrl+C** drückst, stoppt die Operation. Bereits verschobene Dateien bleiben verschoben.
 
 **Lösung:** Mit `folder-extractor --undo` kannst du alles rückgängig machen.
+
+### "Archive konnte nicht entpackt werden"
+
+**Mögliche Ursachen:**
+- Beschädigtes Archiv
+- Nicht unterstütztes Format
+- Keine Berechtigung zum Lesen
+
+**Lösung:**
+- Prüfe die Archiv-Integrität
+- Unterstützte Formate: ZIP, TAR, TAR.GZ, TGZ
+- Prüfe Dateiberechtigungen mit `ls -l`
+
+### Watch Mode reagiert nicht
+
+**Mögliche Ursachen:**
+- Datei wird noch geschrieben (Tool wartet auf Stabilität)
+- Datei ist in einem versteckten Ordner (verwende `--include-hidden`)
+
+**Lösung:** Warte kurz oder prüfe die Logs in der Konsole.
+
+---
+
+## Erweiterte Features (Python 3.9+)
+
+Einige Features benötigen Python 3.9 oder höher und zusätzliche Pakete:
+
+### AI-Powered Smart Sorting
+Automatische Kategorisierung von Dokumenten mit Google Gemini AI.
+
+**Installation:**
+```bash
+pip install google-generativeai kuzu
+```
+
+**Konfiguration:**
+API-Key in `.env` Datei oder Umgebungsvariable setzen.
+
+### REST API Server
+Für Integration mit nativen macOS/iOS Apps.
+
+**Installation:**
+```bash
+pip install fastapi uvicorn[standard] pydantic>=2.0.0 websockets python-dotenv
+```
+
+**Starten:**
+```bash
+folder-extractor-api
+```
+
+Details siehe README.md Abschnitt "API Server".
 
 ---
 

@@ -1,355 +1,362 @@
 # Folder Extractor
 
-Ein sicheres Command-Line-Tool zum Extrahieren aller Dateien aus Unterordnern in den aktuellen Ordner. Perfekt zum Aufräumen tief verschachtelter Ordnerstrukturen.
+An intelligent tool for extracting and organizing files from nested folder structures. From simple CLI operations to AI-powered document management.
 
-## Features
+**Version 2.0.0** | [CHANGELOG](CHANGELOG.md) | [Guide](ANLEITUNG.md) | [Architecture](ARCHITECTURE.md)
 
-- 🔒 **Sicherheitsprüfung**: Läuft nur in Desktop, Downloads oder Documents Ordnern
-- 📁 **Intelligente Duplikat-Behandlung**: Automatische Umbenennung bei gleichnamigen Dateien
-- 🎯 **Flexible Tiefensteuerung**: Bestimmen Sie, wie tief in die Ordnerstruktur gesucht werden soll
-- 🧹 **Automatisches Aufräumen**: Entfernt leere Ordner nach dem Verschieben
-- 📊 **Detailliertes Feedback**: Zeigt jeden Schritt und eine abschließende Zusammenfassung
-- ✅ **Benutzer-Bestätigung**: Zeigt Vorschau und fragt vor dem Start nach Bestätigung
-- 🛑 **ESC-Taste zum Abbrechen**: Jederzeit sicherer Abbruch möglich
-- ↩️ **Undo-Funktion**: Macht die letzte Operation rückgängig
-- 🔍 **Dry-Run Modus**: Zeigt was passieren würde, ohne es zu tun
-- 📈 **Fortschrittsanzeige**: Prozentuale Anzeige während der Verschiebung
-- 📎 **Dateityp-Filter**: Extrahiere nur bestimmte Dateitypen
-- 🌐 **Domain-Filter**: Filtere Web-Links nach bestimmten Domains
-- 🗂️ **Sortierung nach Typ**: Organisiere Dateien automatisch in Typ-Ordner
-- 👻 **Versteckte Dateien**: Optional auch versteckte Dateien einbeziehen
-- 🔄 **Intelligente Deduplizierung**: Erkennt identische Dateien anhand des Inhalts (Hash-Vergleich)
-- 🌍 **Globale Deduplizierung**: Findet Duplikate im gesamten Zielordner
+## ✨ Highlights
 
-## Installation
+- 🤖 **AI-Powered Smart Sorting**: Automatic document categorization with Google Gemini
+- 📦 **Archive Extraction**: Secure extraction of ZIP/TAR with Zip Slip Protection
+- 👁️ **Watch Mode**: Automatic processing when new files arrive
+- 🧠 **Knowledge Graph**: Natural language queries of your documents
+- 🌐 **REST API**: Integration with native macOS/iOS apps
+- 🔒 **Security First**: Path validation, Zip Slip protection, secure operations
 
-### Systemweite Installation via pip
+## 🚀 Features
+
+### Core Features (Python 3.8+)
+- 🔒 **Security Validation**: Only runs in Desktop, Downloads, or Documents folders
+- 📁 **Intelligent Duplicate Handling**: Content-based deduplication with SHA256
+- 🎯 **Flexible Depth Control**: Determine how deep to search in folder structure
+- 🗂️ **Sort by Type**: Automatically organize files into type folders (PDF/, JPEG/, etc.)
+- 📎 **File Type Filter**: Extract only specific file types (pdf, jpg, mp3, etc.)
+- 🌐 **Domain Filter**: Filter web links by specific domains
+- 📦 **Archive Extraction**: Safely extract ZIP, TAR, TAR.GZ, TGZ
+- 🔄 **Intelligent Deduplication**: Detects identical files based on content
+- 🌍 **Global Deduplication**: Finds duplicates in entire target folder
+- 👻 **Hidden Files**: Optionally include hidden files
+- 🧹 **Automatic Cleanup**: Removes empty folders after moving
+- ↩️ **Undo Function**: Reverses the last operation
+- 🔍 **Dry-Run Mode**: Shows what would happen without doing it
+- 📈 **Progress Display**: Real-time progress with Rich terminal output
+
+### Advanced Features (Python 3.9+)
+- 🤖 **AI-Powered Smart Sorting**: Gemini-based document categorization
+  - Automatic detection: Category, sender, year, entities
+  - Template-based path generation
+  - Self-healing mechanism with error correction
+- 👁️ **Watch Mode**: Automatic folder monitoring
+  - File stability monitoring (waits until downloads complete)
+  - Smart debouncing for efficient processing
+  - Integration with AI categorization
+- 🧠 **Knowledge Graph**: KùzuDB-based metadata storage
+  - Natural Language Queries: `folder-extractor --ask "Which invoices from Apple?"`
+  - Entity relationships and document context
+  - Cypher query translation
+- 🌐 **REST API & WebSocket**: FastAPI-based for native apps
+  - 8 REST endpoints for file processing and zones
+  - WebSocket for real-time updates
+  - Dropzone management with templates
+
+## 📦 Installation
+
+### Basic Installation (CLI Mode - Python 3.8+)
 
 ```bash
-# Im Projektverzeichnis ausführen:
+# Standard installation
 pip install .
 
-# Oder für Entwicklung (editierbare Installation):
+# For development (editable)
 pip install -e .
+
+# With test dependencies
+pip install -e ".[test]"
 ```
 
-Nach der Installation ist der Befehl `folder-extractor` systemweit verfügbar!
-
-### Alternative: Direkte Nutzung ohne Installation
+### Advanced Features (Python 3.9+)
 
 ```bash
-python folder_extractor.py [optionen]
+# AI/API features
+pip install fastapi uvicorn[standard] pydantic>=2.0.0 websockets python-dotenv google-generativeai kuzu watchdog
+
+# Or only specific features
+pip install google-generativeai kuzu  # AI + Knowledge Graph
+pip install watchdog                   # Watch Mode
+pip install fastapi uvicorn[standard]  # REST API
 ```
 
-## Verwendung
+After installation:
+- `folder-extractor` - CLI tool (available system-wide)
+- `folder-extractor-api` - API server (only with API dependencies)
 
-Nach der Installation können Sie das Tool in jedem erlaubten Ordner verwenden:
+## 🎯 Quick Start
+
+### Basic Usage
 
 ```bash
-# Standard: Unbegrenzte Tiefe
+# Extract all files from subdirectories
+cd ~/Downloads/MyFolder
 folder-extractor
 
-# Maximal 3 Ebenen tief suchen
-folder-extractor --depth 3
-
-# Nur erste Ebene
-folder-extractor --depth 1
-
-# Vorschau ohne tatsächliche Verschiebung
+# Test run (only shows what would happen)
 folder-extractor --dry-run
 
-# Letzte Operation rückgängig machen
-folder-extractor --undo
-
-# Version anzeigen
-folder-extractor --version
-
-# Nur PDFs extrahieren (Ordnerstruktur bleibt erhalten)
-folder-extractor --type pdf
-
-# Mehrere Dateitypen
-folder-extractor --type pdf,doc,docx
-
-# Bilder aus maximal 2 Ebenen extrahieren
-folder-extractor --type jpg,png,gif --depth 2
-
-# Nur YouTube-Links extrahieren
-folder-extractor --type url,webloc --domain youtube.com
-
-# Links von mehreren Domains
-folder-extractor --type url --domain youtube.com,github.com,reddit.com
-
-# Dateien nach Typ sortieren
+# Sort by file type
 folder-extractor --sort-by-type
 
-# Versteckte Dateien einbeziehen
-folder-extractor --include-hidden
+# Only specific file types
+folder-extractor --type pdf,jpg,png
 
-# Kombiniert: Versteckte PDFs sortiert extrahieren
-folder-extractor --type pdf --include-hidden --sort-by-type
-
-# Duplikate vermeiden (identischer Inhalt wird nicht dupliziert)
-folder-extractor --deduplicate
-
-# Globale Deduplizierung (prüft ALLE Dateien im Zielordner)
-folder-extractor --global-dedup
+# Avoid duplicates
+folder-extractor --deduplicate --global-dedup
 ```
 
-### Dateityp-Filter
+### Archive Extraction
 
-Mit der `--type` Option können Sie gezielt nur bestimmte Dateitypen extrahieren:
-- Andere Dateien bleiben unberührt
-- Die Ordnerstruktur bleibt vollständig erhalten
-- Perfekt für selektives Organisieren
-
-Beispiele für Dateitypen:
-- **Dokumente**: pdf, doc, docx, txt, odt, md
-- **Bilder**: jpg, jpeg, png, gif, bmp, svg
-- **Web-Links**: url, webloc
-- **Daten**: json, xml, csv, xlsx
-- **Code**: py, js, java, cpp, html, css, md
-
-### Domain-Filter für Web-Links
-
-Mit der `--domain` Option können Sie Web-Links nach Domains filtern:
-- Funktioniert nur zusammen mit `--type url` oder `--type webloc`
-- Unterstützt Subdomains (youtube.com matcht auch m.youtube.com)
-- Mehrere Domains mit Komma trennen
-
-Beispiele:
 ```bash
-# Alle YouTube-Links sammeln
+# Extract archives
+folder-extractor --extract-archives
+
+# Extract archives and delete originals
+folder-extractor --extract-archives --delete-archives
+
+# Extract archives and sort by type
+folder-extractor --extract-archives --sort-by-type
+```
+
+### Watch Mode (Python 3.9+)
+
+```bash
+# Automatically monitor folder
+folder-extractor --watch --sort-by-type
+
+# With archive extraction
+folder-extractor --watch --extract-archives --delete-archives
+
+# Stop with Ctrl+C
+```
+
+### Knowledge Graph Queries (Python 3.9+)
+
+```bash
+# Natural language queries
+folder-extractor --ask "Which insurance documents do I have?"
+folder-extractor --ask "Show me invoices from Apple in 2024"
+folder-extractor --ask "Which contracts are expiring?"
+```
+
+## 📚 Usage
+
+### File Type Filter
+
+Extract only specific file types:
+
+```bash
+# Only PDFs
+folder-extractor --type pdf
+
+# Multiple types
+folder-extractor --type pdf,doc,docx,txt
+
+# Only images from 2 levels
+folder-extractor --type jpg,jpeg,png,heic --depth 2
+
+# Only videos
+folder-extractor --type mp4,avi,mkv,mov
+```
+
+**Supported types**: pdf, doc, docx, txt, jpg, jpeg, png, gif, mp4, mp3, wav, json, xml, csv, py, js, java, cpp, html, css, url, webloc, and many more.
+
+### Domain Filter for Web Links
+
+Filter browser bookmarks by domain:
+
+```bash
+# Only YouTube links
 folder-extractor --type url,webloc --domain youtube.com
 
-# Links von bestimmten Entwickler-Seiten
-folder-extractor --type url --domain github.com,stackoverflow.com
+# Multiple domains
+folder-extractor --type url --domain github.com,stackoverflow.com,reddit.com
 
-# Reddit-Links aus maximal 3 Ebenen
-folder-extractor --type url,webloc --domain reddit.com --depth 3
+# With subdomains (youtube.com also matches m.youtube.com)
+folder-extractor --type url,webloc --domain youtube.com --depth 3
 ```
 
-### Sortierung nach Typ
+### Sort by Type
 
-Mit der `--sort-by-type` Option werden Dateien automatisch in Typ-spezifische Ordner organisiert:
-- Erstellt automatisch Ordner wie PDF/, JPEG/, DOCX/, etc.
-- Ähnliche Typen werden zusammengefasst (jpg → JPEG/)
-- Dateien ohne Erweiterung → OHNE_ERWEITERUNG/
-- Funktioniert mit allen anderen Optionen
+Automatically organize files into type-specific folders:
 
-Beispiel-Struktur nach Sortierung:
-```
-Arbeitsordner/
-├── PDF/       (alle .pdf Dateien)
-├── JPEG/      (alle .jpg und .jpeg Dateien)  
-├── PNG/       (alle .png Dateien)
-└── DOCX/      (alle .docx Dateien)
-```
-
-### Versteckte Dateien einbeziehen
-
-Mit der `--include-hidden` Option werden auch versteckte Dateien (die mit . beginnen) extrahiert:
-- Standardmäßig werden versteckte Dateien/Ordner ignoriert
-- System-Dateien wie .DS_Store werden weiterhin ignoriert
-- Nützlich für Konfigurationsdateien wie .env, .gitignore, etc.
-
-Beispiele:
 ```bash
-# Alle Dateien inklusive versteckte
+# Automatically sort
+folder-extractor --sort-by-type
+
+# Combined with other options
+folder-extractor --sort-by-type --deduplicate
+folder-extractor --sort-by-type --extract-archives
+```
+
+**Result:**
+```
+Downloads/
+├── PDF/       (all .pdf files)
+├── JPEG/      (all .jpg and .jpeg files)
+├── PNG/       (all .png files)
+├── VIDEO/     (all .mp4, .avi, .mkv files)
+└── DOCX/      (all .docx files)
+```
+
+### Intelligent Deduplication
+
+Avoid duplicates based on file content:
+
+```bash
+# Content-based deduplication
+folder-extractor --deduplicate
+
+# Global deduplication (checks entire target folder)
+folder-extractor --global-dedup
+
+# Combined with sorting
+folder-extractor --sort-by-type --deduplicate --global-dedup
+```
+
+**What happens:**
+- `--deduplicate`: Files with same name + same content are skipped
+- `--global-dedup`: Finds duplicates even with different filenames
+- Hash comparison: SHA256 with size-based pre-filtering for performance
+
+### Hidden Files
+
+Include hidden files (starting with `.`):
+
+```bash
+# All files including hidden
 folder-extractor --include-hidden
 
-# Versteckte Konfigurationsdateien extrahieren
+# Hidden configuration files
 folder-extractor --type json,yml,env --include-hidden
 ```
 
-### Intelligente Deduplizierung
+**Note:** System files like `.DS_Store` are still ignored.
 
-Mit `--deduplicate` werden Dateien mit identischem Inhalt erkannt und nicht dupliziert:
-- Vergleicht Dateien anhand ihres SHA256-Hash
-- Gleicher Name + gleicher Inhalt = Quelldatei wird entfernt (kein Duplikat)
-- Gleicher Name + anderer Inhalt = Automatische Umbenennung (wie bisher)
+### Undo Function
 
-Beispiele:
-```bash
-# Duplikate beim Extrahieren vermeiden
-folder-extractor --deduplicate
-
-# Kombiniert mit Sortierung
-folder-extractor --sort-by-type --deduplicate
-```
-
-### Globale Deduplizierung
-
-Mit `--global-dedup` werden Duplikate im **gesamten Zielordner** erkannt:
-- Prüft nicht nur neue Dateien, sondern auch bereits vorhandene
-- Findet Duplikate auch wenn Dateinamen unterschiedlich sind
-- ⚠️ Kann bei großen Ordnern langsamer sein
+Reverse the last operation:
 
 ```bash
-# Globale Prüfung aktivieren
-folder-extractor --global-dedup
-
-# Nützlich für Foto-Sammlungen mit vielen Kopien
-folder-extractor --type jpg,png --global-dedup
+# Undo last operation
+folder-extractor --undo
 ```
 
-### Sicherheitsfeatures
+Each operation is saved in `~/.config/folder_extractor/history/` and can be fully restored.
 
-1. **Bestätigung vor Start**: Das Tool zeigt eine detaillierte Vorschau und wartet auf Ihre Bestätigung ("leg los" oder "stop")
-2. **ESC zum Abbrechen**: Drücken Sie jederzeit ESC, um den Prozess sicher zu stoppen
-3. **Undo-Funktion**: Jede Operation wird gespeichert und kann mit `--undo` rückgängig gemacht werden
+## 🔐 Security
 
-## Beispiel
+### Safe Folders
 
-```bash
-cd ~/Desktop/MeinProjekt
-folder-extractor --depth 2
-```
-
-Dies wird:
-1. Alle Dateien aus Unterordnern bis zur 2. Ebene finden
-2. Diese in den Ordner "MeinProjekt" verschieben
-3. Duplikate automatisch umbenennen (z.B. bild.jpg → bild_1.jpg)
-4. Alle nun leeren Unterordner entfernen
-
-## Sicherheit
-
-Das Tool verhindert versehentliche Ausführung in Systemordnern. Es läuft ausschließlich in:
+The tool **only** runs in these folders:
 - `~/Desktop/*`
 - `~/Downloads/*`
 - `~/Documents/*`
 
-## Deinstallation
+This prevents accidental execution in system folders.
 
-```bash
-pip uninstall folder-extractor
-```
+### Archive Security (Zip Slip Protection)
 
-## Systemanforderungen
+With `--extract-archives`:
+- ✅ All extracted paths are validated
+- ✅ Absolute paths in archives are rejected
+- ✅ Path traversal attacks (`../../../etc/passwd`) are blocked
+- ✅ Symlink resolution to prevent escapes
 
-- Python 3.8 oder höher
-- macOS, Linux oder Windows
-- **CLI-Modus**: Nur `rich` als externe Abhängigkeit
-- **API-Modus**: `fastapi`, `uvicorn`, `pydantic` (optional)
+**Supported formats:** ZIP, TAR, TAR.GZ, TGZ
 
-## Lizenz
+## 🌐 REST API Server (Python 3.9+)
 
-MIT License
-
-## API Server (für macOS Integration)
-
-Folder Extractor bietet eine REST-API und WebSocket-Schnittstelle für die Integration mit nativen macOS-Apps (z.B. Swift-Apps).
-
-### API-Dependencies installieren
+### Installation
 
 ```bash
 pip install fastapi uvicorn[standard] pydantic>=2.0.0 websockets python-dotenv
 ```
 
-### Server starten
+### Start Server
 
 ```bash
 # Standard: localhost:23456
-python run_api.py
+folder-extractor-api
 
-# Eigener Port
-python run_api.py --port 8000
+# Custom port
+folder-extractor-api --port 8000
 
-# Development-Mode mit Auto-Reload
-python run_api.py --reload
+# Development mode with auto-reload
+folder-extractor-api --reload
 
-# Alle Optionen
-python run_api.py --host 127.0.0.1 --port 23456 --log-level debug --reload
+# All options
+folder-extractor-api --host 127.0.0.1 --port 23456 --log-level debug --reload
 ```
 
-Nach dem Start ist die API verfügbar unter:
-- **API Endpunkte:** `http://localhost:23456`
-- **Interaktive Dokumentation:** `http://localhost:23456/docs`
+After starting, available at:
+- **API Docs:** `http://localhost:23456/docs` (interactive)
 - **Alternative Docs:** `http://localhost:23456/redoc`
 
-### Verfügbare Endpunkte
+### Available Endpoints
 
-#### Health Check
-- `GET /health` - Server-Status prüfen
+#### Health & Status
+- `GET /health` - Check server status
 
-#### Dateiverarbeitung
-- `POST /api/v1/process` - Einzelne Datei verarbeiten
-  ```json
-  {
-    "filepath": "/Users/username/Desktop/document.pdf"
-  }
-  ```
+#### File Processing
+- `POST /api/v1/process` - Process single file
 
-#### Dropzone-Verwaltung
-- `GET /api/v1/zones` - Alle konfigurierten Dropzones abrufen
-- `POST /api/v1/zones` - Neue Dropzone erstellen
-  ```json
-  {
-    "name": "Dokumente",
+#### Dropzone Management
+- `GET /api/v1/zones` - List all dropzones
+- `POST /api/v1/zones` - Create new dropzone
+- `DELETE /api/v1/zones/{zone_id}` - Delete dropzone
+
+#### Watch Mode (API)
+- `POST /api/v1/watcher/start` - Start watcher for zone
+- `POST /api/v1/watcher/stop` - Stop watcher
+- `GET /api/v1/watcher/status` - Status of all watchers
+
+#### WebSocket
+- `WS /ws/chat` - Bidirectional communication for real-time updates
+
+### Example Request
+
+```bash
+# Health check
+curl http://localhost:23456/health
+
+# Process file
+curl -X POST http://localhost:23456/api/v1/process \
+  -H "Content-Type: application/json" \
+  -d '{"filepath": "/Users/username/Desktop/document.pdf"}'
+
+# Create dropzone
+curl -X POST http://localhost:23456/api/v1/zones \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Documents",
     "path": "/Users/username/Desktop/Dropzone",
     "enabled": true,
     "auto_sort": true,
-    "categories": ["Finanzen", "Verträge"]
-  }
-  ```
-- `DELETE /api/v1/zones/{zone_id}` - Dropzone löschen
-
-#### Watch-Mode
-- `POST /api/v1/watcher/start` - Überwachung für eine Zone starten
-  ```json
-  {
-    "zone_id": "uuid-here"
-  }
-  ```
-- `POST /api/v1/watcher/stop` - Überwachung stoppen
-  ```json
-  {
-    "zone_id": "uuid-here"
-  }
-  ```
-- `GET /api/v1/watcher/status` - Status aller Watcher abrufen
-
-#### WebSocket (Echtzeit-Kommunikation)
-- `WS /ws/chat` - Bidirektionale Kommunikation für Chat und Status-Updates
-  ```javascript
-  // Beispiel: JavaScript WebSocket Client
-  const ws = new WebSocket('ws://localhost:23456/ws/chat');
-  ws.onmessage = (event) => {
-    const message = JSON.parse(event.data);
-    console.log(message.type, message.data);
-  };
-  ```
-
-### Konfiguration
-
-Erstelle eine `.env`-Datei im Projektverzeichnis (basierend auf `.env.example`):
-
-```bash
-cp .env.example .env
+    "categories": ["Finance", "Contracts"]
+  }'
 ```
 
-Passe die API-Konfiguration an:
+### WebSocket Example (JavaScript)
+
+```javascript
+const ws = new WebSocket('ws://localhost:23456/ws/chat');
+
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  console.log('Type:', message.type);
+  console.log('Data:', message.data);
+};
+
+ws.send(JSON.stringify({
+  type: 'query',
+  data: { question: 'Which PDFs do I have?' }
+}));
 ```
-API_PORT=23456
-API_HOST=127.0.0.1
-API_LOG_LEVEL=info
-```
 
-### Sicherheitshinweise
-
-⚠️ **Wichtig für die Produktion:**
-- Der API-Server läuft standardmäßig nur auf `localhost` (127.0.0.1)
-- Für externe Verbindungen `API_HOST=0.0.0.0` setzen (nicht empfohlen ohne zusätzliche Sicherheitsmaßnahmen)
-- CORS ist standardmäßig für `localhost` konfiguriert
-- Für Produktionsumgebungen zusätzliche Authentifizierung implementieren
-
-### Integration mit Swift (macOS App)
-
-Beispiel für HTTP-Request in Swift:
+### Swift Integration (macOS/iOS)
 
 ```swift
 import Foundation
 
-// Datei verarbeiten
+// HTTP Request
 let url = URL(string: "http://localhost:23456/api/v1/process")!
 var request = URLRequest(url: url)
 request.httpMethod = "POST"
@@ -361,26 +368,148 @@ request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 URLSession.shared.dataTask(with: request) { data, response, error in
     // Handle response
 }.resume()
-```
 
-Beispiel für WebSocket in Swift:
-
-```swift
-import Foundation
-
-let url = URL(string: "ws://localhost:23456/ws/chat")!
-let webSocket = URLSession.shared.webSocketTask(with: url)
+// WebSocket
+let wsURL = URL(string: "ws://localhost:23456/ws/chat")!
+let webSocket = URLSession.shared.webSocketTask(with: wsURL)
 webSocket.resume()
 
-// Nachricht empfangen
 webSocket.receive { result in
     switch result {
     case .success(let message):
         // Handle message
     case .failure(let error):
-        print("WebSocket error: \(error)")
+        print("Error: \(error)")
     }
 }
 ```
 
-**Hinweis:** Die API ist optional und wird nur für die native macOS-App benötigt. Die CLI-Funktionalität bleibt unverändert.
+### Configuration
+
+Create `.env` file:
+
+```bash
+API_PORT=23456
+API_HOST=127.0.0.1
+API_LOG_LEVEL=info
+GEMINI_API_KEY=your-api-key-here
+```
+
+### Security Notes
+
+⚠️ **Important for Production:**
+- Server runs by default only on `localhost` (127.0.0.1)
+- For external connections: `API_HOST=0.0.0.0` (not recommended without auth)
+- CORS is configured for `localhost`
+- For production environments: Implement authentication
+
+## 📖 Documentation
+
+- **[ANLEITUNG.md](ANLEITUNG.md)** - Comprehensive user guide in German
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Architecture documentation and design patterns
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
+- **[CLAUDE.md](CLAUDE.md)** - Developer guide for Claude Code
+
+## 💻 System Requirements
+
+### Basic (CLI Mode)
+- **Python**: 3.8 or higher
+- **Operating Systems**: macOS, Linux, Windows
+- **Runtime Dependencies**: `rich>=13.0.0`
+
+### Advanced Features
+- **Python**: 3.9 or higher (for AI/API features)
+- **Optional Dependencies**:
+  - `google-generativeai` - AI Smart Sorting
+  - `kuzu` - Knowledge Graph
+  - `watchdog` - Watch Mode
+  - `fastapi`, `uvicorn`, `pydantic`, `websockets` - REST API
+
+## 🔄 Example Workflows
+
+### 1. Clean up Downloads
+
+```bash
+cd ~/Downloads
+folder-extractor --dry-run --sort-by-type  # Test first
+folder-extractor --sort-by-type --deduplicate  # Then execute
+```
+
+### 2. Consolidate Photo Collection
+
+```bash
+cd ~/Pictures/Vacation
+folder-extractor --type jpg,jpeg,png,heic --deduplicate --global-dedup
+```
+
+### 3. Organize Backup Archives
+
+```bash
+cd ~/Documents/Backups
+folder-extractor --extract-archives --sort-by-type
+# Originals remain, OR:
+folder-extractor --extract-archives --delete-archives --sort-by-type
+```
+
+### 4. Automatically Organize Downloads Folder
+
+```bash
+cd ~/Downloads
+folder-extractor --watch --sort-by-type --extract-archives
+# Runs continuously, Ctrl+C to stop
+```
+
+### 5. Organize Documents with AI (Python 3.9+)
+
+```bash
+# Configure API key
+export GEMINI_API_KEY=your-key
+
+# Automatic categorization
+cd ~/Documents/Inbox
+folder-extractor --watch --sort-by-type
+
+# Query later
+folder-extractor --ask "Which insurance documents do I have from 2024?"
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! See [ARCHITECTURE.md](ARCHITECTURE.md) for details on codebase structure.
+
+**Development:**
+```bash
+# Install with test dependencies
+pip install -e ".[test]"
+
+# Run tests
+python run_tests.py
+
+# With coverage
+python run_tests.py coverage
+
+# Linting & formatting
+ruff check .
+ruff format .
+
+# Type checking
+pyright
+```
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
+
+## 🙏 Credits
+
+- Developed by **Philipp Briese**
+- AI Integration: Google Gemini 3 Flash Preview
+- Graph Database: KùzuDB
+- Terminal UI: Rich Library
+- Web Framework: FastAPI
+
+---
+
+**Happy organizing!** 🗂️
+
+For questions and issues: `folder-extractor --help` or [GitHub Issues](https://github.com/0ui-labs/folder-extractor/issues)

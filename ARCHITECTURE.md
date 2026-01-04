@@ -2,7 +2,11 @@
 
 ## Overview
 
-Folder Extractor is a German-language command-line tool for safely extracting files from subdirectories. The application has been refactored from a monolithic architecture (1201 lines in a single file) to a clean, modular architecture following best practices and design patterns.
+Folder Extractor is a German-language tool for safely extracting and organizing files from subdirectories. The application has evolved from a monolithic architecture (1201 lines in a single file) to a clean, modular dual-mode architecture following best practices and design patterns.
+
+**Two Operating Modes:**
+- **CLI Mode**: Command-line interface with enhanced terminal output (Python 3.8+)
+- **API Mode**: REST API with WebSocket support for native app integration (Python 3.9+)
 
 ## Architecture Principles
 
@@ -12,6 +16,7 @@ Folder Extractor is a German-language command-line tool for safely extracting fi
 - **Open/Closed Principle**: Extensible through interfaces without modifying existing code
 - **DRY (Don't Repeat Yourself)**: Common functionality is extracted and reused
 - **Thread Safety**: State management is thread-safe for concurrent operations
+- **Security First**: Path validation, Zip Slip protection, and input sanitization throughout
 
 ## Directory Structure
 
@@ -23,7 +28,7 @@ folder_extractor/
 ├── cli/                  # Command Line Interface layer
 │   ├── __init__.py
 │   ├── parser.py         # Argument parsing with custom help
-│   ├── interface.py      # Console interaction & progress display
+│   ├── interface.py      # Console interaction & progress display (uses rich)
 │   └── app.py            # Enhanced CLI application with state management
 │
 ├── core/                 # Business logic layer
@@ -34,7 +39,19 @@ folder_extractor/
 │   ├── state.py          # Application state interfaces
 │   ├── state_manager.py  # Thread-safe state management
 │   ├── progress.py       # Progress tracking with callbacks
-│   └── migration.py      # Settings migration utilities
+│   ├── migration.py      # Settings migration utilities
+│   ├── archives.py       # Archive extraction (ZIP/TAR) with Zip Slip protection
+│   ├── monitor.py        # File stability monitoring for watch mode
+│   ├── watch.py          # File system event handlers (watchdog-based)
+│   ├── zone_manager.py   # Dropzone configuration and management
+│   ├── smart_sorter.py   # AI-powered document categorization (Python 3.9+)
+│   ├── ai_async.py       # Async AI client interface (Python 3.9+)
+│   ├── ai_resilience.py  # AI retry/resilience logic (Python 3.9+)
+│   ├── ai_prompts.py     # AI prompt generation (Python 3.9+)
+│   ├── preprocessor.py   # Document preprocessing (Python 3.9+)
+│   ├── security.py       # Security utilities (Python 3.9+)
+│   └── memory/
+│       └── graph.py      # Knowledge graph for document metadata (KùzuDB)
 │
 ├── config/              # Configuration layer
 │   ├── __init__.py
@@ -47,12 +64,13 @@ folder_extractor/
 │   ├── file_validators.py  # File type and temp file validation
 │   └── parsers.py          # Input parsing (file types, domains, depth)
 │
-└── api/                 # API layer (optional, for macOS integration)
+└── api/                 # REST API layer (Python 3.9+, optional)
     ├── __init__.py
+    ├── server.py        # FastAPI application factory
+    ├── endpoints.py     # REST endpoints (/process, /zones, /watcher)
+    ├── websocket.py     # WebSocket connection manager for real-time updates
     ├── models.py        # Pydantic request/response models
-    ├── server.py        # FastAPI application (Phase 3)
-    ├── endpoints.py     # REST endpoints (Phase 4)
-    └── websocket.py     # WebSocket manager (Phase 6)
+    └── dependencies.py  # FastAPI dependency injection functions
 ```
 
 ## Key Components
@@ -64,10 +82,11 @@ folder_extractor/
 - **`parser.py`**: Defines command-line arguments using argparse with custom help text
 - **`interface.py`**:
   - `ConsoleInterface`: Manages user output, progress display, and confirmation dialogs
+  - Uses `rich` library for enhanced terminal output (progress bars, tables, formatting)
   - `create_console_interface()`: Factory function for interface creation
 - **`app.py`**:
   - `EnhancedFolderExtractorCLI`: Main CLI application with state management integration
-  - Handles extraction and undo workflows
+  - Handles extraction, undo, and archive extraction workflows
 
 ### 2. Core Business Logic (`core/`)
 
@@ -106,7 +125,7 @@ folder_extractor/
 - Space Complexity: O(d) where d = maximum depth (call stack is constant)
 - Benchmarks: Handles 1500+ levels without performance degradation
 - Comparison: ~2-3x faster than recursive implementation for deep structures
-  
+
 - **`file_operations.py`**:
   - `IFileOperations`: Interface for file operations
   - `FileOperations`: File operations including:
@@ -133,6 +152,7 @@ folder_extractor/
     - User confirmation
     - Progress callbacks
     - Empty directory cleanup
+    - Archive extraction support
 
 - **`state_manager.py`**:
   - `IStateManager`: Interface for state management
@@ -144,6 +164,64 @@ folder_extractor/
   - `IProgressTracker`: Interface for progress tracking
   - `ProgressTracker`: Track and report operation progress
   - `CompositeProgressTracker`: Aggregate multiple progress trackers
+
+- **`archives.py`**:
+  - `IArchiveHandler`: Interface for archive handlers
+  - `ZipArchiveHandler`: Safe ZIP extraction with Zip Slip protection
+  - `TarArchiveHandler`: Safe TAR extraction with path traversal prevention
+  - Security validation ensures all extracted paths stay within target directory
+
+- **`monitor.py`**:
+  - `StabilityMonitor`: Monitors file stability (finished writing) before processing
+  - Prevents processing of incomplete downloads or in-progress file transfers
+  - Configurable stability timeout and check interval
+
+- **`watch.py`** (Python 3.9+):
+  - `FolderEventHandler`: Basic file system event handler with debouncing
+  - `SmartFolderEventHandler`: AI-powered event handler with categorization
+  - Integrates with `SmartSorter` for intelligent document routing
+  - Template-based path generation with placeholders
+
+- **`zone_manager.py`** (Python 3.9+):
+  - `ZoneManager`: Manages dropzone configurations
+  - Thread-safe CRUD operations for zones
+  - Persistence to `~/.config/folder_extractor/zones.json`
+  - Configuration includes: path, enabled status, auto_sort, categories, path templates
+
+- **`smart_sorter.py`** (Python 3.9+):
+  - `SmartSorter`: AI-powered document categorization orchestrator
+  - Uses Gemini AI for content analysis and entity extraction
+  - Integrates with `KnowledgeGraph` for metadata storage
+  - Returns structured categorization (category, sender, year, entities)
+
+- **`ai_async.py`** (Python 3.9+):
+  - `IAIClient`: Interface for AI clients
+  - `AsyncGeminiClient`: Async client for Google Gemini API
+  - File upload and analysis capabilities
+
+- **`ai_resilience.py`** (Python 3.9+):
+  - Resilience patterns for AI operations
+  - Exponential backoff retry logic
+  - Rate limiting and quota management
+
+- **`ai_prompts.py`** (Python 3.9+):
+  - `get_system_prompt()`: Generates system prompts for AI categorization
+  - Configurable category templates
+
+- **`preprocessor.py`** (Python 3.9+):
+  - Document preprocessing for AI analysis
+  - Text extraction from various formats
+
+- **`security.py`** (Python 3.9+):
+  - Security utilities for AI operations
+  - Input sanitization and validation
+
+- **`memory/graph.py`** (Python 3.9+):
+  - `IKnowledgeGraph`: Interface for knowledge graph
+  - `KnowledgeGraph`: Graph-based storage using KùzuDB
+  - Document metadata, entity storage, and relationship tracking
+  - Natural language to Cypher query translation
+  - Thread-safe operations with connection pooling
 
 ### 3. Configuration (`config/`)
 
@@ -163,24 +241,44 @@ folder_extractor/
   - `parse_domains()`: Parses and normalizes domain filters
   - `parse_depth()`: Validates and parses depth parameter
 
-### 5. API Layer (`api/`) - Optional
+### 5. API Layer (`api/`) - Python 3.9+
 
 **Purpose**: Expose core functionality via REST API and WebSockets for native macOS integration
+
+- **`server.py`**: FastAPI application factory with lifecycle management
+  - `create_app()`: Creates configured FastAPI instance
+  - CORS configuration for localhost
+  - Lifespan events for resource management
+
+- **`endpoints.py`**: REST endpoint implementations
+  - `GET /health`: Health check endpoint
+  - `POST /api/v1/process`: Process a single file
+  - `GET /api/v1/zones`: List all dropzones
+  - `POST /api/v1/zones`: Create new dropzone
+  - `DELETE /api/v1/zones/{zone_id}`: Delete dropzone
+  - `POST /api/v1/watcher/start`: Start watching a zone
+  - `POST /api/v1/watcher/stop`: Stop watching a zone
+  - `GET /api/v1/watcher/status`: Get watcher status
+
+- **`websocket.py`**: WebSocket connection manager
+  - `ConnectionManager`: Manages active WebSocket connections
+  - Bidirectional communication for chat and status updates
+  - Broadcast capabilities for real-time notifications
 
 - **`models.py`**: Pydantic models for request/response validation
   - Request models: `ProcessRequest`, `ZoneConfig`, `WatcherStartRequest`, `WatcherStopRequest`
   - Response models: `ProcessResponse`, `ZoneResponse`, `WatcherStatusResponse`, `HealthResponse`
   - WebSocket models: `WebSocketMessage`
-- **`server.py`**: FastAPI application with lifecycle management (created in Phase 3)
-- **`endpoints.py`**: REST endpoint implementations (created in Phase 4)
-- **`websocket.py`**: WebSocket connection manager (created in Phase 6)
+
+- **`dependencies.py`**: FastAPI dependency injection functions
+  - `get_zone_manager()`: Provides singleton ZoneManager
+  - `get_smart_sorter()`: Provides SmartSorter instance (optional, requires AI config)
+  - `get_knowledge_graph()`: Provides KnowledgeGraph instance
 
 **Design Principle**: The API layer is a **thin adapter** that delegates to existing core components:
 - No business logic in API layer
 - Direct reuse of `EnhancedExtractionOrchestrator`, `SmartSorter`, `FolderEventHandler`
 - Follows existing Dependency Injection pattern
-
-**Dependencies**: `fastapi>=0.104.0`, `uvicorn[standard]>=0.24.0`, `pydantic>=2.0.0`
 
 ## Design Patterns Used
 
@@ -197,7 +295,7 @@ class IFileDiscovery(ABC):
 Components receive dependencies through constructors:
 ```python
 class FileExtractor:
-    def __init__(self, file_discovery: IFileDiscovery, 
+    def __init__(self, file_discovery: IFileDiscovery,
                  file_operations: IFileOperations):
         self.file_discovery = file_discovery
         self.file_operations = file_operations
@@ -211,7 +309,7 @@ def create_console_interface() -> IConsoleInterface:
 ```
 
 ### 4. **Singleton Pattern**
-Settings and state manager use singleton pattern for global access:
+Settings, state manager, and zone manager use singleton pattern for global access:
 ```python
 _state_manager_instance: Optional[StateManager] = None
 
@@ -236,12 +334,35 @@ State manager supports event listeners:
 state_manager.add_listener("state_changed", callback_function)
 ```
 
+File system watching with event-driven architecture:
+```python
+class FolderEventHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        # React to file creation events
+```
+
 ### 7. **Adapter Pattern**
 Migration adapters provide compatibility:
 ```python
 class ExtractorAdapter(IExtractor):
     def __init__(self, enhanced_extractor: IEnhancedExtractor):
         self.enhanced_extractor = enhanced_extractor
+```
+
+### 8. **Strategy Pattern**
+Different archive handlers implement common interface:
+```python
+class ZipArchiveHandler(IArchiveHandler):
+    def extract(self, archive_path: Path, target_dir: Path) -> None:
+        # ZIP-specific extraction
+```
+
+### 9. **Repository Pattern**
+Knowledge graph abstracts data persistence:
+```python
+class KnowledgeGraph(IKnowledgeGraph):
+    def ingest(self, file_info: dict) -> None:
+        # Abstract storage details
 ```
 
 ## Deduplication Architecture
@@ -289,26 +410,76 @@ Result: Source is deleted, counted as global duplicate
 
 ## Data Flow
 
+### CLI Mode (Traditional Extraction)
+
 1. **User Input** → CLI Parser → Settings Configuration
 2. **Execution Request** → CLI App → Orchestrator
 3. **File Discovery** → FileDiscovery finds files based on criteria
-4. **Validation** → Security and file validators check each file
-5. **Hash Indexing** (if global-dedup) → Build index of existing files
-6. **File Operations** → FileMover moves files with deduplication checks
-7. **State Updates** → StateManager tracks operation progress
-8. **Progress Display** → ConsoleInterface shows real-time progress
-9. **History Saving** → HistoryManager saves operations for undo
-10. **Cleanup** → Remove empty directories
-11. **Result Display** → ConsoleInterface shows summary with duplicate counts
+4. **Archive Extraction** (if `--extract-archives`) → Extract ZIP/TAR safely
+5. **Validation** → Security and file validators check each file
+6. **Hash Indexing** (if global-dedup) → Build index of existing files
+7. **File Operations** → FileMover moves files with deduplication checks
+8. **State Updates** → StateManager tracks operation progress
+9. **Progress Display** → ConsoleInterface shows real-time progress
+10. **History Saving** → HistoryManager saves operations for undo
+11. **Cleanup** → Remove empty directories
+12. **Result Display** → ConsoleInterface shows summary with duplicate counts
+
+### API/Watch Mode (Automatic Processing)
+
+1. **File System Event** → Watchdog detects file creation
+2. **Stability Check** → StabilityMonitor ensures file is complete
+3. **AI Analysis** → SmartSorter categorizes document (category, sender, year, entities)
+4. **Template Expansion** → Path template with placeholders resolved
+5. **File Move** → File moved to categorized location
+6. **Metadata Storage** → KnowledgeGraph stores document metadata and entities
+7. **WebSocket Notification** → Real-time update sent to connected clients
+8. **History Saved** → Operation recorded for undo capability
 
 ## Thread Safety
 
 The application ensures thread safety through:
 
 1. **Thread-safe State Manager**: Uses locks for concurrent access
-2. **Abort Signal**: Threading.Event for safe operation cancellation
-3. **Atomic Operations**: File operations are atomic where possible
-4. **Progress Callbacks**: Thread-safe progress reporting
+2. **Thread-safe Zone Manager**: Locks for configuration updates
+3. **Abort Signal**: Threading.Event for safe operation cancellation
+4. **Atomic Operations**: File operations are atomic where possible
+5. **Progress Callbacks**: Thread-safe progress reporting
+6. **Connection Manager**: Thread-safe WebSocket connection handling
+
+## Security Architecture
+
+### Path Traversal Protection
+
+1. **Safe Directory Validation**: Operations only in Desktop/Downloads/Documents
+2. **Zip Slip Prevention**: Archive extraction validates all paths stay within target
+3. **Path Canonicalization**: Resolves symlinks and normalizes paths before validation
+4. **Absolute Path Rejection**: Archives with absolute paths are rejected
+
+### Archive Security (Zip Slip Protection)
+
+```python
+def _is_safe_path(member_path: Path, target_dir: Path) -> bool:
+    # Resolve to absolute paths
+    resolved_member = member_path.resolve()
+    resolved_target = target_dir.resolve()
+
+    # Check if member is within target
+    return resolved_member.is_relative_to(resolved_target)
+```
+
+**Protection Layers:**
+1. Pre-extraction path validation
+2. Post-extraction path verification
+3. Rejection of absolute paths in archives
+4. Symlink resolution to prevent escapes
+
+### Input Validation
+
+1. **File Type Validation**: Whitelist-based file extension checking
+2. **Domain Validation**: URL domain parsing with subdomain support
+3. **Depth Validation**: Numeric bounds checking
+4. **Path Sanitization**: Removes dangerous characters and patterns
 
 ## Migration Strategy
 
@@ -323,10 +494,26 @@ The architecture maintains backward compatibility:
 
 The modular architecture enables comprehensive testing:
 
-1. **Unit Tests**: Test each component in isolation
-2. **Integration Tests**: Test component interactions
-3. **Backward Compatibility Tests**: Ensure legacy behavior preserved
-4. **Performance Tests**: Benchmark critical operations
+1. **Unit Tests**: Test each component in isolation (`tests/unit/`)
+   - Component-specific tests for all core modules
+   - API-specific tests in `tests/unit/api/`
+2. **Integration Tests**: Test component interactions (`tests/integration/`)
+   - End-to-end extraction workflows
+   - Archive extraction scenarios
+   - Smart sorting integration
+   - Watch mode integration
+3. **Security Tests**: Security-focused test scenarios
+   - Zip Slip attack prevention
+   - Path traversal attempts
+   - Input validation edge cases
+4. **Performance Tests**: Benchmark critical operations (`tests/performance/`)
+   - Deep directory structure handling (1500+ levels)
+   - Large file set processing
+   - Hash indexing performance
+5. **Property Tests**: Hypothesis-based testing (`test_properties.py`)
+   - Generative testing for edge cases
+
+**Coverage Target**: 90%+ (some AI/API modules excluded on Python 3.8, see `pyproject.toml`)
 
 ## Extension Points
 
@@ -337,6 +524,9 @@ The architecture is designed for extensibility:
 3. **Alternative UI**: Implement `IConsoleInterface`
 4. **State Persistence**: Extend `IStateManager`
 5. **Progress Visualization**: Extend `IProgressTracker`
+6. **Archive Formats**: Implement `IArchiveHandler` for RAR, 7z, etc.
+7. **AI Providers**: Implement `IAIClient` for OpenAI, Claude, etc.
+8. **Storage Backends**: Implement `IKnowledgeGraph` for Neo4j, PostgreSQL, etc.
 
 ## Performance Considerations
 
@@ -347,22 +537,66 @@ The architecture is designed for extensibility:
 5. **Iterative File Discovery**: `os.walk()` instead of recursion prevents stack overflow
 6. **Early Pruning**: `dirs[:] = []` pattern stops traversal at depth/hidden boundaries
 7. **Depth Calculation Optimization**: Uses `len(path.parts)` instead of `resolve()` (line 91)
+8. **Hash Index Optimization**: Size-based pre-filtering before expensive hash calculation
+9. **Chunked File Reading**: 8KB chunks for hash calculation
+10. **AI Caching**: Knowledge graph caches document metadata to reduce API calls
+11. **Connection Pooling**: Database connection pooling in KnowledgeGraph
 
-## Security Considerations
+## Dependencies
 
-1. **Path Validation**: Only operates in safe user directories
-2. **No Code Execution**: No dynamic code execution
-3. **Input Sanitization**: All user input validated
-4. **Atomic Operations**: Prevent partial state corruption
+### Runtime Dependencies
+
+**CLI Mode (Python 3.8+)**:
+- `rich>=13.0.0` - Enhanced terminal output (progress bars, tables, colors)
+
+**API/AI Mode (Python 3.9+, optional)**:
+- `fastapi` - REST API framework
+- `uvicorn[standard]` - ASGI server
+- `pydantic>=2.0.0` - Data validation
+- `websockets` - WebSocket support
+- `python-dotenv` - Environment configuration
+- `google-generativeai` - Gemini AI client
+- `watchdog` - File system monitoring
+- `kuzu` - Graph database (KùzuDB)
+
+### Development Dependencies
+
+- `pytest>=7.0` - Testing framework
+- `pytest-cov>=4.0` - Coverage reporting
+- `pytest-benchmark>=4.0` - Performance benchmarking
+- `pytest-xdist>=3.0` - Parallel test execution
+- `hypothesis>=6.0` - Property-based testing
+
+## Python Version Compatibility
+
+- **Python 3.8**: CLI mode with all core features (extraction, deduplication, sorting, archives)
+- **Python 3.9+**: Full feature set including AI sorting, watch mode, and REST API
+  - AI modules require `google-generativeai` which only supports Python 3.9+
+  - These modules are excluded from coverage on Python 3.8 (see `pyproject.toml`)
+
+## Implemented Features (Previously "Future Enhancements")
+
+The following features have been implemented since the initial architecture:
+
+1. ✅ **Archive Extraction**: Safe ZIP/TAR extraction with Zip Slip protection (`--extract-archives`)
+2. ✅ **Watch Mode**: Monitor directories and auto-organize new files (API mode)
+3. ✅ **AI-Powered Sorting**: Gemini-based document categorization with entity extraction
+4. ✅ **Knowledge Graph**: Graph-based metadata storage using KùzuDB
+5. ✅ **REST API**: Full FastAPI implementation with WebSocket support
+6. ✅ **Dropzone Management**: Multi-zone configuration with templates
+7. ✅ **Real-time Notifications**: WebSocket-based status updates
 
 ## Future Enhancements
 
 The modular architecture enables future enhancements:
 
-1. **Persistent Configuration**: Save user preferences to config file (planned for v1.4.0)
-2. **Improved Undo for Duplicates**: Restore deduplicated files by copying (planned for v1.4.0)
-3. **GUI Frontend**: Add graphical interface using the same core
-4. **Watch Mode**: Monitor directories and auto-organize new files
-5. **Archive Extraction**: Transparent handling of ZIP/RAR/7z files
-6. **EXIF-based Sorting**: Organize photos by capture date
-7. **Plugin System**: Dynamic loading of extensions
+1. **Persistent Configuration**: Save user preferences to config file (planned for v1.5.0)
+2. **Improved Undo for Duplicates**: Restore deduplicated files by copying (planned for v1.5.0)
+3. **GUI Frontend**: Desktop application using the same core (Electron/Tauri)
+4. **Additional Archive Formats**: RAR, 7z support via `IArchiveHandler`
+5. **EXIF-based Sorting**: Organize photos by capture date
+6. **Plugin System**: Dynamic loading of extensions
+7. **Multi-language Support**: Internationalization (i18n)
+8. **Alternative AI Providers**: OpenAI, Claude, local models via `IAIClient`
+9. **Advanced Search**: Natural language queries via KnowledgeGraph
+10. **Batch Operations API**: Process multiple files in single request
