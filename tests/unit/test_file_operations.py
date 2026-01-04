@@ -81,18 +81,18 @@ class TestSafePathValidation:
         """Test Desktop paths are allowed."""
         home = Path.home()
         desktop_paths = [
-            str(home / "Desktop"),
-            str(home / "Desktop" / "subfolder"),
-            str(home / "Desktop" / "deep" / "nested" / "folder"),
+            home / "Desktop",
+            home / "Desktop" / "subfolder",
+            home / "Desktop" / "deep" / "nested" / "folder",
         ]
 
         for path in desktop_paths:
             # Create path if needed
-            Path(path).mkdir(parents=True, exist_ok=True)
+            path.mkdir(parents=True, exist_ok=True)
             assert ist_sicherer_pfad(path) is True
             # Cleanup
-            if "subfolder" in path or "deep" in path:
-                parent = Path(path).parent
+            if "subfolder" in str(path) or "deep" in str(path):
+                parent = path.parent
                 while parent != home / "Desktop" and parent.exists():
                     if any(parent.iterdir()):
                         break
@@ -124,13 +124,13 @@ class TestSafePathValidation:
     def test_unsafe_system_paths(self):
         """Test system paths are rejected."""
         unsafe_paths = [
-            "/",
-            "/etc",
-            "/usr",
-            "/bin",
-            "/System",
-            "C:\\Windows" if os.name == "nt" else "/usr/bin",
-            "C:\\Program Files" if os.name == "nt" else "/opt",
+            Path("/"),
+            Path("/etc"),
+            Path("/usr"),
+            Path("/bin"),
+            Path("/System"),
+            Path("C:\\Windows") if os.name == "nt" else Path("/usr/bin"),
+            Path("C:\\Program Files") if os.name == "nt" else Path("/opt"),
         ]
 
         for path in unsafe_paths:
@@ -144,10 +144,10 @@ class TestSafePathValidation:
         """Test unsafe home subdirectories are rejected."""
         home = Path.home()
         unsafe_subdirs = [
-            str(home / "Library"),
-            str(home / "Applications"),
-            str(home / ".ssh"),
-            str(home / ".config"),
+            home / "Library",
+            home / "Applications",
+            home / ".ssh",
+            home / ".config",
         ]
 
         for path in unsafe_subdirs:
@@ -159,9 +159,9 @@ class TestSafePathValidation:
 
         # Different case variations
         variations = [
-            str(home / "desktop" / "test"),
-            str(home / "DESKTOP" / "test"),
-            str(home / "DeskTop" / "test"),
+            home / "desktop" / "test",
+            home / "DESKTOP" / "test",
+            home / "DeskTop" / "test",
         ]
 
         for path in variations:
