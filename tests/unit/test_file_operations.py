@@ -176,89 +176,84 @@ class TestSafePathValidation:
 class TestEmptyFolderRemoval:
     """Test empty folder removal functionality."""
 
-    def test_remove_single_empty_folder(self):
+    def test_remove_single_empty_folder(self, tmp_path):
         """Test removing a single empty folder."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            empty_dir = Path(temp_dir) / "empty"
-            empty_dir.mkdir()
+        empty_dir = tmp_path / "empty"
+        empty_dir.mkdir()
 
-            removed = entferne_leere_ordner(temp_dir)
+        removed = entferne_leere_ordner(tmp_path)
 
-            assert removed == 1
-            assert not empty_dir.exists()
+        assert removed == 1
+        assert not empty_dir.exists()
 
-    def test_keep_non_empty_folders(self):
+    def test_keep_non_empty_folders(self, tmp_path):
         """Test that non-empty folders are kept."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create folder with file
-            non_empty = Path(temp_dir) / "non_empty"
-            non_empty.mkdir()
-            (non_empty / "file.txt").touch()
+        # Create folder with file
+        non_empty = tmp_path / "non_empty"
+        non_empty.mkdir()
+        (non_empty / "file.txt").touch()
 
-            removed = entferne_leere_ordner(temp_dir)
+        removed = entferne_leere_ordner(tmp_path)
 
-            assert removed == 0
-            assert non_empty.exists()
+        assert removed == 0
+        assert non_empty.exists()
 
-    def test_nested_empty_folders(self):
+    def test_nested_empty_folders(self, tmp_path):
         """Test removing nested empty folders."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create nested structure
-            nested = Path(temp_dir) / "level1" / "level2" / "level3"
-            nested.mkdir(parents=True)
+        # Create nested structure
+        nested = tmp_path / "level1" / "level2" / "level3"
+        nested.mkdir(parents=True)
 
-            removed = entferne_leere_ordner(temp_dir)
+        removed = entferne_leere_ordner(tmp_path)
 
-            # Should remove all empty folders
-            assert removed >= 3
-            assert not (Path(temp_dir) / "level1").exists()
+        # Should remove all empty folders
+        assert removed >= 3
+        assert not (tmp_path / "level1").exists()
 
-    def test_mixed_empty_and_full(self):
+    def test_mixed_empty_and_full(self, tmp_path):
         """Test mixed empty and non-empty folders."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Empty folders
-            (Path(temp_dir) / "empty1").mkdir()
-            (Path(temp_dir) / "empty2").mkdir()
+        # Empty folders
+        (tmp_path / "empty1").mkdir()
+        (tmp_path / "empty2").mkdir()
 
-            # Non-empty folder
-            full = Path(temp_dir) / "full"
-            full.mkdir()
-            (full / "file.txt").touch()
+        # Non-empty folder
+        full = tmp_path / "full"
+        full.mkdir()
+        (full / "file.txt").touch()
 
-            # Nested with file at bottom
-            nested = Path(temp_dir) / "nested" / "deep"
-            nested.mkdir(parents=True)
-            (nested / "file.txt").touch()
+        # Nested with file at bottom
+        nested = tmp_path / "nested" / "deep"
+        nested.mkdir(parents=True)
+        (nested / "file.txt").touch()
 
-            removed = entferne_leere_ordner(temp_dir)
+        removed = entferne_leere_ordner(tmp_path)
 
-            assert removed == 2  # empty1 and empty2
-            assert not (Path(temp_dir) / "empty1").exists()
-            assert not (Path(temp_dir) / "empty2").exists()
-            assert full.exists()
-            assert nested.exists()
+        assert removed == 2  # empty1 and empty2
+        assert not (tmp_path / "empty1").exists()
+        assert not (tmp_path / "empty2").exists()
+        assert full.exists()
+        assert nested.exists()
 
-    def test_hidden_files_handling(self):
+    def test_hidden_files_handling(self, tmp_path):
         """Test handling of hidden files."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Folder with only hidden file
-            hidden_only = Path(temp_dir) / "hidden_only"
-            hidden_only.mkdir()
-            (hidden_only / ".hidden").touch()
+        # Folder with only hidden file
+        hidden_only = tmp_path / "hidden_only"
+        hidden_only.mkdir()
+        (hidden_only / ".hidden").touch()
 
-            # Test without include_hidden - should remove
-            removed = entferne_leere_ordner(temp_dir, include_hidden=False)
-            assert removed == 1
-            assert not hidden_only.exists()
+        # Test without include_hidden - should remove
+        removed = entferne_leere_ordner(tmp_path, include_hidden=False)
+        assert removed == 1
+        assert not hidden_only.exists()
 
-            # Recreate for second test
-            hidden_only.mkdir()
-            (hidden_only / ".hidden").touch()
+        # Recreate for second test
+        hidden_only.mkdir()
+        (hidden_only / ".hidden").touch()
 
-            # Test with include_hidden - should keep
-            removed = entferne_leere_ordner(temp_dir, include_hidden=True)
-            assert removed == 0
-            assert hidden_only.exists()
+        # Test with include_hidden - should keep
+        removed = entferne_leere_ordner(tmp_path, include_hidden=True)
+        assert removed == 0
+        assert hidden_only.exists()
 
 
 class TestWebLinkDomainCheck:
