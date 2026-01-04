@@ -17,69 +17,62 @@ from folder_extractor.main import (
 class TestUniqueNameGeneration:
     """Test unique name generation."""
 
-    def test_no_conflict(self):
+    def test_no_conflict(self, tmp_path):
         """Test when no file exists."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            name = generiere_eindeutigen_namen(temp_dir, "test.txt")
-            assert name == "test.txt"
+        name = generiere_eindeutigen_namen(tmp_path, "test.txt")
+        assert name == "test.txt"
 
-    def test_single_conflict(self):
+    def test_single_conflict(self, tmp_path):
         """Test with one existing file."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create existing file
-            Path(temp_dir, "test.txt").touch()
+        # Create existing file
+        (tmp_path / "test.txt").touch()
 
-            name = generiere_eindeutigen_namen(temp_dir, "test.txt")
-            assert name == "test_1.txt"
+        name = generiere_eindeutigen_namen(tmp_path, "test.txt")
+        assert name == "test_1.txt"
 
-    def test_multiple_conflicts(self):
+    def test_multiple_conflicts(self, tmp_path):
         """Test with multiple existing files."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create existing files
-            Path(temp_dir, "test.txt").touch()
-            Path(temp_dir, "test_1.txt").touch()
-            Path(temp_dir, "test_2.txt").touch()
+        # Create existing files
+        (tmp_path / "test.txt").touch()
+        (tmp_path / "test_1.txt").touch()
+        (tmp_path / "test_2.txt").touch()
 
-            name = generiere_eindeutigen_namen(temp_dir, "test.txt")
-            assert name == "test_3.txt"
+        name = generiere_eindeutigen_namen(tmp_path, "test.txt")
+        assert name == "test_3.txt"
 
-    def test_no_extension(self):
+    def test_no_extension(self, tmp_path):
         """Test files without extension."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            Path(temp_dir, "README").touch()
+        (tmp_path / "README").touch()
 
-            name = generiere_eindeutigen_namen(temp_dir, "README")
-            assert name == "README_1"
+        name = generiere_eindeutigen_namen(tmp_path, "README")
+        assert name == "README_1"
 
-    def test_multiple_dots(self):
+    def test_multiple_dots(self, tmp_path):
         """Test files with multiple dots."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            Path(temp_dir, "archive.tar.gz").touch()
+        (tmp_path / "archive.tar.gz").touch()
 
-            name = generiere_eindeutigen_namen(temp_dir, "archive.tar.gz")
-            assert name == "archive.tar_1.gz"
+        name = generiere_eindeutigen_namen(tmp_path, "archive.tar.gz")
+        assert name == "archive.tar_1.gz"
 
-    def test_gap_in_numbering(self):
+    def test_gap_in_numbering(self, tmp_path):
         """Test when there's a gap in numbering."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create files with gap
-            Path(temp_dir, "test.txt").touch()
-            Path(temp_dir, "test_1.txt").touch()
-            Path(temp_dir, "test_3.txt").touch()  # Gap at _2
+        # Create files with gap
+        (tmp_path / "test.txt").touch()
+        (tmp_path / "test_1.txt").touch()
+        (tmp_path / "test_3.txt").touch()  # Gap at _2
 
-            name = generiere_eindeutigen_namen(temp_dir, "test.txt")
-            assert name == "test_2.txt"
+        name = generiere_eindeutigen_namen(tmp_path, "test.txt")
+        assert name == "test_2.txt"
 
-    def test_high_numbers(self):
+    def test_high_numbers(self, tmp_path):
         """Test with high numbered files."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create files up to 99
-            Path(temp_dir, "test.txt").touch()
-            for i in range(1, 100):
-                Path(temp_dir, f"test_{i}.txt").touch()
+        # Create files up to 99
+        (tmp_path / "test.txt").touch()
+        for i in range(1, 100):
+            (tmp_path / f"test_{i}.txt").touch()
 
-            name = generiere_eindeutigen_namen(temp_dir, "test.txt")
-            assert name == "test_100.txt"
+        name = generiere_eindeutigen_namen(tmp_path, "test.txt")
+        assert name == "test_100.txt"
 
 
 class TestSafePathValidation:
