@@ -259,65 +259,61 @@ class TestEmptyFolderRemoval:
 class TestWebLinkDomainCheck:
     """Test web link domain checking."""
 
-    def test_url_file_parsing(self):
+    def test_url_file_parsing(self, tmp_path):
         """Test parsing of .url files."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create .url file
-            url_file = Path(temp_dir) / "test.url"
-            url_file.write_text(
-                "[InternetShortcut]\nURL=https://www.youtube.com/watch?v=123\n"
-            )
+        # Create .url file
+        url_file = tmp_path / "test.url"
+        url_file.write_text(
+            "[InternetShortcut]\nURL=https://www.youtube.com/watch?v=123\n"
+        )
 
-            # Test matching domain
-            assert pruefe_weblink_domain(str(url_file), ["youtube.com"]) is True
-            assert pruefe_weblink_domain(str(url_file), ["github.com"]) is False
+        # Test matching domain
+        assert pruefe_weblink_domain(url_file, ["youtube.com"]) is True
+        assert pruefe_weblink_domain(url_file, ["github.com"]) is False
 
-    def test_webloc_file_parsing(self):
+    def test_webloc_file_parsing(self, tmp_path):
         """Test parsing of .webloc files."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create .webloc file
-            webloc_file = Path(temp_dir) / "test.webloc"
-            webloc_file.write_text(
-                '<?xml version="1.0" encoding="UTF-8"?>\n'
-                '<plist version="1.0">\n'
-                "<dict>\n"
-                "    <key>URL</key>\n"
-                "    <string>https://github.com/user/repo</string>\n"
-                "</dict>\n"
-                "</plist>\n"
-            )
+        # Create .webloc file
+        webloc_file = tmp_path / "test.webloc"
+        webloc_file.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<plist version="1.0">\n'
+            "<dict>\n"
+            "    <key>URL</key>\n"
+            "    <string>https://github.com/user/repo</string>\n"
+            "</dict>\n"
+            "</plist>\n"
+        )
 
-            # Test matching domain
-            assert pruefe_weblink_domain(str(webloc_file), ["github.com"]) is True
-            assert pruefe_weblink_domain(str(webloc_file), ["youtube.com"]) is False
+        # Test matching domain
+        assert pruefe_weblink_domain(webloc_file, ["github.com"]) is True
+        assert pruefe_weblink_domain(webloc_file, ["youtube.com"]) is False
 
-    def test_invalid_file_format(self):
+    def test_invalid_file_format(self, tmp_path):
         """Test handling of invalid file formats."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create invalid file
-            invalid_file = Path(temp_dir) / "test.url"
-            invalid_file.write_text("This is not a valid URL file")
+        # Create invalid file
+        invalid_file = tmp_path / "test.url"
+        invalid_file.write_text("This is not a valid URL file")
 
-            # Should return False for invalid format
-            assert pruefe_weblink_domain(str(invalid_file), ["any.com"]) is False
+        # Should return False for invalid format
+        assert pruefe_weblink_domain(invalid_file, ["any.com"]) is False
 
     def test_nonexistent_file(self):
         """Test handling of nonexistent files."""
-        result = pruefe_weblink_domain("/nonexistent/file.url", ["any.com"])
+        result = pruefe_weblink_domain(Path("/nonexistent/file.url"), ["any.com"])
         assert result is False
 
-    def test_multiple_domains(self):
+    def test_multiple_domains(self, tmp_path):
         """Test checking against multiple domains."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            url_file = Path(temp_dir) / "test.url"
-            url_file.write_text(
-                "[InternetShortcut]\nURL=https://stackoverflow.com/questions/123\n"
-            )
+        url_file = tmp_path / "test.url"
+        url_file.write_text(
+            "[InternetShortcut]\nURL=https://stackoverflow.com/questions/123\n"
+        )
 
-            # Test with multiple allowed domains
-            domains = ["github.com", "youtube.com", "stackoverflow.com"]
-            assert pruefe_weblink_domain(str(url_file), domains) is True
+        # Test with multiple allowed domains
+        domains = ["github.com", "youtube.com", "stackoverflow.com"]
+        assert pruefe_weblink_domain(url_file, domains) is True
 
-            # Test with non-matching domains
-            domains = ["github.com", "youtube.com"]
-            assert pruefe_weblink_domain(str(url_file), domains) is False
+        # Test with non-matching domains
+        domains = ["github.com", "youtube.com"]
+        assert pruefe_weblink_domain(url_file, domains) is False
