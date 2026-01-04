@@ -106,7 +106,7 @@ class TestSafePathValidation:
         downloads = home / "Downloads" / "test_folder"
         downloads.mkdir(parents=True, exist_ok=True)
 
-        assert ist_sicherer_pfad(str(downloads)) is True
+        assert ist_sicherer_pfad(downloads) is True
 
         # Cleanup
         downloads.rmdir()
@@ -117,7 +117,7 @@ class TestSafePathValidation:
         documents = home / "Documents" / "test_folder"
         documents.mkdir(parents=True, exist_ok=True)
 
-        assert ist_sicherer_pfad(str(documents)) is True
+        assert ist_sicherer_pfad(documents) is True
 
         # Cleanup
         documents.rmdir()
@@ -139,7 +139,7 @@ class TestSafePathValidation:
 
     def test_home_directory_rejected(self):
         """Test home directory itself is rejected."""
-        assert ist_sicherer_pfad(str(Path.home())) is False
+        assert ist_sicherer_pfad(Path.home()) is False
 
     def test_unsafe_home_subdirs(self):
         """Test unsafe home subdirectories are rejected."""
