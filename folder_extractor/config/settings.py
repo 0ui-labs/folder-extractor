@@ -130,10 +130,6 @@ class Settings:
         return self._settings["watch_mode"]
 
 
-# Global instance for backward compatibility
-settings = Settings()
-
-
 def configure_from_args(settings: Settings, args) -> None:
     """Configure settings from command line arguments.
 
