@@ -63,19 +63,6 @@ class SmartSorter:
         self._file_ops = FileOperations()
         self._settings = settings
 
-    def _get_all_categories(self) -> list[str]:
-        """
-        Get combined list of user-defined and default categories.
-
-        User categories take precedence over default categories.
-        Duplicates are removed while preserving order.
-
-        Returns:
-            List of category names with user categories first.
-        """
-        custom: list[str] = self._settings.get("custom_categories", [])
-        return custom + [cat for cat in DEFAULT_CATEGORIES if cat not in custom]
-
     async def process_file(
         self,
         filepath: Path,

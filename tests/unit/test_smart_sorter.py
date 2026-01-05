@@ -42,57 +42,6 @@ class TestSmartSorterInitialization:
         assert sorter._settings is mock_settings
 
 
-class TestSmartSorterGetAllCategories:
-    """Tests for _get_all_categories method."""
-
-    def test_returns_default_categories_when_no_custom(self):
-        """Returns default categories when no custom categories defined."""
-        mock_client = MagicMock()
-        mock_settings = MagicMock()
-        mock_settings.get.return_value = []
-
-        sorter = SmartSorter(mock_client, settings=mock_settings)
-        categories = sorter._get_all_categories()
-
-        mock_settings.get.assert_called_once_with("custom_categories", [])
-        assert categories == list(DEFAULT_CATEGORIES)
-
-    def test_custom_categories_take_precedence(self):
-        """Custom categories appear before default categories."""
-        mock_client = MagicMock()
-        mock_settings = MagicMock()
-        custom_cats = ["Meine Kategorie", "Andere"]
-        mock_settings.get.return_value = custom_cats
-
-        sorter = SmartSorter(mock_client, settings=mock_settings)
-        categories = sorter._get_all_categories()
-
-        # Custom categories should be first
-        assert categories[0] == "Meine Kategorie"
-        assert categories[1] == "Andere"
-        # Default categories should follow (excluding duplicates)
-        for default_cat in DEFAULT_CATEGORIES:
-            if default_cat not in custom_cats:
-                assert default_cat in categories
-
-    def test_duplicate_categories_removed(self):
-        """Duplicate categories from custom list are not repeated from defaults."""
-        mock_client = MagicMock()
-        mock_settings = MagicMock()
-        # "Finanzen" is a default category
-        mock_settings.get.return_value = ["Finanzen", "Meine Kategorie"]
-
-        sorter = SmartSorter(mock_client, settings=mock_settings)
-        categories = sorter._get_all_categories()
-
-        # Count occurrences of "Finanzen" - should only appear once
-        finanzen_count = categories.count("Finanzen")
-        assert finanzen_count == 1
-
-        # "Finanzen" should be at position 0 (from custom, not default)
-        assert categories[0] == "Finanzen"
-
-
 class TestSmartSorterProcessFile:
     """Tests for process_file method."""
 
