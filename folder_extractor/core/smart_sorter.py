@@ -116,7 +116,7 @@ class SmartSorter:
             {"category": "Finanzen", "sender": "Telekom", "year": "2024",
              "entities": [{"name": "Telekom", "type": "Organization"}]}
         """
-        categories = self._get_all_categories()
+        categories = get_all_categories(self._settings)
         prompt = get_system_prompt(categories)
 
         # Call AI client - AIClientError is not caught, propagated to caller
