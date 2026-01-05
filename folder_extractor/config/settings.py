@@ -130,12 +130,17 @@ class Settings:
         return self._settings["watch_mode"]
 
 
-# Global settings instance
+# Global instance for backward compatibility
 settings = Settings()
 
 
-def configure_from_args(args) -> None:
-    """Configure settings from command line arguments."""
+def configure_from_args(settings: Settings, args) -> None:
+    """Configure settings from command line arguments.
+
+    Args:
+        settings: Settings instance to configure (mandatory)
+        args: Parsed command line arguments
+    """
     settings.set("dry_run", args.dry_run)
     settings.set("max_depth", args.depth)
     settings.set("include_hidden", args.include_hidden)
@@ -168,17 +173,23 @@ def configure_from_args(args) -> None:
     settings.set("watch_mode", getattr(args, "watch", False))
 
 
-def get_all_categories() -> list:
+def get_all_categories(settings_instance: Optional[Settings] = None) -> list:
     """
     Get combined list of user-defined and default categories.
 
     User categories take precedence over default categories.
     Duplicates are removed while preserving order.
 
+    Args:
+        settings_instance: Optional settings instance (defaults to global settings)
+
     Returns:
         List of category names with user categories first.
     """
-    custom = settings.get("custom_categories", [])
+    if settings_instance is None:
+        settings_instance = settings
+
+    custom = settings_instance.get("custom_categories", [])
     from folder_extractor.config.constants import DEFAULT_CATEGORIES
 
     # User categories first, then defaults (excluding duplicates)
