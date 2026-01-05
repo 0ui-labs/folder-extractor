@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from folder_extractor.config.constants import DEFAULT_CATEGORIES
+from folder_extractor.config.settings import get_all_categories
 from folder_extractor.core.ai_async import IAIClient
 from folder_extractor.core.ai_prompts import get_system_prompt
 from folder_extractor.core.file_operations import FileOperations
