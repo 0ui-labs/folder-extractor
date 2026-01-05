@@ -7,7 +7,7 @@ during execution, unlike constants which are fixed.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class Settings:
@@ -173,7 +173,7 @@ def configure_from_args(settings: Settings, args) -> None:
     settings.set("watch_mode", getattr(args, "watch", False))
 
 
-def get_all_categories(settings_instance: Optional[Settings] = None) -> list:
+def get_all_categories(settings: Settings) -> List[str]:
     """
     Get combined list of user-defined and default categories.
 
@@ -181,15 +181,12 @@ def get_all_categories(settings_instance: Optional[Settings] = None) -> list:
     Duplicates are removed while preserving order.
 
     Args:
-        settings_instance: Optional settings instance (defaults to global settings)
+        settings: Settings instance to read categories from (mandatory)
 
     Returns:
         List of category names with user categories first.
     """
-    if settings_instance is None:
-        settings_instance = settings
-
-    custom = settings_instance.get("custom_categories", [])
+    custom = settings.get("custom_categories", [])
     from folder_extractor.config.constants import DEFAULT_CATEGORIES
 
     # User categories first, then defaults (excluding duplicates)
