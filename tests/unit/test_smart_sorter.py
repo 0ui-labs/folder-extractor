@@ -31,21 +31,8 @@ from folder_extractor.core.smart_sorter import SmartSorter  # noqa: E402
 class TestSmartSorterInitialization:
     """Tests for SmartSorter initialization."""
 
-    def test_init_with_client_only_uses_global_settings(self):
-        """SmartSorter uses global settings when none provided."""
-        mock_client = MagicMock()
-
-        # Import the actual global settings to compare
-        from folder_extractor.config.settings import settings as global_settings
-
-        sorter = SmartSorter(mock_client)
-
-        # Verify it uses the global settings singleton
-        assert sorter._client is mock_client
-        assert sorter._settings is global_settings
-
-    def test_init_with_explicit_settings(self):
-        """SmartSorter uses provided settings instead of global."""
+    def test_init_with_settings(self):
+        """SmartSorter correctly stores client and settings."""
         mock_client = MagicMock()
         mock_settings = MagicMock()
 

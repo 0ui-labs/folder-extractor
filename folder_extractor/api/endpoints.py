@@ -33,6 +33,8 @@ from fastapi import (
 from fastapi import Path as PathParam
 from watchdog.observers import Observer
 
+from folder_extractor.config.settings import Settings
+
 from folder_extractor.api.dependencies import get_orchestrator, get_zone_manager
 from folder_extractor.api.models import (
     ProcessRequest,
@@ -102,8 +104,8 @@ def _parse_iso_timestamp(timestamp_str: Optional[str]) -> Optional[datetime]:
 @router.post("/process", response_model=ProcessResponse, tags=["Processing"])
 async def process_file(
     request: ProcessRequest,
+    http_request: Request,
     background_tasks: BackgroundTasks,
-    orchestrator: EnhancedExtractionOrchestrator = Depends(get_orchestrator),
 ) -> ProcessResponse:
     """
     Process a single file in the background.
@@ -151,6 +153,12 @@ async def process_file(
 
     # Determine destination (file's directory if not specified)
     destination = file_path.parent
+
+    # Create orchestrator with dependencies from app state
+    settings = http_request.app.state.settings
+    state_manager = StateManager()
+    extractor = EnhancedFileExtractor(settings=settings, state_manager=state_manager)
+    orchestrator = EnhancedExtractionOrchestrator(extractor, state_manager=state_manager)
 
     # Define background processing function
     def process_in_background() -> None:
@@ -498,6 +506,14 @@ async def start_watcher(
 
     zone_path = zone["path"]
 
+    # Get Settings from app state
+    if not hasattr(http_request.app.state, "settings") or http_request.app.state.settings is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Settings nicht verfügbar",
+        )
+    settings = http_request.app.state.settings
+
     # Check if already watching
     with watchers_lock:
         if zone_id in active_watchers:
@@ -509,8 +525,8 @@ async def start_watcher(
         # Create components for watching
         state_manager = StateManager()
         monitor = StabilityMonitor(state_manager)
-        extractor = EnhancedFileExtractor(state_manager=state_manager)
-        orchestrator = EnhancedExtractionOrchestrator(extractor, state_manager)
+        extractor = EnhancedFileExtractor(settings=settings, state_manager=state_manager)
+        orchestrator = EnhancedExtractionOrchestrator(extractor, state_manager=state_manager)
 
         # Get ConnectionManager from app state for WebSocket broadcasting
         connection_manager: Optional[ConnectionManager] = getattr(

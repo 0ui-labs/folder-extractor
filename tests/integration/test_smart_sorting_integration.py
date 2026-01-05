@@ -735,5 +735,5 @@ class TestResultValidation:
         result = asyncio.run(sorter.process_file(test_file, mime_type))
 
         # Assert: Category is from available list
-        all_categories = get_all_categories() + ["Sonstiges"]
+        all_categories = get_all_categories(test_settings) + ["Sonstiges"]
         assert result["category"] in all_categories

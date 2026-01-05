@@ -12,10 +12,12 @@ from typing import TYPE_CHECKING, Optional
 
 from fastapi import HTTPException, Request
 
+from folder_extractor.config.settings import Settings
 from folder_extractor.core.extractor import (
     EnhancedExtractionOrchestrator,
     EnhancedFileExtractor,
 )
+from folder_extractor.core.state_manager import StateManager
 from folder_extractor.core.zone_manager import ZoneManager
 
 if TYPE_CHECKING:
@@ -77,36 +79,76 @@ def reset_zone_manager() -> None:
 # =============================================================================
 
 
-def get_extractor() -> EnhancedFileExtractor:
+def get_extractor(
+    request: Request,
+    state_manager: Optional[StateManager] = None,
+) -> EnhancedFileExtractor:
     """
-    Create a new EnhancedFileExtractor instance.
+    Create a new EnhancedFileExtractor instance with dependencies.
 
-    Creates a new instance on each call (not a singleton) because
-    each extraction operation may have different state requirements.
+    Args:
+        request: FastAPI request for accessing app state.
+        state_manager: Optional StateManager instance (created per-request if needed).
 
     Returns:
-        A new EnhancedFileExtractor instance with default dependencies.
+        A new EnhancedFileExtractor instance with injected dependencies.
     """
-    return EnhancedFileExtractor()
+    settings = get_settings_from_app_state(request)
+    sm = state_manager or StateManager()
+    return EnhancedFileExtractor(settings=settings, state_manager=sm)
 
 
-def get_orchestrator() -> EnhancedExtractionOrchestrator:
+def get_orchestrator(
+    request: Request,
+    state_manager: Optional[StateManager] = None,
+) -> EnhancedExtractionOrchestrator:
     """
-    Create an EnhancedExtractionOrchestrator with a new extractor.
+    Create an EnhancedExtractionOrchestrator with dependencies.
 
-    Creates both the extractor and orchestrator for each request,
-    ensuring clean state for each file processing operation.
+    Args:
+        request: FastAPI request for accessing app state.
+        state_manager: Optional StateManager instance (created per-request if needed).
 
     Returns:
         A new EnhancedExtractionOrchestrator instance.
     """
-    extractor = EnhancedFileExtractor()
-    return EnhancedExtractionOrchestrator(extractor)
+    settings = get_settings_from_app_state(request)
+    sm = state_manager or StateManager()
+    extractor = EnhancedFileExtractor(settings=settings, state_manager=sm)
+    return EnhancedExtractionOrchestrator(extractor, state_manager=sm)
 
 
 # =============================================================================
 # App State Dependencies
 # =============================================================================
+
+
+def get_settings_from_app_state(request: Request) -> Settings:
+    """
+    Get Settings from FastAPI app state.
+
+    The Settings instance is initialized during app startup (lifespan) and
+    stored in app.state. This dependency retrieves it for endpoint use.
+
+    Args:
+        request: FastAPI request object containing app reference.
+
+    Returns:
+        The initialized Settings instance.
+
+    Raises:
+        HTTPException: 503 if Settings is not available.
+    """
+    if (
+        not hasattr(request.app.state, "settings")
+        or request.app.state.settings is None
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail="Settings nicht verfügbar",
+        )
+
+    return request.app.state.settings
 
 
 def get_smart_sorter_from_app_state(request: Request) -> SmartSorter:

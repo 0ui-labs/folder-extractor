@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from faker import Faker
 
-from folder_extractor.core.state_manager import reset_state_manager
+# reset_state_manager is deprecated - no longer needed with dependency injection
 
 # Add parent directory to path so we can import folder_extractor
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -159,16 +159,27 @@ def random_filename(faker_seed):
 @pytest.fixture(autouse=True)
 def reset_global_state():
     """
-    Reset the global StateManager before each test.
+    Reset global instances to ensure test isolation.
 
-    This autouse fixture ensures that each test starts with a clean state,
-    preventing state leakage between tests during parallel execution with
-    pytest-xdist (-n auto).
+    Resets the global StateManager and Settings instances between tests.
+    This is important for tests that still use global instances for
+    backward compatibility checks.
     """
-    reset_state_manager()
+    from folder_extractor.config.settings import Settings
+    import folder_extractor.config.settings
+    import folder_extractor.core.state_manager
+    import warnings
+
+    # Reset global StateManager - suppress deprecation warning since we know what we're doing
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        from folder_extractor.core.state_manager import reset_state_manager
+        reset_state_manager()
+
+    # Reset global Settings instance
+    folder_extractor.config.settings.settings = Settings()
+
     yield
-    # Also reset after the test to clean up any modifications
-    reset_state_manager()
 
 
 # =============================================================================
@@ -195,3 +206,24 @@ def binary_test_file(temp_dir):
     file_path.write_bytes(content)
     expected_hash = hashlib.sha256(content).hexdigest()
     return file_path, expected_hash
+
+
+# =============================================================================
+# Settings Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def settings_fixture():
+    """Provide a fresh Settings instance for each test."""
+    from folder_extractor.config.settings import Settings
+
+    return Settings()
+
+
+@pytest.fixture
+def state_manager_fixture():
+    """Provide a fresh StateManager instance for each test."""
+    from folder_extractor.core.state_manager import StateManager
+
+    return StateManager()

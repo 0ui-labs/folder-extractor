@@ -42,8 +42,7 @@ pytestmark = pytest.mark.skipif(
 
 # Import after skip marker to avoid import errors on Python 3.8
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: E402
-from folder_extractor.config.settings import settings  # noqa: E402
-from folder_extractor.core.state_manager import reset_state_manager  # noqa: E402
+from folder_extractor.config.settings import Settings  # noqa: E402
 
 # =============================================================================
 # Helper Functions for Archive Creation
@@ -138,20 +137,6 @@ def create_malicious_zip(archive_path: Path) -> Path:
     return archive_path
 
 
-def configure_settings_for_test(**kwargs) -> None:
-    """
-    Configure settings for a test case.
-
-    Resets settings to defaults and applies provided overrides.
-
-    Args:
-        **kwargs: Settings to override (e.g., extract_archives=True)
-    """
-    settings.reset_to_defaults()
-    for key, value in kwargs.items():
-        settings.set(key, value)
-
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -171,10 +156,6 @@ def archive_test_env(tmp_path):
         - downloads: Path to downloads subdirectory
         - archives: List of created archive paths
     """
-    # Reset state for clean test
-    reset_state_manager()
-    settings.reset_to_defaults()
-
     # Create test directory in Desktop (safe path for security checks)
     desktop = Path.home() / "Desktop"
     test_dir = desktop / f"archive_test_{tmp_path.name}"
@@ -973,8 +954,7 @@ class TestArchiveExtractionIntegration:
             "Archive should still exist after extraction"
         )
 
-        # Second: Undo
-        reset_state_manager()  # Reset for new operation
+        # Second: Undo (fresh CLI instance with its own state)
         cli2 = EnhancedFolderExtractorCLI()
         undo_result = cli2.run(["--undo"])
 

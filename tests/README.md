@@ -21,7 +21,6 @@ tests/
 │   ├── test_file_operations.py     # Legacy File Operations
 │   ├── test_global_dedup.py        # Global Deduplication Tests
 │   ├── test_hashing.py             # File Hashing Tests (SHA256)
-│   ├── test_migration.py           # Settings Migration Tests
 │   ├── test_new_parsers.py         # Parser Tests
 │   ├── test_progress.py            # Progress Tracking Tests
 │   ├── test_properties.py          # Property-based Tests

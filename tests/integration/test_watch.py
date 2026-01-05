@@ -45,13 +45,10 @@ pytestmark = pytest.mark.skipif(
 
 # Import after skip marker to avoid import errors on Python 3.8
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: E402
-from folder_extractor.config.settings import settings  # noqa: E402
+from folder_extractor.config.settings import Settings  # noqa: E402
 from folder_extractor.core.extractor import EnhancedExtractionOrchestrator  # noqa: E402
 from folder_extractor.core.monitor import StabilityMonitor  # noqa: E402
-from folder_extractor.core.state_manager import (  # noqa: E402
-    IStateManager,
-    reset_state_manager,
-)
+from folder_extractor.core.state_manager import IStateManager  # noqa: E402
 from folder_extractor.core.watch import FolderEventHandler  # noqa: E402
 
 # =============================================================================
@@ -139,9 +136,6 @@ def watch_test_env(tmp_path):
         - watched_folder: Path to the folder being watched
         - original_cwd: Original working directory
     """
-    reset_state_manager()
-    settings.reset_to_defaults()
-
     # Create test directory in Desktop (safe path for security checks)
     desktop = Path.home() / "Desktop"
     test_dir = desktop / f"watch_test_{tmp_path.name}"
@@ -887,9 +881,6 @@ def e2e_watch_env(tmp_path):
 
     Creates a Desktop-based test directory and prepares for CLI execution.
     """
-    reset_state_manager()
-    settings.reset_to_defaults()
-
     # Create test directory in Desktop (safe path for security checks)
     desktop = Path.home() / "Desktop"
     test_dir = desktop / f"e2e_watch_test_{tmp_path.name}"
@@ -910,7 +901,6 @@ def e2e_watch_env(tmp_path):
 
     # Cleanup
     os.chdir(original_cwd)
-    reset_state_manager()
     if test_dir.exists():
         shutil.rmtree(test_dir)
 

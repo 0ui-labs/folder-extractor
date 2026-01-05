@@ -121,12 +121,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning(f"AI client not available: {e}")
         app.state.ai_client = None
 
+    # Instantiate Settings for API server
+    from folder_extractor.config.settings import Settings
+
+    api_settings = Settings()
+    app.state.settings = api_settings
+    logger.info("Settings initialized")
+
     # Initialize SmartSorter (depends on AI client)
     if app.state.ai_client is not None:
         try:
-            from folder_extractor.config.settings import settings
-
-            sorter = SmartSorter(client=app.state.ai_client, settings=settings)
+            sorter = SmartSorter(client=app.state.ai_client, settings=app.state.settings)
             app.state.smart_sorter = sorter
             logger.info("SmartSorter initialized")
         except Exception as e:

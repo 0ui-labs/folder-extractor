@@ -336,21 +336,15 @@ class ManagedOperation:
         return self.state_manager.get_abort_signal()
 
 
-# Global state manager instance
-_state_manager: Optional[StateManager] = None
-
-
-def get_state_manager() -> StateManager:
-    """Get or create the global state manager."""
-    global _state_manager
-    if _state_manager is None:
-        _state_manager = StateManager()
-    return _state_manager
-
-
 def reset_state_manager() -> None:
-    """Reset the global state manager."""
-    global _state_manager
-    if _state_manager is not None:
-        _state_manager.clear()
-    _state_manager = StateManager()
+    """Deprecated: No longer needed with dependency injection.
+
+    Tests should create fresh StateManager() instances instead.
+    """
+    import warnings
+    warnings.warn(
+        "reset_state_manager() is deprecated. Create fresh StateManager() instances instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    pass

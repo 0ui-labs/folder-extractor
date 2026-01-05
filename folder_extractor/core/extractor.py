@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from folder_extractor.core.archives import IArchiveHandler
 
 from folder_extractor.config.constants import HISTORY_FILE_NAME, MESSAGES
-from folder_extractor.config.settings import settings
+from folder_extractor.config.settings import Settings
 from folder_extractor.core.archives import SecurityError
 from folder_extractor.core.file_discovery import FileDiscovery, IFileDiscovery
 from folder_extractor.core.file_operations import (
@@ -26,11 +26,7 @@ from folder_extractor.core.file_operations import (
     IFileOperations,
 )
 from folder_extractor.core.progress import ProgressInfo, ProgressTracker
-from folder_extractor.core.state_manager import (
-    IStateManager,
-    ManagedOperation,
-    get_state_manager,
-)
+from folder_extractor.core.state_manager import IStateManager, ManagedOperation
 from folder_extractor.utils.path_validators import is_safe_path
 
 # Type alias for progress callback: (current, total, filename, error) -> None
@@ -44,7 +40,13 @@ class ExtractionError(Exception):
 
 
 class IEnhancedExtractor(ABC):
-    """Interface for enhanced file extraction with state management."""
+    """Interface for enhanced file extraction with state management.
+
+    Attributes:
+        settings: Settings instance for configuration
+    """
+
+    settings: Settings
 
     @abstractmethod
     def validate_security(self, path: Path) -> None:
@@ -79,6 +81,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
 
     def __init__(
         self,
+        settings: Settings,
         file_discovery: Optional[IFileDiscovery] = None,
         file_operations: Optional[IFileOperations] = None,
         state_manager: Optional[IStateManager] = None,
@@ -86,13 +89,15 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         """Initialize enhanced extractor.
 
         Args:
-            file_discovery: File discovery implementation
-            file_operations: File operations implementation
-            state_manager: State manager implementation
+            settings: Settings instance for configuration
+            file_discovery: File discovery implementation (optional)
+            file_operations: File operations implementation (optional)
+            state_manager: State manager implementation (optional)
         """
+        self.settings = settings
         self.file_discovery = file_discovery or FileDiscovery()
         self.file_operations = file_operations or FileOperations()
-        self.state_manager = state_manager or get_state_manager()
+        self.state_manager = state_manager
         self.history_manager = HistoryManager()
 
     # -------------------------------------------------------------------------
@@ -173,7 +178,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             - archive_results: Statistics about archive processing
         """
         # Check if archive extraction is enabled
-        if not settings.get("extract_archives", False):
+        if not self.settings.get("extract_archives", False):
             return files, {}
 
         archive_results = {
@@ -248,7 +253,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 extracted_files = self.file_discovery.find_files(
                     directory=temp_path,
                     max_depth=0,  # Unlimited depth within archive
-                    include_hidden=settings.get("include_hidden", False),
+                    include_hidden=self.settings.get("include_hidden", False),
                 )
 
                 if extracted_files:
@@ -287,7 +292,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 archive_results["archives_processed"] += 1
 
                 # Delete archive if setting is enabled
-                if settings.get("delete_archives", False):
+                if self.settings.get("delete_archives", False):
                     Path(archive_path).unlink(missing_ok=True)
 
             except Exception as e:
@@ -317,13 +322,13 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         """Discover files based on current settings."""
         files = self.file_discovery.find_files(
             directory=path,
-            max_depth=settings.get("max_depth", 0),
-            file_type_filter=settings.get("file_type_filter"),
-            include_hidden=settings.get("include_hidden", False),
+            max_depth=self.settings.get("max_depth", 0),
+            file_type_filter=self.settings.get("file_type_filter"),
+            include_hidden=self.settings.get("include_hidden", False),
         )
 
         # Apply domain filter if set
-        domain_filter = settings.get("domain_filter")
+        domain_filter = self.settings.get("domain_filter")
         if domain_filter:
             filtered_files = []
             for filepath in files:
@@ -436,9 +441,9 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         progress_tracker.start(len(files))
 
         # Process files
-        if settings.get("sort_by_type", False):
+        if self.settings.get("sort_by_type", False):
             # Create folder override callback for domain filter
-            domain_filter = settings.get("domain_filter")
+            domain_filter = self.settings.get("domain_filter")
             folder_override: Optional[Callable[[Path], Optional[str]]] = None
             if domain_filter:
                 # When domain filter is active, use domain as folder name for weblinks
@@ -457,8 +462,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 folder_override = _make_folder_override(self.file_discovery)
 
             # Move files sorted by type
-            deduplicate = settings.get("deduplicate", False)
-            global_dedup = settings.get("global_dedup", False)
+            deduplicate = self.settings.get("deduplicate", False)
+            global_dedup = self.settings.get("global_dedup", False)
             # Convert string paths to Path objects for core layer
             file_paths = [Path(f) for f in files]
             (
@@ -472,7 +477,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             ) = file_mover.move_files_sorted(
                 files=file_paths,
                 destination=destination,
-                dry_run=settings.get("dry_run", False),
+                dry_run=self.settings.get("dry_run", False),
                 progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
                     c, f, e
                 ),
@@ -493,8 +498,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             }
         else:
             # Move files flat
-            deduplicate = settings.get("deduplicate", False)
-            global_dedup = settings.get("global_dedup", False)
+            deduplicate = self.settings.get("deduplicate", False)
+            global_dedup = self.settings.get("global_dedup", False)
             # Convert string paths to Path objects for core layer
             file_paths = [Path(f) for f in files]
             (
@@ -507,7 +512,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             ) = file_mover.move_files(
                 files=file_paths,
                 destination=destination,
-                dry_run=settings.get("dry_run", False),
+                dry_run=self.settings.get("dry_run", False),
                 progress_callback=lambda c, _t, f, e=None: progress_tracker.update(
                     c, f, e
                 ),
@@ -534,7 +539,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
 
         # Save history if not dry run and there are history entries
         # (includes both moved files and content duplicates)
-        if not settings.get("dry_run", False) and move_results["history"]:
+        if not self.settings.get("dry_run", False) and move_results["history"]:
             self.history_manager.save_history(move_results["history"], destination)
 
         # Check if aborted
@@ -544,8 +549,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
         # Clean up empty directories if not dry run and not filtering by file type
         # Note: sort_by_type should still clean up empty source directories
         if (
-            not settings.get("dry_run", False)
-            and not settings.get("file_type_filter")
+            not self.settings.get("dry_run", False)
+            and not self.settings.get("file_type_filter")
             and results["moved"] > 0
         ):
             # Import the function we need
@@ -608,7 +613,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
                 if item.is_file():
                     if item.name in temp_files:
                         continue
-                    if not settings.get(
+                    if not self.settings.get(
                         "include_hidden", False
                     ) and item.name.startswith("."):
                         continue
@@ -776,10 +781,10 @@ class EnhancedExtractionOrchestrator:
 
         Args:
             extractor: Extractor implementation
-            state_manager: State manager implementation
+            state_manager: State manager implementation (optional)
         """
         self.extractor = extractor
-        self.state_manager = state_manager or get_state_manager()
+        self.state_manager = state_manager
 
     def execute_extraction(
         self,
@@ -819,7 +824,7 @@ class EnhancedExtractionOrchestrator:
                 # Get confirmation if callback provided
                 if (
                     confirmation_callback
-                    and not settings.get("dry_run", False)
+                    and not self.extractor.settings.get("dry_run", False)
                     and not confirmation_callback(len(files))
                 ):
                     return {

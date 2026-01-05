@@ -13,8 +13,7 @@ import pytest
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from folder_extractor.config.settings import settings
-from folder_extractor.core.state_manager import reset_state_manager
+from folder_extractor.config.settings import Settings
 
 
 # Helper: Check if CLI app can be imported (fails on Python 3.8 due to google-generativeai)
@@ -42,10 +41,6 @@ def compat_test_env(tmp_path):
     Uses pytest's tmp_path fixture for automatic cleanup and cross-platform support.
     Patches is_safe_path to allow tmp_path as a valid test location.
     """
-    # Reset state
-    reset_state_manager()
-    settings.reset_to_defaults()
-
     # Create test directory inside tmp_path (cross-platform)
     test_dir = tmp_path / f"folder_extractor_compat_{tmp_path.name}"
     test_dir.mkdir(parents=True, exist_ok=True)
@@ -110,25 +105,6 @@ class TestBackwardCompatibility:
         assert "operationen" in loaded
         assert len(loaded["operationen"]) == 1
         assert loaded["operationen"][0]["original_pfad"] == "/old/path/file.txt"
-
-    def test_settings_migration(self, compat_test_env):
-        """Test settings migration to state manager."""
-        from folder_extractor.core.migration import MigrationHelper
-        from folder_extractor.core.state_manager import get_state_manager
-
-        # Set some settings
-        settings.set("max_depth", 5)
-        settings.set("file_type_filter", "pdf")
-        settings.set("dry_run", True)
-
-        # Migrate
-        MigrationHelper.migrate_settings()
-
-        # Check state manager has settings
-        state_manager = get_state_manager()
-        assert state_manager.get_value("max_depth") == 5
-        assert state_manager.get_value("file_type_filter") == "pdf"
-        assert state_manager.get_value("dry_run") is True
 
     @requires_cli_app
     def test_enhanced_cli_with_legacy_args(self, compat_test_env):
@@ -236,7 +212,10 @@ class TestBackwardCompatibility:
         assert result["restored"] == 2
 
     def test_settings_compatibility(self, compat_test_env):
-        """Test that settings work with both old and new architecture."""
+        """Test that settings work with dependency injection architecture."""
+        # Create Settings instance
+        settings = Settings()
+
         # Test basic settings operations
         settings.set("max_depth", 3)
         settings.set("file_type_filter", "pdf")
@@ -248,17 +227,6 @@ class TestBackwardCompatibility:
         assert settings.get("file_type_filter") == "pdf"
         assert settings.get("include_hidden") is True
         assert settings.get("sort_by_type") is True
-
-        # Test settings migration to state manager
-        from folder_extractor.core.migration import MigrationHelper
-        from folder_extractor.core.state_manager import get_state_manager
-
-        MigrationHelper.migrate_settings()
-
-        # Verify state manager has the same settings
-        state_manager = get_state_manager()
-        assert state_manager.get_value("max_depth") == 3
-        assert state_manager.get_value("file_type_filter") == "pdf"
 
     @pytest.mark.skip(
         reason="Core layer now enforces Path-only (no string→Path conversion). "
@@ -324,7 +292,7 @@ class TestBackwardCompatibility:
             EnhancedExtractionOrchestrator,
             EnhancedFileExtractor,
         )
-        from folder_extractor.core.state_manager import reset_state_manager
+        from folder_extractor.core.state_manager import StateManager
 
         test_dir = compat_test_env["test_dir"]
 
@@ -336,22 +304,23 @@ class TestBackwardCompatibility:
 
         os.chdir(test_dir)
 
-        # Use dry_run mode for both tests
-        settings.set("dry_run", True)
-
         # Test 1: String path (backward compatibility)
-        reset_state_manager()
-        extractor_str = EnhancedFileExtractor()
-        orchestrator_str = EnhancedExtractionOrchestrator(extractor_str)
+        settings_str = Settings()
+        settings_str.set("dry_run", True)
+        state_mgr_str = StateManager()
+        extractor_str = EnhancedFileExtractor(settings=settings_str, state_manager=state_mgr_str)
+        orchestrator_str = EnhancedExtractionOrchestrator(extractor_str, state_mgr_str)
 
         result_from_string = orchestrator_str.execute_extraction(
             str(test_dir), confirmation_callback=lambda x: True
         )
 
         # Test 2: Path object (new style)
-        reset_state_manager()
-        extractor_path = EnhancedFileExtractor()
-        orchestrator_path = EnhancedExtractionOrchestrator(extractor_path)
+        settings_path = Settings()
+        settings_path.set("dry_run", True)
+        state_mgr_path = StateManager()
+        extractor_path = EnhancedFileExtractor(settings=settings_path, state_manager=state_mgr_path)
+        orchestrator_path = EnhancedExtractionOrchestrator(extractor_path, state_mgr_path)
 
         result_from_path = orchestrator_path.execute_extraction(
             test_dir, confirmation_callback=lambda x: True

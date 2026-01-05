@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from folder_extractor.config.settings import settings
+from folder_extractor.config.settings import Settings
 from folder_extractor.core.extractor import (
     EnhancedExtractionOrchestrator,
     EnhancedFileExtractor,
@@ -18,11 +18,8 @@ from folder_extractor.core.extractor import (
 class TestEnhancedFileExtractor:
     """Test EnhancedFileExtractor class."""
 
-    def setup_method(self):
+    def setup_method(self, settings_fixture, state_manager_fixture):
         """Set up test fixtures."""
-        # Reset settings
-        settings.reset_to_defaults()
-
         # Create mock state manager with all required methods
         self.mock_state_manager = Mock()
         self.mock_abort_signal = Mock()
@@ -33,7 +30,10 @@ class TestEnhancedFileExtractor:
         self.mock_state_manager.start_operation = Mock(return_value="test-op-123")
         self.mock_state_manager.end_operation = Mock()
 
-        self.extractor = EnhancedFileExtractor(state_manager=self.mock_state_manager)
+        self.settings = settings_fixture
+        self.extractor = EnhancedFileExtractor(
+            settings=settings_fixture, state_manager=self.mock_state_manager
+        )
 
     def test_validate_security_accepts_safe_path(self):
         """Safe paths (Desktop, Downloads, Documents) are accepted without exception."""
@@ -100,7 +100,7 @@ class TestEnhancedFileExtractor:
 
     def test_extract_files_sort_by_type(self, tmp_path):
         """Test file extraction with sort by type."""
-        settings.set("sort_by_type", True)
+        self.settings.set("sort_by_type", True)
 
         # Create source files
         source_dir = tmp_path / "source"
@@ -111,8 +111,13 @@ class TestEnhancedFileExtractor:
             str((source_dir / "script.py").touch() or source_dir / "script.py"),
         ]
 
+        # Create extractor with updated settings
+        extractor = EnhancedFileExtractor(
+            settings=self.settings, state_manager=self.mock_state_manager
+        )
+
         # Extract files
-        result = self.extractor.extract_files(files, tmp_path)
+        result = extractor.extract_files(files, tmp_path)
 
         assert result["moved"] == 3
         assert "PDF" in result["created_folders"]
@@ -121,7 +126,7 @@ class TestEnhancedFileExtractor:
 
     def test_extract_files_dry_run(self, tmp_path):
         """Test extraction in dry run mode."""
-        settings.set("dry_run", True)
+        self.settings.set("dry_run", True)
 
         # Create source file in subdirectory (files at root are skipped as "already at destination")
         subdir = tmp_path / "subdir"
@@ -129,8 +134,13 @@ class TestEnhancedFileExtractor:
         source_file = subdir / "source.txt"
         source_file.touch()
 
+        # Create extractor with updated settings
+        extractor = EnhancedFileExtractor(
+            settings=self.settings, state_manager=self.mock_state_manager
+        )
+
         # Extract - destination is tmp_path (root)
-        result = self.extractor.extract_files([str(source_file)], tmp_path)
+        result = extractor.extract_files([str(source_file)], tmp_path)
 
         # File should still exist in original location (dry run = no actual move)
         assert source_file.exists()
@@ -204,9 +214,9 @@ class TestEnhancedFileExtractor:
 class TestEnhancedExtractionOrchestrator:
     """Test EnhancedExtractionOrchestrator class."""
 
-    def setup_method(self):
+    def setup_method(self, settings_fixture, state_manager_fixture):
         """Set up test fixtures."""
-        settings.reset_to_defaults()
+        self.settings = settings_fixture
         self.mock_extractor = Mock()
         self.mock_state_manager = Mock()
         self.mock_state_manager.get_abort_signal.return_value = Mock(
@@ -333,7 +343,7 @@ class TestIntegration:
         not (Path.home() / "Desktop").exists(),
         reason="Desktop directory not available (CI environment)",
     )
-    def test_full_extraction_workflow(self):
+    def test_full_extraction_workflow(self, settings_fixture, state_manager_fixture):
         """Test complete extraction workflow."""
         # Use safe test directory
         home = Path.home()
@@ -350,9 +360,13 @@ class TestIntegration:
             (source_dir / "img.jpg").touch()
             (source_dir / ".hidden.txt").touch()
 
-            # Create extractor with default state manager
-            extractor = EnhancedFileExtractor()
-            orchestrator = EnhancedExtractionOrchestrator(extractor)
+            # Create extractor with fixtures
+            extractor = EnhancedFileExtractor(
+                settings=settings_fixture, state_manager=state_manager_fixture
+            )
+            orchestrator = EnhancedExtractionOrchestrator(
+                extractor, state_manager_fixture
+            )
 
             # Execute extraction
             result = orchestrator.execute_extraction(test_dir)

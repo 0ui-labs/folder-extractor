@@ -65,9 +65,9 @@ class TestOperationStats:
 class TestStateManager:
     """Test StateManager class."""
 
-    def setup_method(self):
+    def setup_method(self, state_manager_fixture):
         """Set up test fixtures."""
-        self.manager = StateManager()
+        self.manager = state_manager_fixture
 
     def test_operation_lifecycle(self):
         """Test operation start and end."""
@@ -273,9 +273,9 @@ class TestStateManager:
 class TestManagedOperation:
     """Test ManagedOperation context manager."""
 
-    def test_context_manager(self):
+    def test_context_manager(self, state_manager_fixture):
         """Test basic context manager usage."""
-        manager = StateManager()
+        manager = state_manager_fixture
 
         with ManagedOperation(manager, "test_op") as op:
             # Check operation started
@@ -295,9 +295,9 @@ class TestManagedOperation:
         assert stats.files_processed == 5
         assert stats.files_moved == 3
 
-    def test_exception_handling(self):
+    def test_exception_handling(self, state_manager_fixture):
         """Test operation ends even with exception."""
-        manager = StateManager()
+        manager = state_manager_fixture
         op_id = None
 
         try:
@@ -315,7 +315,7 @@ class TestManagedOperation:
 
 
 def test_global_state_manager():
-    """Test global state manager functions."""
+    """Tests legacy global singleton (backward compatibility)."""
     # Reset first
     reset_state_manager()
 
@@ -342,9 +342,9 @@ def test_global_state_manager():
 class TestStateManagerEdgeCases:
     """Test edge cases and error handling for state manager."""
 
-    def test_aborted_flag_can_be_set_directly(self):
+    def test_aborted_flag_can_be_set_directly(self, state_manager_fixture):
         """Operation can be marked as aborted via update_operation_stats."""
-        manager = StateManager()
+        manager = state_manager_fixture
         op_id = manager.start_operation("test")
 
         manager.update_operation_stats(op_id, aborted=True)
@@ -352,9 +352,9 @@ class TestStateManagerEdgeCases:
         stats = manager.get_operation_stats(op_id)
         assert stats.aborted is True
 
-    def test_faulty_listeners_do_not_break_operations(self):
+    def test_faulty_listeners_do_not_break_operations(self, state_manager_fixture):
         """A listener that raises an exception does not prevent operations from completing."""
-        manager = StateManager()
+        manager = state_manager_fixture
         successful_listener = Mock()
 
         def faulty_listener(**kwargs):
@@ -370,9 +370,9 @@ class TestStateManagerEdgeCases:
         assert op_id is not None
         successful_listener.assert_called_once()
 
-    def test_faulty_state_change_listener_does_not_prevent_state_update(self):
+    def test_faulty_state_change_listener_does_not_prevent_state_update(self, state_manager_fixture):
         """A faulty state_changed listener does not prevent state from being updated."""
-        manager = StateManager()
+        manager = state_manager_fixture
 
         def faulty_listener(**kwargs):
             raise RuntimeError("Listener error")
@@ -383,18 +383,18 @@ class TestStateManagerEdgeCases:
         manager.set_value("key", "value")
         assert manager.get_value("key") == "value"
 
-    def test_load_state_preserves_existing_state_on_missing_file(self):
+    def test_load_state_preserves_existing_state_on_missing_file(self, state_manager_fixture):
         """Loading from a nonexistent file preserves existing state."""
-        manager = StateManager()
+        manager = state_manager_fixture
         manager.set_value("existing", "value")
 
         manager.load_state(Path("/nonexistent/path/state.json"))
 
         assert manager.get_value("existing") == "value"
 
-    def test_can_end_non_current_operation(self):
+    def test_can_end_non_current_operation(self, state_manager_fixture):
         """Operations can be ended out of order."""
-        manager = StateManager()
+        manager = state_manager_fixture
 
         op_id_1 = manager.start_operation("first")
         op_id_2 = manager.start_operation("second")
@@ -409,9 +409,9 @@ class TestStateManagerEdgeCases:
         stats = manager.get_operation_stats(op_id_1)
         assert stats.end_time is not None
 
-    def test_update_stats_ignores_unknown_operations(self):
+    def test_update_stats_ignores_unknown_operations(self, state_manager_fixture):
         """Updating stats for unknown operation is a no-op."""
-        manager = StateManager()
+        manager = state_manager_fixture
 
         # Create a real operation to verify state is not corrupted
         real_op_id = manager.start_operation("real")
@@ -426,9 +426,9 @@ class TestStateManagerEdgeCases:
         # Real operation unaffected
         assert manager.get_operation_stats(real_op_id).files_processed == 10
 
-    def test_end_unknown_operation_is_safe(self):
+    def test_end_unknown_operation_is_safe(self, state_manager_fixture):
         """Ending an unknown operation does not affect existing operations."""
-        manager = StateManager()
+        manager = state_manager_fixture
 
         op_id = manager.start_operation("test")
 
@@ -439,7 +439,7 @@ class TestStateManagerEdgeCases:
         assert manager.get_operation_stats(op_id).end_time is None
 
 
-def test_global_state_manager_is_lazily_initialized():
+def test_global_state_manager_is_lazily_initialized(self, state_manager_fixture):
     """get_state_manager creates a new instance on first access."""
     import folder_extractor.core.state_manager as sm
 
@@ -457,9 +457,9 @@ def test_global_state_manager_is_lazily_initialized():
 class TestEventListenerBehavior:
     """Test event listener registration and notification behavior."""
 
-    def test_multiple_listeners_receive_same_event(self):
+    def test_multiple_listeners_receive_same_event(self, state_manager_fixture):
         """Multiple listeners registered for the same event all get notified."""
-        manager = StateManager()
+        manager = state_manager_fixture
 
         listener1 = Mock()
         listener2 = Mock()
@@ -472,9 +472,9 @@ class TestEventListenerBehavior:
         listener1.assert_called_once_with(data="test")
         listener2.assert_called_once_with(data="test")
 
-    def test_remove_listener_for_unregistered_event_is_safe(self):
+    def test_remove_listener_for_unregistered_event_is_safe(self, state_manager_fixture):
         """Removing a listener for an event that was never registered does not affect other events."""
-        manager = StateManager()
+        manager = state_manager_fixture
         registered_listener = Mock()
 
         manager.add_listener("real_event", registered_listener)
@@ -490,9 +490,9 @@ class TestEventListenerBehavior:
 class TestManagedOperationSafety:
     """Test ManagedOperation handles edge cases safely."""
 
-    def test_exit_without_enter_does_not_corrupt_manager(self):
+    def test_exit_without_enter_does_not_corrupt_manager(self, state_manager_fixture):
         """Calling __exit__ without __enter__ leaves manager in valid state."""
-        manager = StateManager()
+        manager = state_manager_fixture
         existing_op = manager.start_operation("existing")
 
         managed = ManagedOperation(manager, "test")
@@ -502,9 +502,9 @@ class TestManagedOperationSafety:
         # Manager state is not corrupted
         assert manager.get_current_operation_id() == existing_op
 
-    def test_update_stats_without_enter_is_ignored(self):
+    def test_update_stats_without_enter_is_ignored(self, state_manager_fixture):
         """Calling update_stats before __enter__ has no effect."""
-        manager = StateManager()
+        manager = state_manager_fixture
         existing_op = manager.start_operation("existing")
         manager.update_operation_stats(existing_op, files_processed=10)
 
@@ -519,9 +519,9 @@ class TestManagedOperationSafety:
 class TestUpdateOperationStatsFiltering:
     """Test that update_operation_stats only updates known attributes."""
 
-    def test_unknown_attributes_are_silently_ignored(self):
+    def test_unknown_attributes_are_silently_ignored(self, state_manager_fixture):
         """Passing unknown attribute names to update_operation_stats has no effect."""
-        manager = StateManager()
+        manager = state_manager_fixture
         op_id = manager.start_operation("test")
 
         manager.update_operation_stats(op_id, unknown_attribute=123, another_fake=456)
@@ -532,9 +532,9 @@ class TestUpdateOperationStatsFiltering:
         assert stats.files_moved == 0
         assert stats.errors == 0
 
-    def test_known_attributes_are_incremented(self):
+    def test_known_attributes_are_incremented(self, state_manager_fixture):
         """Known counter attributes are incremented, not replaced."""
-        manager = StateManager()
+        manager = state_manager_fixture
         op_id = manager.start_operation("test")
 
         manager.update_operation_stats(op_id, files_processed=5)

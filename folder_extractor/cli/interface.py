@@ -20,7 +20,7 @@ from rich.progress import (
 from rich.style import Style
 
 from folder_extractor.config.constants import MESSAGES, VERSION
-from folder_extractor.config.settings import settings
+from folder_extractor.config.settings import Settings
 
 
 class IUserInterface(ABC):
@@ -61,8 +61,9 @@ class IUserInterface(ABC):
 class ConsoleInterface(IUserInterface):
     """Console-based user interface implementation."""
 
-    def __init__(self):
+    def __init__(self, settings: Settings):
         """Initialize console interface."""
+        self.settings = settings
         self.last_progress_update = 0
         self.progress_update_interval = 0.1
 
@@ -100,7 +101,7 @@ class ConsoleInterface(IUserInterface):
             message: Message to display
             message_type: Type of message (info, success, error, warning)
         """
-        if settings.get("quiet", False):
+        if self.settings.get("quiet", False):
             return
 
         # Apply style based on type
@@ -125,10 +126,10 @@ class ConsoleInterface(IUserInterface):
         Returns:
             True if user confirms, False otherwise
         """
-        if settings.get("dry_run", False):
+        if self.settings.get("dry_run", False):
             return True  # No confirmation needed for dry run
 
-        if not settings.get("confirm_operations", True):
+        if not self.settings.get("confirm_operations", True):
             return True  # Auto-confirm if disabled
 
         # Show file count
@@ -156,7 +157,7 @@ class ConsoleInterface(IUserInterface):
             filepath: Current file path
             error: Optional error message
         """
-        if settings.get("quiet", False):
+        if self.settings.get("quiet", False):
             return
 
         # Initialize Progress on first call (minimalist - no padding column)
@@ -208,7 +209,7 @@ class ConsoleInterface(IUserInterface):
 
     def show_indexing_spinner(self) -> None:
         """Show spinner during index building for global deduplication."""
-        if settings.get("quiet", False):
+        if self.settings.get("quiet", False):
             return
 
         self.indexing_spinner = Progress(
@@ -242,7 +243,7 @@ class ConsoleInterface(IUserInterface):
             count: Number of files extracted (for extracted status)
             error: Error message (for error status)
         """
-        if settings.get("quiet", False):
+        if self.settings.get("quiet", False):
             return
 
         if status == "extracting":
@@ -412,7 +413,7 @@ class ConsoleInterface(IUserInterface):
                     )
 
             # Show undo hint
-            if not settings.get("dry_run", False) and results.get("moved", 0) > 0:
+            if not self.settings.get("dry_run", False) and results.get("moved", 0) > 0:
                 self.console.print(MESSAGES["UNDO_AVAILABLE"])
 
     def show_watch_status(self, path: Union[str, Path]) -> None:
@@ -421,7 +422,7 @@ class ConsoleInterface(IUserInterface):
         Args:
             path: Path being watched
         """
-        if settings.get("quiet", False):
+        if self.settings.get("quiet", False):
             return
 
         message = MESSAGES["WATCH_STARTING"].format(path=path)
@@ -442,7 +443,7 @@ class ConsoleInterface(IUserInterface):
             status: Event status (incoming, waiting, analyzing, sorted, error)
             error: Optional error message for error status
         """
-        if settings.get("quiet", False):
+        if self.settings.get("quiet", False):
             return
 
         # Get timestamp
@@ -492,7 +493,7 @@ class ConsoleInterface(IUserInterface):
                 - recursive: Whether to watch recursively (optional)
                 - exclude_subfolders: Folders to exclude (optional)
         """
-        if settings.get("quiet", False):
+        if self.settings.get("quiet", False):
             return
 
         # Banner header
@@ -529,6 +530,10 @@ class ConsoleInterface(IUserInterface):
             self._print(MESSAGES["SMART_WATCH_EXCLUSIONS"].format(exclusions=excl_str))
 
 
-def create_console_interface() -> ConsoleInterface:
-    """Create and return a console interface."""
-    return ConsoleInterface()
+def create_console_interface(settings: Settings) -> ConsoleInterface:
+    """Create and return a console interface.
+
+    Args:
+        settings: Settings instance for configuration
+    """
+    return ConsoleInterface(settings)

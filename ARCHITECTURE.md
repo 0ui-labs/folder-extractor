@@ -39,7 +39,6 @@ folder_extractor/
 │   ├── state.py          # Application state interfaces
 │   ├── state_manager.py  # Thread-safe state management
 │   ├── progress.py       # Progress tracking with callbacks
-│   ├── migration.py      # Settings migration utilities
 │   ├── archives.py       # Archive extraction (ZIP/TAR) with Zip Slip protection
 │   ├── monitor.py        # File stability monitoring for watch mode
 │   ├── watch.py          # File system event handlers (watchdog-based)
@@ -487,8 +486,7 @@ The architecture maintains backward compatibility:
 
 1. **Legacy Function Names**: `main.py` provides wrapper functions with original German names
 2. **History Migration**: Automatic migration from local `.folder_extractor_history.json` to central config
-3. **Settings Migration**: `MigrationHelper` migrates settings to state manager
-4. **Interface Adapters**: Bridge between legacy and enhanced interfaces
+3. **Interface Adapters**: Bridge between legacy and enhanced interfaces
 
 ## Testing Strategy
 

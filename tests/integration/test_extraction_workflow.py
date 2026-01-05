@@ -29,8 +29,7 @@ pytestmark = pytest.mark.skipif(
 
 # Import after skip marker to avoid import errors on Python 3.8
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: E402
-from folder_extractor.config.settings import settings  # noqa: E402
-from folder_extractor.core.state_manager import reset_state_manager  # noqa: E402
+from folder_extractor.config.settings import Settings  # noqa: E402
 
 
 @pytest.fixture
@@ -40,10 +39,6 @@ def workflow_test_env(tmp_path):
     Uses pytest's tmp_path fixture combined with a Desktop-based test directory
     for security validation compatibility.
     """
-    # Reset state
-    reset_state_manager()
-    settings.reset_to_defaults()
-
     # Create test directory in Desktop (safe path) - required for security checks
     desktop = Path.home() / "Desktop"
     test_dir = desktop / f"folder_extractor_test_{tmp_path.name}"
@@ -397,8 +392,7 @@ class TestStateManagement:
 
     def setup_method(self):
         """Set up test environment."""
-        reset_state_manager()
-        settings.reset_to_defaults()
+        pass
 
     def test_state_persistence(self):
         """Test that state persists across operations."""

@@ -45,7 +45,7 @@ class TestEnhancedFolderExtractorCLI:
         # Create CLI instance with mocked dependencies
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.get_state_manager"):
+                with patch("folder_extractor.cli.app.StateManager"):
                     self.cli = EnhancedFolderExtractorCLI()
 
     def test_init(self):
@@ -54,13 +54,13 @@ class TestEnhancedFolderExtractorCLI:
             with patch(
                 "folder_extractor.cli.app.create_console_interface"
             ) as mock_interface:
-                with patch("folder_extractor.cli.app.get_state_manager") as mock_state:
+                with patch("folder_extractor.cli.app.StateManager") as mock_state_class:
                     cli = EnhancedFolderExtractorCLI()
 
                     # Check all components initialized
                     mock_parser.assert_called_once()
                     mock_interface.assert_called_once()
-                    mock_state.assert_called_once()
+                    mock_state_class.assert_called_once()
 
                     assert cli.parser is not None
                     assert cli.interface is not None
@@ -102,13 +102,12 @@ class TestEnhancedFolderExtractorCLI:
         # Mock execute_undo
         with patch.object(self.cli, "_execute_undo", return_value=0) as mock_undo:
             with patch("folder_extractor.cli.app.configure_from_args"):
-                with patch("folder_extractor.core.migration.MigrationHelper"):
-                    result = self.cli.run()
+                result = self.cli.run()
 
-                    assert result == 0
-                    mock_undo.assert_called_once()
-                    # Should not show welcome for undo
-                    assert not self.cli.interface.show_welcome.called
+                assert result == 0
+                mock_undo.assert_called_once()
+                # Should not show welcome for undo
+                assert not self.cli.interface.show_welcome.called
 
     def test_run_extraction_operation(self):
         """Test running extraction operation."""
@@ -124,13 +123,12 @@ class TestEnhancedFolderExtractorCLI:
             self.cli, "_execute_extraction", return_value=0
         ) as mock_extract:
             with patch("folder_extractor.cli.app.configure_from_args"):
-                with patch("folder_extractor.core.migration.MigrationHelper"):
-                    result = self.cli.run()
+                result = self.cli.run()
 
-                    assert result == 0
-                    mock_extract.assert_called_once()
-                    # Should show welcome for extraction
-                    self.cli.interface.show_welcome.assert_called_once()
+                assert result == 0
+                mock_extract.assert_called_once()
+                # Should show welcome for extraction
+                self.cli.interface.show_welcome.assert_called_once()
 
     def test_execute_extraction_success(self):
         """Test successful extraction execution."""
@@ -374,7 +372,7 @@ class TestCLIAppEdgeCases:
 
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.get_state_manager"):
+                with patch("folder_extractor.cli.app.StateManager"):
                     self.cli = EnhancedFolderExtractorCLI()
 
     def test_execute_undo_with_errors(self):
@@ -609,7 +607,7 @@ class TestWatchMode:
 
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.get_state_manager"):
+                with patch("folder_extractor.cli.app.StateManager"):
                     self.cli = EnhancedFolderExtractorCLI()
 
     def test_watch_flag_triggers_execute_watch(self):
@@ -624,11 +622,10 @@ class TestWatchMode:
         # Mock execute_watch
         with patch.object(self.cli, "_execute_watch", return_value=0) as mock_watch:
             with patch("folder_extractor.cli.app.configure_from_args"):
-                with patch("folder_extractor.core.migration.MigrationHelper"):
-                    result = self.cli.run()
+                result = self.cli.run()
 
-                    assert result == 0
-                    mock_watch.assert_called_once()
+                assert result == 0
+                mock_watch.assert_called_once()
                     # Should show welcome for watch mode
                     self.cli.interface.show_welcome.assert_called_once()
 
@@ -869,7 +866,7 @@ class TestQueryMode:
 
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.get_state_manager"):
+                with patch("folder_extractor.cli.app.StateManager"):
                     self.cli = EnhancedFolderExtractorCLI()
 
     def test_ask_flag_triggers_execute_query(self):
@@ -1051,7 +1048,7 @@ class TestSmartWatchMode:
 
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.get_state_manager"):
+                with patch("folder_extractor.cli.app.StateManager"):
                     self.cli = EnhancedFolderExtractorCLI()
 
     def test_execute_watch_smart_loads_zone_profile(self):

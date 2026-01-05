@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 import pytest
 
-from folder_extractor.config.settings import settings
+# Settings are passed via settings_fixture parameter
 from folder_extractor.core.extractor import EnhancedFileExtractor
 
 # =============================================================================
@@ -27,9 +27,11 @@ from folder_extractor.core.extractor import EnhancedFileExtractor
 
 
 @pytest.fixture
-def extractor():
+def extractor(settings_fixture, state_manager_fixture):
     """Create a fresh EnhancedFileExtractor instance."""
-    return EnhancedFileExtractor()
+    return EnhancedFileExtractor(
+        settings=settings_fixture, state_manager=state_manager_fixture
+    )
 
 
 @pytest.fixture
@@ -79,14 +81,6 @@ def create_tar_archive(tmp_path):
         return tar_path
 
     return _create
-
-
-@pytest.fixture(autouse=True)
-def reset_settings():
-    """Reset settings before each test."""
-    settings.reset_to_defaults()
-    yield
-    settings.reset_to_defaults()
 
 
 # =============================================================================
@@ -181,9 +175,9 @@ class TestGetArchiveHandler:
 class TestProcessArchives:
     """Tests for archive processing behavior."""
 
-    def test_returns_unchanged_files_when_feature_disabled(self, extractor, tmp_path):
+    def test_returns_unchanged_files_when_feature_disabled(self, extractor, settings_fixture, tmp_path):
         """When extract_archives is False, files are returned unchanged."""
-        settings.set("extract_archives", False)
+        settings_fixture.set("extract_archives", False)
 
         files = [str(tmp_path / "test.zip"), str(tmp_path / "doc.pdf")]
         destination = tmp_path / "dest"
@@ -201,10 +195,10 @@ class TestProcessArchives:
         assert archive_results == {}
 
     def test_extracts_archives_when_feature_enabled(
-        self, extractor, create_zip_archive, tmp_path
+        self, extractor, settings_fixture, create_zip_archive, tmp_path
     ):
         """When extract_archives is True, archives are extracted."""
-        settings.set("extract_archives", True)
+        settings_fixture.set("extract_archives", True)
 
         # Create a ZIP with some files
         zip_path = create_zip_archive(
@@ -234,10 +228,10 @@ class TestProcessArchives:
         assert archive_results["archives_processed"] == 1
 
     def test_keeps_non_archive_files_in_list(
-        self, extractor, create_zip_archive, tmp_path
+        self, extractor, settings_fixture, create_zip_archive, tmp_path
     ):
         """Non-archive files remain in the files list after processing."""
-        settings.set("extract_archives", True)
+        settings_fixture.set("extract_archives", True)
 
         zip_path = create_zip_archive({"inner.txt": "content"})
         pdf_path = tmp_path / "document.pdf"
@@ -263,11 +257,11 @@ class TestProcessArchives:
         assert str(zip_path) not in result_files
 
     def test_deletes_archives_when_delete_archives_enabled(
-        self, extractor, create_zip_archive, tmp_path
+        self, extractor, settings_fixture, create_zip_archive, tmp_path
     ):
         """Archives are deleted after extraction when delete_archives is True."""
-        settings.set("extract_archives", True)
-        settings.set("delete_archives", True)
+        settings_fixture.set("extract_archives", True)
+        settings_fixture.set("delete_archives", True)
 
         zip_path = create_zip_archive({"file.txt": "content"})
         assert zip_path.exists()
@@ -288,11 +282,11 @@ class TestProcessArchives:
         assert not zip_path.exists()
 
     def test_keeps_archives_when_delete_archives_disabled(
-        self, extractor, create_zip_archive, tmp_path
+        self, extractor, settings_fixture, create_zip_archive, tmp_path
     ):
         """Archives are kept after extraction when delete_archives is False."""
-        settings.set("extract_archives", True)
-        settings.set("delete_archives", False)
+        settings_fixture.set("extract_archives", True)
+        settings_fixture.set("delete_archives", False)
 
         zip_path = create_zip_archive({"file.txt": "content"})
 
@@ -311,9 +305,9 @@ class TestProcessArchives:
         # Archive should still exist
         assert zip_path.exists()
 
-    def test_handles_extraction_errors_gracefully(self, extractor, tmp_path):
+    def test_handles_extraction_errors_gracefully(self, extractor, settings_fixture, tmp_path):
         """Extraction errors don't crash the process, they're counted."""
-        settings.set("extract_archives", True)
+        settings_fixture.set("extract_archives", True)
 
         # Create a corrupted ZIP
         corrupted_zip = tmp_path / "corrupted.zip"
@@ -335,10 +329,10 @@ class TestProcessArchives:
         assert archive_results.get("archive_errors", 0) >= 1
 
     def test_calls_progress_callback_during_extraction(
-        self, extractor, create_zip_archive, tmp_path
+        self, extractor, settings_fixture, create_zip_archive, tmp_path
     ):
         """Progress callback is invoked during archive processing."""
-        settings.set("extract_archives", True)
+        settings_fixture.set("extract_archives", True)
 
         zip_path = create_zip_archive({"file.txt": "content"})
         destination = tmp_path / "dest"
@@ -361,9 +355,9 @@ class TestProcessArchives:
         # Progress callback should have been called
         assert len(progress_calls) > 0
 
-    def test_respects_abort_signal(self, extractor, create_zip_archive, tmp_path):
+    def test_respects_abort_signal(self, extractor, settings_fixture, create_zip_archive, tmp_path):
         """Processing stops when abort signal is set."""
-        settings.set("extract_archives", True)
+        settings_fixture.set("extract_archives", True)
 
         # Create multiple archives
         zip1 = create_zip_archive({"file1.txt": "1"}, name="archive1.zip")

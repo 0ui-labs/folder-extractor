@@ -25,7 +25,7 @@ from folder_extractor.core.extractor import (
 from folder_extractor.core.memory.graph import KnowledgeGraph
 from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.smart_sorter import SmartSorter
-from folder_extractor.core.state_manager import get_state_manager
+from folder_extractor.core.state_manager import StateManager
 from folder_extractor.core.watch import FolderEventHandler, SmartFolderEventHandler
 from folder_extractor.core.zone_manager import ZoneManager
 
@@ -35,9 +35,10 @@ class EnhancedFolderExtractorCLI:
 
     def __init__(self):
         """Initialize enhanced CLI application."""
+        self.settings = Settings()
+        self.state_manager = StateManager()
         self.parser = create_parser()
-        self.interface = create_console_interface()
-        self.state_manager = get_state_manager()
+        self.interface = create_console_interface(self.settings)
 
     def run(self, args: Optional[list] = None) -> int:
         """Run the CLI application.
@@ -53,12 +54,7 @@ class EnhancedFolderExtractorCLI:
             parsed_args = self.parser.parse_args(args)
 
             # Configure settings from arguments
-            configure_from_args(parsed_args)
-
-            # Migrate settings to state manager
-            from folder_extractor.core.migration import MigrationHelper
-
-            MigrationHelper.migrate_settings()
+            configure_from_args(self.settings, parsed_args)
 
             # Get current directory
             current_dir = Path.cwd()
@@ -96,7 +92,10 @@ class EnhancedFolderExtractorCLI:
         """
         path = Path(path)
         # Create extractor and orchestrator
-        extractor = EnhancedFileExtractor(state_manager=self.state_manager)
+        extractor = EnhancedFileExtractor(
+            settings=self.settings,
+            state_manager=self.state_manager
+        )
         orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
 
         # Set up progress integration
@@ -170,7 +169,10 @@ class EnhancedFolderExtractorCLI:
         """
         path = Path(path)
         # Create extractor and orchestrator
-        extractor = EnhancedFileExtractor(state_manager=self.state_manager)
+        extractor = EnhancedFileExtractor(
+            settings=self.settings,
+            state_manager=self.state_manager
+        )
         orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
 
         # Show operation message
@@ -220,7 +222,10 @@ class EnhancedFolderExtractorCLI:
         path = Path(path)
         # Create monitor and orchestrator
         monitor = StabilityMonitor(self.state_manager)
-        extractor = EnhancedFileExtractor(state_manager=self.state_manager)
+        extractor = EnhancedFileExtractor(
+            settings=self.settings,
+            state_manager=self.state_manager
+        )
         orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
 
         # Define progress callback for watch events
@@ -313,14 +318,13 @@ class EnhancedFolderExtractorCLI:
             "ignore_patterns": zone.get("ignore_patterns"),
         }
 
-        # Create isolated settings with zone's custom categories for SmartSorter
-        # This ensures the AI uses zone-specific categories, not global settings
-        temp_settings = Settings()
-        temp_settings.set("custom_categories", profile["categories"])
+        # Configure settings with zone's custom categories for SmartSorter
+        # This ensures the AI uses zone-specific categories
+        self.settings.set("custom_categories", profile["categories"])
 
-        # Create AI client and SmartSorter with zone-specific settings
+        # Create AI client and SmartSorter with configured settings
         ai_client = AsyncGeminiClient()
-        smart_sorter = SmartSorter(client=ai_client, settings=temp_settings)
+        smart_sorter = SmartSorter(client=ai_client, settings=self.settings)
 
         # Create stability monitor
         monitor = StabilityMonitor(self.state_manager)
@@ -370,6 +374,9 @@ class EnhancedFolderExtractorCLI:
             observer.stop()
             observer.join()
             self.interface.show_watch_stopped()
+
+        # Reset custom_categories after watch mode completes
+        self.settings.set("custom_categories", [])
 
         return 0
 

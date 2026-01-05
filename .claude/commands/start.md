@@ -1,4 +1,5 @@
 Bitte nutze folgende Skills zur umsetzung dieses Plans executing-plans, subagent-driven-development. Wir arbeiten strikt nach TDD standards.
+Bitte mache entgegen der Anweisung im Skill keine feedbackpausen für den User und setze den Vollständigen Plan um. Arbeite also nicht in batches. Hole dir zwischendrin nur feedback vom User wenn es nötig ist und du ohne eine Entscheidung des Users nicht weitermachen kannst also etwas unklar ist. 
 
   ---                                                                                                                                                                       
   Test Quality Guidelines                                                                                                                                                   

@@ -49,25 +49,18 @@ class SmartSorter:
     def __init__(
         self,
         client: IAIClient,
-        settings: Optional[Settings] = None,
+        settings: Settings,
     ) -> None:
         """
-        Initialize SmartSorter with AI client and optional settings.
+        Initialize SmartSorter with AI client and settings.
 
         Args:
             client: AI client implementing IAIClient (e.g., AsyncGeminiClient)
-            settings: Settings instance for category configuration.
-                Falls back to global settings if not provided.
+            settings: Settings instance for category configuration (required)
         """
         self._client = client
         self._file_ops = FileOperations()
-
-        if settings is None:
-            from folder_extractor.config.settings import settings as global_settings
-
-            self._settings = global_settings
-        else:
-            self._settings = settings
+        self._settings = settings
 
     def _get_all_categories(self) -> list[str]:
         """

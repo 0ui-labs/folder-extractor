@@ -72,7 +72,6 @@ folder_extractor/
 │   ├── file_operations.py # FileOperations, FileMover, HistoryManager
 │   ├── state_manager.py  # Thread-safe state management
 │   ├── progress.py       # Progress tracking with callbacks
-│   ├── migration.py      # Settings migration utilities
 │   ├── archives.py       # Archive extraction (ZIP/TAR) with Zip Slip protection
 │   ├── monitor.py        # File stability monitoring for watch mode
 │   ├── watch.py          # File system event handlers (watchdog-based)
