@@ -884,7 +884,7 @@ class TestConsoleInterface:
         assert "[cyan]5[/cyan]" in call_args_str
 
     def test_show_summary_success_no_content_duplicates_when_zero(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test summary hides content duplicates line when count is zero."""
         mock_console = MagicMock()
@@ -905,7 +905,7 @@ class TestConsoleInterface:
         assert "[~]" not in call_args_str
 
     def test_show_summary_success_no_content_duplicates_key_missing(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test summary handles missing content_duplicates key gracefully."""
         mock_console = MagicMock()
@@ -926,7 +926,7 @@ class TestConsoleInterface:
         assert "[~]" not in call_args_str
 
     def test_show_summary_content_duplicates_appears_between_name_and_errors(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test content duplicates line appears in correct position in summary."""
         mock_console = MagicMock()
@@ -969,7 +969,7 @@ class TestConsoleInterface:
         )
 
     def test_show_summary_shows_three_separate_duplicate_categories(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test summary displays name, content, and global duplicates separately."""
         mock_console = MagicMock()
@@ -1020,7 +1020,7 @@ class TestConsoleInterface:
         assert "5" in call_args_str
 
     def test_show_summary_backward_compat_with_old_duplicates_key(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test summary falls back to 'duplicates' key when new keys are missing."""
         mock_console = MagicMock()
@@ -1219,7 +1219,7 @@ class TestArchiveProgress:
             mock_progress.stop.assert_called()
 
     def test_show_archive_progress_security_error_shows_warning(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test security error shows warning message."""
         mock_console = MagicMock()
@@ -1513,7 +1513,7 @@ class TestWatchModeUI:
     # --- Tests for show_watch_event ---
 
     def test_show_watch_event_incoming_displays_timestamp_and_message(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_watch_event with incoming status shows timestamp and message."""
         mock_console = MagicMock()
@@ -1531,7 +1531,7 @@ class TestWatchModeUI:
         assert "Incoming" in output
 
     def test_show_watch_event_waiting_displays_waiting_message(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_watch_event with waiting status shows waiting message."""
         mock_console = MagicMock()
@@ -1547,7 +1547,7 @@ class TestWatchModeUI:
         assert "Warte" in output
 
     def test_show_watch_event_analyzing_displays_analyzing_message(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_watch_event with analyzing status shows analyzing message."""
         mock_console = MagicMock()
@@ -1737,7 +1737,7 @@ class TestSmartWatchUI:
         assert "/Users/test/Downloads" in call_args_str
 
     def test_show_smart_watch_status_displays_folder_structure(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_smart_watch_status displays the folder structure template."""
         mock_console = MagicMock()
@@ -1775,7 +1775,7 @@ class TestSmartWatchUI:
         assert "Verträge" in call_args_str
 
     def test_show_smart_watch_status_displays_recursive_status(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_smart_watch_status displays recursion status."""
         mock_console = MagicMock()
@@ -1814,7 +1814,7 @@ class TestSmartWatchUI:
         assert ".git" in call_args_str
 
     def test_show_smart_watch_status_hides_exclusions_when_empty(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_smart_watch_status hides exclusions line when empty."""
         mock_console = MagicMock()
@@ -1852,7 +1852,7 @@ class TestSmartWatchUI:
         mock_console.print.assert_not_called()
 
     def test_show_smart_watch_status_uses_highlight_style_for_banner(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_smart_watch_status uses highlight style for banner."""
         mock_console = MagicMock()
@@ -1872,7 +1872,7 @@ class TestSmartWatchUI:
         assert first_call.kwargs.get("style") == interface.highlight_style
 
     def test_show_smart_watch_status_handles_missing_optional_fields(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_smart_watch_status handles profiles with missing optional fields."""
         mock_console = MagicMock()
@@ -1891,7 +1891,7 @@ class TestSmartWatchUI:
         assert mock_console.print.call_count >= 2
 
     def test_show_smart_watch_status_empty_categories_shows_default_hint(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_smart_watch_status shows hint when categories is empty."""
         mock_console = MagicMock()
@@ -1932,7 +1932,7 @@ class TestSmartWatchUI:
         assert "xlsx" in call_args_str
 
     def test_show_smart_watch_status_hides_file_types_when_empty(
-        self, mock_console_class
+        self, mock_console_class, settings_fixture
     ):
         """Test show_smart_watch_status hides file types line when empty or None."""
         mock_console = MagicMock()

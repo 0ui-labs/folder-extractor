@@ -33,11 +33,12 @@ from folder_extractor.config.settings import Settings  # noqa: E402
 
 
 @pytest.fixture
-def workflow_test_env(tmp_path):
+def workflow_test_env(tmp_path, settings_fixture, state_manager_fixture):
     """Set up test environment for extraction workflow tests.
 
     Uses pytest's tmp_path fixture combined with a Desktop-based test directory
-    for security validation compatibility.
+    for security validation compatibility. Provides centralized settings and
+    state_manager fixtures for dependency injection.
     """
     # Create test directory in Desktop (safe path) - required for security checks
     desktop = Path.home() / "Desktop"
@@ -46,7 +47,13 @@ def workflow_test_env(tmp_path):
 
     original_cwd = Path.cwd()
 
-    yield {"test_dir": test_dir, "original_cwd": original_cwd, "tmp_path": tmp_path}
+    yield {
+        "test_dir": test_dir,
+        "original_cwd": original_cwd,
+        "tmp_path": tmp_path,
+        "settings": settings_fixture,
+        "state_manager": state_manager_fixture,
+    }
 
     # Cleanup
     os.chdir(original_cwd)
@@ -184,13 +191,17 @@ class TestExtractionWorkflow:
     def test_basic_extraction(self, workflow_test_env):
         """Test basic file extraction."""
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create test structure
         create_test_structure(test_dir)
         os.chdir(test_dir)
 
-        # Run extraction
+        # Run extraction with injected fixtures
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
 
         # Mock confirmation to auto-accept
         cli.interface.confirm_operation = lambda x: True
@@ -210,6 +221,8 @@ class TestExtractionWorkflow:
     def test_extraction_with_depth_limit(self, workflow_test_env):
         """Test extraction with depth limit."""
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create test structure
         create_test_structure(test_dir)
@@ -217,6 +230,8 @@ class TestExtractionWorkflow:
 
         # Run extraction with depth limit
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         # Execute with depth=1 (should exclude nested files)
@@ -227,6 +242,8 @@ class TestExtractionWorkflow:
     def test_extraction_with_type_filter(self, workflow_test_env):
         """Test extraction with file type filter."""
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create test structure
         create_test_structure(test_dir)
@@ -234,6 +251,8 @@ class TestExtractionWorkflow:
 
         # Run extraction filtering only txt files
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--type", "txt", "--dry-run"])
@@ -243,6 +262,8 @@ class TestExtractionWorkflow:
     def test_extraction_with_sort_by_type(self, workflow_test_env):
         """Test extraction with sort by type."""
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create test structure
         create_test_structure(test_dir)
@@ -250,6 +271,8 @@ class TestExtractionWorkflow:
 
         # Run extraction with sort by type
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--sort-by-type", "--dry-run"])
@@ -259,6 +282,8 @@ class TestExtractionWorkflow:
     def test_abort_handling(self, workflow_test_env):
         """Test abort functionality."""
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create test structure
         create_test_structure(test_dir)
@@ -266,6 +291,8 @@ class TestExtractionWorkflow:
 
         # Run extraction
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         # Request abort immediately
@@ -279,6 +306,8 @@ class TestExtractionWorkflow:
     def test_no_files_found(self, workflow_test_env):
         """Test when no files are found."""
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create empty directory
         empty_dir = test_dir / "empty"
@@ -287,6 +316,8 @@ class TestExtractionWorkflow:
 
         # Run extraction
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
 
         result = cli.run([])
 
@@ -297,6 +328,8 @@ class TestExtractionWorkflow:
         """Test security validation."""
         original_cwd = workflow_test_env["original_cwd"]
         tmp_path = workflow_test_env["tmp_path"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create unsafe directory using tmp_path (outside safe directories)
         unsafe_dir = tmp_path / "unsafe_test"
@@ -306,6 +339,8 @@ class TestExtractionWorkflow:
         try:
             # Run extraction
             cli = EnhancedFolderExtractorCLI()
+            cli.settings = settings
+            cli.state_manager = state_manager
             result = cli.run([])
 
             # Should fail with security error
@@ -316,6 +351,8 @@ class TestExtractionWorkflow:
     def test_user_cancellation(self, workflow_test_env):
         """Test user cancellation during confirmation."""
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create test structure
         create_test_structure(test_dir)
@@ -323,6 +360,8 @@ class TestExtractionWorkflow:
 
         # Run extraction
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
 
         # Mock confirmation to decline
         cli.interface.confirm_operation = lambda x: False
@@ -339,10 +378,14 @@ class TestUndoWorkflow:
     def test_undo_no_history(self, workflow_test_env):
         """Test undo when no history exists."""
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
         os.chdir(test_dir)
 
         # Run undo
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         result = cli.run(["--undo"])
 
         # Should return 1 (no history to undo)
@@ -351,6 +394,8 @@ class TestUndoWorkflow:
     def test_undo_with_history(self, workflow_test_env):
         """Test undo with existing history."""
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
         os.chdir(test_dir)
 
         # Create fake history file
@@ -381,6 +426,8 @@ class TestUndoWorkflow:
 
         # Run undo
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         result = cli.run(["--undo"])
 
         # Should succeed
@@ -394,26 +441,24 @@ class TestStateManagement:
         """Set up test environment."""
         pass
 
-    def test_state_persistence(self):
-        """Test that state persists across operations."""
-        from folder_extractor.core.state_manager import get_state_manager
-
-        # Set some state
-        state_manager = get_state_manager()
-        state_manager.set_value("test_key", "test_value")
-
-        # Create new CLI instance
+    def test_state_persistence(self, settings_fixture, state_manager_fixture):
+        """Test that state persists within a CLI instance."""
+        # Create CLI instance with injected fixtures
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings_fixture
+        cli.state_manager = state_manager_fixture
 
-        # State should be available
+        # Set some state on the CLI's state manager
+        cli.state_manager.set_value("test_key", "test_value")
+
+        # State should be available on the same instance
         assert cli.state_manager.get_value("test_key") == "test_value"
 
     def test_operation_tracking(self, workflow_test_env):
         """Test operation tracking."""
-        from folder_extractor.core.state_manager import get_state_manager
-
         test_dir = workflow_test_env["test_dir"]
-        state_manager = get_state_manager()
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create a file in test_dir
         sub_dir = test_dir / "subdir"
@@ -424,12 +469,14 @@ class TestStateManagement:
 
         # Run extraction
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         assert cli.run(["--dry-run"]) == 0  # CLI should succeed
 
-        # Check operations were tracked
-        all_ops = state_manager.get_all_operations()
+        # Check operations were tracked on the CLI's state manager
+        all_ops = cli.state_manager.get_all_operations()
         assert len(all_ops) > 0
 
         # Check operation has statistics
@@ -454,6 +501,8 @@ class TestDeduplicationWorkflow:
         name but we don't check content, all files are kept with unique names.
         """
         test_dir = workflow_test_env["test_dir"]
+        settings = workflow_test_env["settings"]
+        state_manager = workflow_test_env["state_manager"]
 
         # Create test structure with 4 identical files
         create_duplicate_test_structure(test_dir)
@@ -461,6 +510,8 @@ class TestDeduplicationWorkflow:
 
         # Run extraction WITHOUT --deduplicate flag
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run([])
@@ -494,12 +545,18 @@ class TestDeduplicationWorkflow:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Create test structure with 4 identical files
         create_duplicate_test_structure(test_dir)
         os.chdir(test_dir)
 
         # Run extraction WITH --deduplicate flag
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--deduplicate"])
@@ -532,12 +589,18 @@ class TestDeduplicationWorkflow:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Create mixed structure
         create_mixed_duplicate_structure(test_dir)
         os.chdir(test_dir)
 
         # Run extraction WITH --deduplicate flag
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--deduplicate"])
@@ -570,6 +633,10 @@ class TestDeduplicationWorkflow:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Create structure with identical files of different types
         sub1 = test_dir / "subdir1"
         sub2 = test_dir / "subdir2"
@@ -594,6 +661,8 @@ class TestDeduplicationWorkflow:
 
         # Run extraction WITH --deduplicate and --sort-by-type
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--deduplicate", "--sort-by-type"])
@@ -623,12 +692,18 @@ class TestDeduplicationWorkflow:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Create test structure with 4 identical files
         create_duplicate_test_structure(test_dir)
         os.chdir(test_dir)
 
         # Run extraction WITH --deduplicate AND --dry-run
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--deduplicate", "--dry-run"])
@@ -662,12 +737,18 @@ class TestDeduplicationWorkflow:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Create test structure with 4 identical files
         create_duplicate_test_structure(test_dir)
         os.chdir(test_dir)
 
         # Run extraction WITH --deduplicate flag
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--deduplicate"])
@@ -700,6 +781,10 @@ class TestDeduplicationWorkflow:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Create structure with only unique files
         sub1 = test_dir / "subdir1"
         sub2 = test_dir / "subdir2"
@@ -714,6 +799,8 @@ class TestDeduplicationWorkflow:
 
         # Run extraction WITH --deduplicate flag
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--deduplicate"])
@@ -737,6 +824,10 @@ class TestDeduplicationWorkflow:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         sub1 = test_dir / "subdir1"
         sub1.mkdir()
 
@@ -750,6 +841,8 @@ class TestDeduplicationWorkflow:
 
         # Run extraction WITH --deduplicate flag
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--deduplicate"])
@@ -770,6 +863,10 @@ class TestDeduplicationWorkflow:
 
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Create test structure with 4 identical files
         create_duplicate_test_structure(test_dir)
         os.chdir(test_dir)
@@ -778,6 +875,8 @@ class TestDeduplicationWorkflow:
         with caplog.at_level(logging.INFO):
             # Run extraction WITH --deduplicate flag
             cli = EnhancedFolderExtractorCLI()
+            cli.settings = settings
+            cli.state_manager = state_manager
             cli.interface.confirm_operation = lambda x: True
 
             result = cli.run(["--deduplicate"])
@@ -856,6 +955,10 @@ class TestGlobalDeduplication:
 
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Setup: Create target file and source file with identical content
         content = b"JPEG_DATA_SAMPLE_CONTENT_12345"
         create_identical_files(
@@ -870,6 +973,8 @@ class TestGlobalDeduplication:
 
         # Execute: Run extraction with --global-dedup
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--global-dedup"])
@@ -909,6 +1014,10 @@ class TestGlobalDeduplication:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Setup: Create files with different content
         create_identical_files(
             test_dir,
@@ -926,6 +1035,8 @@ class TestGlobalDeduplication:
 
         # Execute: Run extraction with --global-dedup
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--global-dedup"])
@@ -956,6 +1067,10 @@ class TestGlobalDeduplication:
 
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         content_a = "CONTENT_A_IDENTICAL"
         content_b = "CONTENT_B_DIFFERENT"
 
@@ -978,6 +1093,8 @@ class TestGlobalDeduplication:
 
         # Execute: Run extraction with BOTH flags
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--deduplicate", "--global-dedup"])
@@ -1044,6 +1161,10 @@ class TestGlobalDeduplication:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         content = b"PHOTO_DATA_IDENTICAL_CONTENT"
 
         # Setup: One target and three identical sources
@@ -1061,6 +1182,8 @@ class TestGlobalDeduplication:
 
         # Execute: Run extraction with --global-dedup
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--global-dedup"])
@@ -1092,6 +1215,10 @@ class TestGlobalDeduplication:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         content = "DOC_CONTENT_IDENTICAL"
 
         # Setup: Create existing file in type folder and source file
@@ -1108,6 +1235,8 @@ class TestGlobalDeduplication:
 
         # Execute: Run extraction with both flags
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--global-dedup", "--sort-by-type"])
@@ -1134,6 +1263,10 @@ class TestGlobalDeduplication:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         content = b"IDENTICAL_CONTENT_FOR_DRY_RUN_TEST"
 
         # Setup: Same as test_global_dedup_identical_content
@@ -1149,6 +1282,8 @@ class TestGlobalDeduplication:
 
         # Execute: Run extraction with --global-dedup AND --dry-run
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--global-dedup", "--dry-run"])
@@ -1176,6 +1311,10 @@ class TestGlobalDeduplication:
         """
         test_dir = workflow_test_env["test_dir"]
 
+        settings = workflow_test_env["settings"]
+
+        state_manager = workflow_test_env["state_manager"]
+
         # Scenario A: Empty files (0 bytes) are identical
         (test_dir / "empty1.txt").write_text("")
         sub_a = test_dir / "scenario_a"
@@ -1195,6 +1334,8 @@ class TestGlobalDeduplication:
 
         # Execute: Run extraction with --global-dedup
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         result = cli.run(["--global-dedup"])

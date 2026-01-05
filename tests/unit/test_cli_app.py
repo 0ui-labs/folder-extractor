@@ -34,7 +34,8 @@ from folder_extractor.cli.app import EnhancedFolderExtractorCLI, main  # noqa: E
 class TestEnhancedFolderExtractorCLI:
     """Test EnhancedFolderExtractorCLI class."""
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup(self, settings_fixture, state_manager_fixture):
         """Set up test fixtures."""
         # Ensure CWD is valid (other tests may have deleted their temp directories)
         try:
@@ -45,8 +46,10 @@ class TestEnhancedFolderExtractorCLI:
         # Create CLI instance with mocked dependencies
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.StateManager"):
-                    self.cli = EnhancedFolderExtractorCLI()
+                self.cli = EnhancedFolderExtractorCLI()
+                # Inject fixtures instead of using patches
+                self.cli.settings = settings_fixture
+                self.cli.state_manager = state_manager_fixture
 
     def test_init(self):
         """Test CLI initialization."""
@@ -54,17 +57,15 @@ class TestEnhancedFolderExtractorCLI:
             with patch(
                 "folder_extractor.cli.app.create_console_interface"
             ) as mock_interface:
-                with patch("folder_extractor.cli.app.StateManager") as mock_state_class:
-                    cli = EnhancedFolderExtractorCLI()
+                cli = EnhancedFolderExtractorCLI()
 
-                    # Check all components initialized
-                    mock_parser.assert_called_once()
-                    mock_interface.assert_called_once()
-                    mock_state_class.assert_called_once()
+                # Check all components initialized
+                mock_parser.assert_called_once()
+                mock_interface.assert_called_once()
 
-                    assert cli.parser is not None
-                    assert cli.interface is not None
-                    assert cli.state_manager is not None
+                assert cli.parser is not None
+                assert cli.interface is not None
+                assert cli.state_manager is not None
 
     def test_run_keyboard_interrupt(self):
         """Test handling keyboard interrupt."""
@@ -363,7 +364,8 @@ def test_main_entry_point():
 class TestCLIAppEdgeCases:
     """Test edge cases for CLI app to achieve 100% coverage."""
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup(self, settings_fixture, state_manager_fixture):
         """Set up test fixtures."""
         try:
             os.getcwd()
@@ -372,8 +374,10 @@ class TestCLIAppEdgeCases:
 
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.StateManager"):
-                    self.cli = EnhancedFolderExtractorCLI()
+                self.cli = EnhancedFolderExtractorCLI()
+                # Inject fixtures instead of using patches
+                self.cli.settings = settings_fixture
+                self.cli.state_manager = state_manager_fixture
 
     def test_execute_undo_with_errors(self):
         """Test undo execution with errors (line 179)."""
@@ -598,7 +602,8 @@ class TestCLIAppEdgeCases:
 class TestWatchMode:
     """Tests for watch mode functionality."""
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup(self, settings_fixture, state_manager_fixture):
         """Set up test fixtures."""
         try:
             os.getcwd()
@@ -607,8 +612,10 @@ class TestWatchMode:
 
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.StateManager"):
-                    self.cli = EnhancedFolderExtractorCLI()
+                self.cli = EnhancedFolderExtractorCLI()
+                # Inject fixtures instead of using patches
+                self.cli.settings = settings_fixture
+                self.cli.state_manager = state_manager_fixture
 
     def test_watch_flag_triggers_execute_watch(self):
         """Test that --watch flag triggers _execute_watch method."""
@@ -626,8 +633,8 @@ class TestWatchMode:
 
                 assert result == 0
                 mock_watch.assert_called_once()
-                    # Should show welcome for watch mode
-                    self.cli.interface.show_welcome.assert_called_once()
+                # Should show welcome for watch mode
+                self.cli.interface.show_welcome.assert_called_once()
 
     def test_execute_watch_starts_and_stops_observer(self):
         """Test that Observer is started and stopped correctly."""
@@ -857,7 +864,8 @@ class TestWatchMode:
 class TestQueryMode:
     """Tests for --ask query mode functionality."""
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup(self, settings_fixture, state_manager_fixture):
         """Set up test fixtures."""
         try:
             os.getcwd()
@@ -866,8 +874,10 @@ class TestQueryMode:
 
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.StateManager"):
-                    self.cli = EnhancedFolderExtractorCLI()
+                self.cli = EnhancedFolderExtractorCLI()
+                # Inject fixtures instead of using patches
+                self.cli.settings = settings_fixture
+                self.cli.state_manager = state_manager_fixture
 
     def test_ask_flag_triggers_execute_query(self):
         """Test that --ask flag triggers _execute_query method."""
@@ -881,13 +891,12 @@ class TestQueryMode:
         # Mock execute_query
         with patch.object(self.cli, "_execute_query", return_value=0) as mock_query:
             with patch("folder_extractor.cli.app.configure_from_args"):
-                with patch("folder_extractor.core.migration.MigrationHelper"):
-                    result = self.cli.run()
+                result = self.cli.run()
 
-                    assert result == 0
-                    mock_query.assert_called_once_with("Welche Dokumente?")
-                    # Should show welcome for query mode
-                    self.cli.interface.show_welcome.assert_called_once()
+                assert result == 0
+                mock_query.assert_called_once_with("Welche Dokumente?")
+                # Should show welcome for query mode
+                self.cli.interface.show_welcome.assert_called_once()
 
     def test_ask_takes_priority_over_extraction(self):
         """Test that --ask has priority over regular extraction mode."""
@@ -899,12 +908,11 @@ class TestQueryMode:
         with patch.object(self.cli, "_execute_query", return_value=0) as mock_query:
             with patch.object(self.cli, "_execute_extraction") as mock_extract:
                 with patch("folder_extractor.cli.app.configure_from_args"):
-                    with patch("folder_extractor.core.migration.MigrationHelper"):
-                        self.cli.run()
+                    self.cli.run()
 
-                        # Query should be called, extraction should NOT
-                        mock_query.assert_called_once()
-                        mock_extract.assert_not_called()
+                    # Query should be called, extraction should NOT
+                    mock_query.assert_called_once()
+                    mock_extract.assert_not_called()
 
     def test_execute_query_returns_results(self):
         """Test successful query execution with results."""
@@ -1028,18 +1036,18 @@ class TestQueryMode:
         with patch.object(self.cli, "_execute_undo", return_value=0) as mock_undo:
             with patch.object(self.cli, "_execute_query") as mock_query:
                 with patch("folder_extractor.cli.app.configure_from_args"):
-                    with patch("folder_extractor.core.migration.MigrationHelper"):
-                        self.cli.run()
+                    self.cli.run()
 
-                        # Undo should be called, query should NOT
-                        mock_undo.assert_called_once()
-                        mock_query.assert_not_called()
+                    # Undo should be called, query should NOT
+                    mock_undo.assert_called_once()
+                    mock_query.assert_not_called()
 
 
 class TestSmartWatchMode:
     """Tests for smart watch mode with AI categorization."""
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup(self, settings_fixture, state_manager_fixture):
         """Set up test fixtures."""
         try:
             os.getcwd()
@@ -1048,8 +1056,10 @@ class TestSmartWatchMode:
 
         with patch("folder_extractor.cli.app.create_parser"):
             with patch("folder_extractor.cli.app.create_console_interface"):
-                with patch("folder_extractor.cli.app.StateManager"):
-                    self.cli = EnhancedFolderExtractorCLI()
+                self.cli = EnhancedFolderExtractorCLI()
+                # Inject fixtures instead of using patches
+                self.cli.settings = settings_fixture
+                self.cli.state_manager = state_manager_fixture
 
     def test_execute_watch_smart_loads_zone_profile(self):
         """Test that _execute_watch_smart loads zone configuration."""

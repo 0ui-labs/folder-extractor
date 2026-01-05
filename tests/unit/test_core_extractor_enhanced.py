@@ -991,13 +991,15 @@ def orchestrator_with_mocks(settings_fixture):
 class TestEnhancedExtractionOrchestrator:
     """Test EnhancedExtractionOrchestrator class."""
 
-    @pytest.mark.skip(reason="Orchestrator no longer creates default state_manager - accepts None")
     def test_init_with_default_state_manager(self, orchestrator_with_mocks, settings_fixture):
-        """Test __init__ creates default state manager (lines 357-358)."""
-        # NOTE: This functionality was removed - orchestrator now accepts Optional state_manager
-        # Create orchestrator without state manager
+        """Test __init__ creates default state manager when none provided."""
+        # Create orchestrator without state manager - should create default instance
         orchestrator = EnhancedExtractionOrchestrator(extractor=orchestrator_with_mocks.mock_extractor)
-        assert orchestrator.state_manager is None
+        # Verify default StateManager was created (not None)
+        assert orchestrator.state_manager is not None
+        # Verify it's a valid StateManager instance
+        assert hasattr(orchestrator.state_manager, 'get_abort_signal')
+        assert hasattr(orchestrator.state_manager, 'start_operation')
 
     def test_execute_extraction_success(self, orchestrator_with_mocks, settings_fixture, tmp_path):
         """Test successful extraction workflow (lines 373-419)."""

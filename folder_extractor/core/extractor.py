@@ -26,7 +26,11 @@ from folder_extractor.core.file_operations import (
     IFileOperations,
 )
 from folder_extractor.core.progress import ProgressInfo, ProgressTracker
-from folder_extractor.core.state_manager import IStateManager, ManagedOperation
+from folder_extractor.core.state_manager import (
+    IStateManager,
+    ManagedOperation,
+    StateManager,
+)
 from folder_extractor.utils.path_validators import is_safe_path
 
 # Type alias for progress callback: (current, total, filename, error) -> None
@@ -92,12 +96,12 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             settings: Settings instance for configuration
             file_discovery: File discovery implementation (optional)
             file_operations: File operations implementation (optional)
-            state_manager: State manager implementation (optional)
+            state_manager: State manager implementation (optional, creates default if None)
         """
         self.settings = settings
         self.file_discovery = file_discovery or FileDiscovery()
         self.file_operations = file_operations or FileOperations()
-        self.state_manager = state_manager
+        self.state_manager = state_manager or StateManager()
         self.history_manager = HistoryManager()
 
     # -------------------------------------------------------------------------
@@ -781,10 +785,10 @@ class EnhancedExtractionOrchestrator:
 
         Args:
             extractor: Extractor implementation
-            state_manager: State manager implementation (optional)
+            state_manager: State manager implementation (optional, creates default if None)
         """
         self.extractor = extractor
-        self.state_manager = state_manager
+        self.state_manager = state_manager or StateManager()
 
     def execute_extraction(
         self,

@@ -6,9 +6,10 @@ um Dokumente zuverlässig zu kategorisieren und Named Entities zu extrahieren.
 
 Verwendung:
     from folder_extractor.core.ai_prompts import get_system_prompt
-    from folder_extractor.config.settings import get_all_categories
+    from folder_extractor.config.settings import Settings, get_all_categories
 
-    categories = get_all_categories()
+    settings = Settings()
+    categories = get_all_categories(settings)
     prompt = get_system_prompt(categories)
     # prompt an AsyncGeminiClient übergeben
 

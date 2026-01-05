@@ -1301,7 +1301,7 @@ class TestWatchModeWithFeatures:
     --sort-by-type, --deduplicate, and --extract-archives when processing files.
     """
 
-    def test_watch_mode_with_sort_by_type(self, e2e_watch_env):
+    def test_watch_mode_with_sort_by_type(self, e2e_watch_env, settings_fixture):
         """Files are sorted into type folders when sort_by_type is enabled.
 
         When --sort-by-type is active, PDF files should go to PDF/,
@@ -1331,7 +1331,7 @@ class TestWatchModeWithFeatures:
         mock_observer_instance.join = Mock()
 
         # Configure settings for sort-by-type
-        settings.set("sort_by_type", True)
+        settings_fixture.set("sort_by_type", True)
 
         with patch("folder_extractor.cli.app.Observer") as MockObserver:
             MockObserver.return_value = mock_observer_instance
@@ -1373,7 +1373,7 @@ class TestWatchModeWithFeatures:
             watched / "notes.txt"
         ).exists(), "TXT file should be processed"
 
-    def test_watch_mode_with_deduplicate(self, e2e_watch_env):
+    def test_watch_mode_with_deduplicate(self, e2e_watch_env, settings_fixture):
         """Duplicate files are skipped when deduplicate is enabled.
 
         When --deduplicate is active, files with same name and content
@@ -1405,7 +1405,7 @@ class TestWatchModeWithFeatures:
         mock_observer_instance.join = Mock()
 
         # Configure settings for deduplicate
-        settings.set("deduplicate", True)
+        settings_fixture.set("deduplicate", True)
 
         with patch("folder_extractor.cli.app.Observer") as MockObserver:
             MockObserver.return_value = mock_observer_instance
@@ -1440,7 +1440,7 @@ class TestWatchModeWithFeatures:
         )
         assert existing_file.exists(), "Original file should still exist"
 
-    def test_watch_mode_with_global_dedup(self, e2e_watch_env):
+    def test_watch_mode_with_global_dedup(self, e2e_watch_env, settings_fixture):
         """Global dedup detects duplicates with different names.
 
         When --global-dedup is active, files with same content but different
@@ -1472,7 +1472,7 @@ class TestWatchModeWithFeatures:
         mock_observer_instance.join = Mock()
 
         # Configure settings for global dedup
-        settings.set("global_dedup", True)
+        settings_fixture.set("global_dedup", True)
 
         with patch("folder_extractor.cli.app.Observer") as MockObserver:
             MockObserver.return_value = mock_observer_instance
@@ -1506,7 +1506,7 @@ class TestWatchModeWithFeatures:
             "Global duplicate should not be copied to root"
         )
 
-    def test_watch_mode_with_extract_archives(self, e2e_watch_env):
+    def test_watch_mode_with_extract_archives(self, e2e_watch_env, settings_fixture):
         """ZIP archives are extracted when extract_archives is enabled.
 
         When --extract-archives is active, ZIP files should be unpacked
@@ -1538,7 +1538,7 @@ class TestWatchModeWithFeatures:
         mock_observer_instance.join = Mock()
 
         # Configure settings for archive extraction
-        settings.set("extract_archives", True)
+        settings_fixture.set("extract_archives", True)
 
         with patch("folder_extractor.cli.app.Observer") as MockObserver:
             MockObserver.return_value = mock_observer_instance
@@ -1573,7 +1573,7 @@ class TestWatchModeWithFeatures:
             "Archive should be processed (extracted or moved)"
         )
 
-    def test_watch_mode_with_sort_and_deduplicate_combined(self, e2e_watch_env):
+    def test_watch_mode_with_sort_and_deduplicate_combined(self, e2e_watch_env, settings_fixture):
         """Combined sort-by-type and deduplicate work together.
 
         When both --sort-by-type and --deduplicate are active,
@@ -1609,8 +1609,8 @@ class TestWatchModeWithFeatures:
         mock_observer_instance.join = Mock()
 
         # Configure settings for both features
-        settings.set("sort_by_type", True)
-        settings.set("deduplicate", True)
+        settings_fixture.set("sort_by_type", True)
+        settings_fixture.set("deduplicate", True)
 
         with patch("folder_extractor.cli.app.Observer") as MockObserver:
             MockObserver.return_value = mock_observer_instance

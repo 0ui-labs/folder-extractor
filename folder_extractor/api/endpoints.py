@@ -154,8 +154,15 @@ async def process_file(
     # Determine destination (file's directory if not specified)
     destination = file_path.parent
 
-    # Create orchestrator with dependencies from app state
+    # Get Settings from app state
+    if not hasattr(http_request.app.state, "settings") or http_request.app.state.settings is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Settings nicht verfügbar",
+        )
     settings = http_request.app.state.settings
+
+    # Create orchestrator with dependencies from app state
     state_manager = StateManager()
     extractor = EnhancedFileExtractor(settings=settings, state_manager=state_manager)
     orchestrator = EnhancedExtractionOrchestrator(extractor, state_manager=state_manager)

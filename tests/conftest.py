@@ -161,20 +161,15 @@ def reset_global_state():
     """
     Reset global instances to ensure test isolation.
 
-    Resets the global StateManager and Settings instances between tests.
-    This is important for tests that still use global instances for
-    backward compatibility checks.
+    With the migration to dependency injection, StateManager instances are now
+    created per-component rather than shared globally. This fixture now only
+    resets the Settings singleton which is still used for backward compatibility.
+
+    Tests should use the state_manager_fixture for isolated StateManager instances
+    rather than relying on global state.
     """
     from folder_extractor.config.settings import Settings
     import folder_extractor.config.settings
-    import folder_extractor.core.state_manager
-    import warnings
-
-    # Reset global StateManager - suppress deprecation warning since we know what we're doing
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        from folder_extractor.core.state_manager import reset_state_manager
-        reset_state_manager()
 
     # Reset global Settings instance
     folder_extractor.config.settings.settings = Settings()

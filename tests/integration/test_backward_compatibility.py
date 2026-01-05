@@ -35,11 +35,12 @@ requires_cli_app = pytest.mark.skipif(
 
 
 @pytest.fixture
-def compat_test_env(tmp_path):
+def compat_test_env(tmp_path, settings_fixture, state_manager_fixture):
     """Set up test environment for backward compatibility tests.
 
     Uses pytest's tmp_path fixture for automatic cleanup and cross-platform support.
     Patches is_safe_path to allow tmp_path as a valid test location.
+    Provides centralized settings and state_manager fixtures for dependency injection.
     """
     # Create test directory inside tmp_path (cross-platform)
     test_dir = tmp_path / f"folder_extractor_compat_{tmp_path.name}"
@@ -61,7 +62,13 @@ def compat_test_env(tmp_path):
     with patch(
         "folder_extractor.utils.path_validators.is_safe_path", mock_is_safe_path
     ), patch("folder_extractor.core.extractor.is_safe_path", mock_is_safe_path):
-        yield {"test_dir": test_dir, "original_cwd": original_cwd, "tmp_path": tmp_path}
+        yield {
+            "test_dir": test_dir,
+            "original_cwd": original_cwd,
+            "tmp_path": tmp_path,
+            "settings": settings_fixture,
+            "state_manager": state_manager_fixture,
+        }
 
     # Cleanup: restore cwd (tmp_path is automatically cleaned up by pytest)
     os.chdir(original_cwd)
@@ -112,6 +119,8 @@ class TestBackwardCompatibility:
         from folder_extractor.cli.app import EnhancedFolderExtractorCLI
 
         test_dir = compat_test_env["test_dir"]
+        settings = compat_test_env["settings"]
+        state_manager = compat_test_env["state_manager"]
 
         # Create test structure
         sub_dir = test_dir / "subdir"
@@ -123,6 +132,8 @@ class TestBackwardCompatibility:
 
         # Test legacy arguments work with new CLI
         cli = EnhancedFolderExtractorCLI()
+        cli.settings = settings
+        cli.state_manager = state_manager
         cli.interface.confirm_operation = lambda x: True
 
         # Test various legacy argument combinations
@@ -213,8 +224,8 @@ class TestBackwardCompatibility:
 
     def test_settings_compatibility(self, compat_test_env):
         """Test that settings work with dependency injection architecture."""
-        # Create Settings instance
-        settings = Settings()
+        # Use provided Settings instance from fixtures
+        settings = compat_test_env["settings"]
 
         # Test basic settings operations
         settings.set("max_depth", 3)

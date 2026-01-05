@@ -12,8 +12,6 @@ from folder_extractor.core.state_manager import (
     ManagedOperation,
     OperationStats,
     StateManager,
-    get_state_manager,
-    reset_state_manager,
 )
 
 
@@ -65,12 +63,10 @@ class TestOperationStats:
 class TestStateManager:
     """Test StateManager class."""
 
-    def setup_method(self, state_manager_fixture):
-        """Set up test fixtures."""
+    def test_operation_lifecycle(self, state_manager_fixture):
+        """Test operation start and end."""
         self.manager = state_manager_fixture
 
-    def test_operation_lifecycle(self):
-        """Test operation start and end."""
         # Start operation
         op_id = self.manager.start_operation("extraction")
 
@@ -96,8 +92,10 @@ class TestStateManager:
         assert stats.end_time > stats.start_time
         assert self.manager.get_current_operation_id() is None
 
-    def test_update_operation_stats(self):
+    def test_update_operation_stats(self, state_manager_fixture):
         """Test updating operation statistics."""
+        self.manager = state_manager_fixture
+
         op_id = self.manager.start_operation("extraction")
 
         # Update counters
@@ -115,8 +113,10 @@ class TestStateManager:
         stats = self.manager.get_operation_stats(op_id)
         assert stats.files_processed == 7
 
-    def test_abort_handling(self):
+    def test_abort_handling(self, state_manager_fixture):
         """Test abort request handling."""
+        self.manager = state_manager_fixture
+
         assert not self.manager.is_abort_requested()
 
         # Request abort
@@ -132,8 +132,10 @@ class TestStateManager:
         assert not self.manager.is_abort_requested()
         assert not signal.is_set()
 
-    def test_state_values(self):
+    def test_state_values(self, state_manager_fixture):
         """Test state value storage."""
+        self.manager = state_manager_fixture
+
         # Set single value
         self.manager.set_value("key1", "value1")
         assert self.manager.get_value("key1") == "value1"
@@ -144,8 +146,10 @@ class TestStateManager:
         assert self.manager.get_value("key2") == "value2"
         assert self.manager.get_value("key3") == 123
 
-    def test_event_listeners(self):
+    def test_event_listeners(self, state_manager_fixture):
         """Test event listener functionality."""
+        self.manager = state_manager_fixture
+
         mock_listener = Mock()
 
         # Add listener
@@ -163,8 +167,10 @@ class TestStateManager:
         self.manager.start_operation("test2")
         mock_listener.assert_not_called()
 
-    def test_state_change_listener(self):
+    def test_state_change_listener(self, state_manager_fixture):
         """Test state change notifications."""
+        self.manager = state_manager_fixture
+
         mock_listener = Mock()
         self.manager.add_listener("state_changed", mock_listener)
 
@@ -179,8 +185,10 @@ class TestStateManager:
         self.manager.set_value("test_key", "test_value")
         mock_listener.assert_not_called()
 
-    def test_save_and_load_state(self):
+    def test_save_and_load_state(self, state_manager_fixture):
         """Test state persistence."""
+        self.manager = state_manager_fixture
+
         # Set up some state
         op_id = self.manager.start_operation("extraction")
         self.manager.update_operation_stats(op_id, files_processed=10, files_moved=8)
@@ -210,8 +218,10 @@ class TestStateManager:
         finally:
             temp_path.unlink(missing_ok=True)
 
-    def test_clear(self):
+    def test_clear(self, state_manager_fixture):
         """Test clearing all state."""
+        self.manager = state_manager_fixture
+
         # Set up state
         op_id = self.manager.start_operation("test")
         self.manager.set_value("key", "value")
@@ -226,8 +236,10 @@ class TestStateManager:
         assert self.manager.get_value("key") is None
         assert not self.manager.is_abort_requested()
 
-    def test_thread_safety(self):
+    def test_thread_safety(self, state_manager_fixture):
         """Test thread-safe operations."""
+        self.manager = state_manager_fixture
+
         results = []
         errors = []
 
@@ -314,29 +326,7 @@ class TestManagedOperation:
         assert stats.end_time is not None
 
 
-def test_global_state_manager():
-    """Tests legacy global singleton (backward compatibility)."""
-    # Reset first
-    reset_state_manager()
-
-    # Get instance
-    manager1 = get_state_manager()
-    manager2 = get_state_manager()
-
-    # Should be same instance
-    assert manager1 is manager2
-
-    # Test it works
-    manager1.set_value("test", "value")
-    assert manager2.get_value("test") == "value"
-
-    # Reset
-    reset_state_manager()
-    manager3 = get_state_manager()
-
-    # Should be new instance
-    assert manager3 is not manager1
-    assert manager3.get_value("test") is None
+# Removed test_global_state_manager - singleton pattern removed in favor of DI
 
 
 class TestStateManagerEdgeCases:
@@ -439,19 +429,7 @@ class TestStateManagerEdgeCases:
         assert manager.get_operation_stats(op_id).end_time is None
 
 
-def test_global_state_manager_is_lazily_initialized(self, state_manager_fixture):
-    """get_state_manager creates a new instance on first access."""
-    import folder_extractor.core.state_manager as sm
-
-    sm._state_manager = None
-
-    manager = get_state_manager()
-
-    assert manager is not None
-    assert isinstance(manager, StateManager)
-
-    # Clean up
-    reset_state_manager()
+# Removed test_global_state_manager_is_lazily_initialized - singleton pattern removed in favor of DI
 
 
 class TestEventListenerBehavior:

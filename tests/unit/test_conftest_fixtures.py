@@ -63,29 +63,6 @@ class TestRandomFilenameFixture:
             assert not filename.startswith(".")
 
 
-class TestResetGlobalStateFixture:
-    """Test reset_global_state fixture ensures clean state between tests."""
-
-    def test_state_manager_starts_clean(self):
-        """Each test starts with a fresh global state manager."""
-        from folder_extractor.core.state_manager import get_state_manager
-
-        manager = get_state_manager()
-
-        # Should have no operations in progress
-        assert manager.get_current_operation_id() is None
-        # Should not have abort requested
-        assert not manager.is_abort_requested()
-
-    def test_state_modifications_do_not_leak(self):
-        """State set in one test does not affect subsequent tests."""
-        from folder_extractor.core.state_manager import get_state_manager
-
-        manager = get_state_manager()
-
-        # This modification should be cleaned up by the fixture
-        manager.set_value("test_leak_check", "should_not_persist")
-        manager.start_operation("test_operation")
-
-        # The autouse fixture will reset this before the next test
-        # We verify in test_state_manager_starts_clean that state is clean
+# Removed TestResetGlobalStateFixture - tests relied on global singleton pattern
+# which has been replaced with dependency injection. Tests now use isolated
+# StateManager instances via fixtures instead of shared global state.

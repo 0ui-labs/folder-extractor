@@ -18,7 +18,7 @@ from folder_extractor.core.extractor import (
 class TestEnhancedFileExtractor:
     """Test EnhancedFileExtractor class."""
 
-    def setup_method(self, settings_fixture, state_manager_fixture):
+    def setup_method(self):
         """Set up test fixtures."""
         # Create mock state manager with all required methods
         self.mock_state_manager = Mock()
@@ -30,9 +30,11 @@ class TestEnhancedFileExtractor:
         self.mock_state_manager.start_operation = Mock(return_value="test-op-123")
         self.mock_state_manager.end_operation = Mock()
 
-        self.settings = settings_fixture
+        from folder_extractor.config.settings import Settings
+
+        self.settings = Settings()
         self.extractor = EnhancedFileExtractor(
-            settings=settings_fixture, state_manager=self.mock_state_manager
+            settings=self.settings, state_manager=self.mock_state_manager
         )
 
     def test_validate_security_accepts_safe_path(self):
@@ -71,7 +73,9 @@ class TestEnhancedFileExtractor:
         ]
 
         extractor = EnhancedFileExtractor(
-            file_discovery=mock_discovery, state_manager=self.mock_state_manager
+            settings=self.settings,
+            file_discovery=mock_discovery,
+            state_manager=self.mock_state_manager,
         )
         files = extractor.discover_files(tmp_path)
 
@@ -193,7 +197,9 @@ class TestEnhancedFileExtractor:
         abort_signal.is_set.return_value = True
         self.mock_state_manager.get_abort_signal.return_value = abort_signal
 
-        extractor = EnhancedFileExtractor(state_manager=self.mock_state_manager)
+        extractor = EnhancedFileExtractor(
+            settings=self.settings, state_manager=self.mock_state_manager
+        )
 
         # Create many files
         source_dir = tmp_path / "source"
@@ -214,9 +220,11 @@ class TestEnhancedFileExtractor:
 class TestEnhancedExtractionOrchestrator:
     """Test EnhancedExtractionOrchestrator class."""
 
-    def setup_method(self, settings_fixture, state_manager_fixture):
+    def setup_method(self):
         """Set up test fixtures."""
-        self.settings = settings_fixture
+        from folder_extractor.config.settings import Settings
+
+        self.settings = Settings()
         self.mock_extractor = Mock()
         self.mock_state_manager = Mock()
         self.mock_state_manager.get_abort_signal.return_value = Mock(

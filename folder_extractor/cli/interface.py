@@ -473,7 +473,7 @@ class ConsoleInterface(IUserInterface):
 
     def show_watch_stopped(self) -> None:
         """Show watch mode stopped message."""
-        if settings.get("quiet", False):
+        if self.settings.get("quiet", False):
             return
 
         self._print(MESSAGES["WATCH_STOPPED"], style=self.info_style)
