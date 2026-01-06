@@ -13,15 +13,12 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import Dict, List
 from unittest.mock import Mock
-
-import pytest
 
 from folder_extractor.core.file_operations import (
     FileMover,
-    FileOperations,
     FileOperationError,
+    FileOperations,
 )
 
 
@@ -212,7 +209,7 @@ class TestCheckGlobalDuplicate:
 
             # Build hash index
             file_hash = file_ops.calculate_file_hash(existing)
-            hash_index: Dict[str, List[Path]] = {
+            hash_index: dict[str, list[Path]] = {
                 file_hash: [existing]
             }
 
@@ -250,7 +247,7 @@ class TestCheckGlobalDuplicate:
             file_mover = FileMover(file_ops)
 
             # Empty hash index
-            hash_index: Dict[str, List[Path]] = {}
+            hash_index: dict[str, list[Path]] = {}
 
             result = file_mover._check_global_duplicate(
                 source_path=source,
@@ -277,7 +274,7 @@ class TestCheckGlobalDuplicate:
 
             # Hash index contains only the source file itself
             file_hash = file_ops.calculate_file_hash(source)
-            hash_index: Dict[str, List[Path]] = {
+            hash_index: dict[str, list[Path]] = {
                 file_hash: [source]
             }
 
@@ -310,7 +307,7 @@ class TestCheckGlobalDuplicate:
             file_mover = FileMover(file_ops)
 
             file_hash = file_ops.calculate_file_hash(existing)
-            hash_index: Dict[str, List[Path]] = {
+            hash_index: dict[str, list[Path]] = {
                 file_hash: [existing]
             }
 
@@ -346,7 +343,7 @@ class TestCheckGlobalDuplicate:
 
             file_mover = FileMover(mock_file_ops)
 
-            hash_index: Dict[str, List[Path]] = {"somehash": [Path("/some/file")]}
+            hash_index: dict[str, list[Path]] = {"somehash": [Path("/some/file")]}
 
             result = file_mover._check_global_duplicate(
                 source_path=source,
@@ -378,7 +375,7 @@ class TestCheckGlobalDuplicate:
             file_mover = FileMover(file_ops)
 
             file_hash = file_ops.calculate_file_hash(existing1)
-            hash_index: Dict[str, List[Path]] = {
+            hash_index: dict[str, list[Path]] = {
                 file_hash: [existing1, existing2]
             }
 

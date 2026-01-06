@@ -5,7 +5,7 @@ Unit tests for config/settings.py module.
 import json
 from unittest.mock import MagicMock
 
-from folder_extractor.config.settings import Settings, configure_from_args
+from folder_extractor.config.settings import configure_from_args
 
 
 class TestSettings:

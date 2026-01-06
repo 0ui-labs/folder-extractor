@@ -131,7 +131,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize SmartSorter (depends on AI client)
     if app.state.ai_client is not None:
         try:
-            sorter = SmartSorter(client=app.state.ai_client, settings=app.state.settings)
+            sorter = SmartSorter(
+                client=app.state.ai_client, settings=app.state.settings
+            )
             app.state.smart_sorter = sorter
             logger.info("SmartSorter initialized")
         except Exception as e:

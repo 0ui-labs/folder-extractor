@@ -11,9 +11,8 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
-from folder_extractor.config.constants import DEFAULT_CATEGORIES
 from folder_extractor.config.settings import get_all_categories
 from folder_extractor.core.ai_async import IAIClient
 from folder_extractor.core.ai_prompts import get_system_prompt

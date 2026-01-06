@@ -10,7 +10,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from folder_extractor.core.archives import IArchiveHandler
@@ -96,7 +96,8 @@ class EnhancedFileExtractor(IEnhancedExtractor):
             settings: Settings instance for configuration
             file_discovery: File discovery implementation (optional)
             file_operations: File operations implementation (optional)
-            state_manager: State manager implementation (optional, creates default if None)
+            state_manager: State manager implementation
+                (optional, creates default if None)
         """
         self.settings = settings
         self.file_discovery = file_discovery or FileDiscovery()
@@ -785,7 +786,8 @@ class EnhancedExtractionOrchestrator:
 
         Args:
             extractor: Extractor implementation
-            state_manager: State manager implementation (optional, creates default if None)
+            state_manager: State manager implementation
+                (optional, creates default if None)
         """
         self.extractor = extractor
         self.state_manager = state_manager or StateManager()

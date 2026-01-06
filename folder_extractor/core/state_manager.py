@@ -343,7 +343,8 @@ def reset_state_manager() -> None:
     """
     import warnings
     warnings.warn(
-        "reset_state_manager() is deprecated. Create fresh StateManager() instances instead.",
+        "reset_state_manager() is deprecated. "
+        "Create fresh StateManager() instances instead.",
         DeprecationWarning,
         stacklevel=2
     )

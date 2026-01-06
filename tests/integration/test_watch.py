@@ -45,7 +45,6 @@ pytestmark = pytest.mark.skipif(
 
 # Import after skip marker to avoid import errors on Python 3.8
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: E402
-from folder_extractor.config.settings import Settings  # noqa: E402
 from folder_extractor.core.extractor import EnhancedExtractionOrchestrator  # noqa: E402
 from folder_extractor.core.monitor import StabilityMonitor  # noqa: E402
 from folder_extractor.core.state_manager import IStateManager  # noqa: E402

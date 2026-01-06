@@ -168,8 +168,8 @@ def reset_global_state():
     Tests should use the state_manager_fixture for isolated StateManager instances
     rather than relying on global state.
     """
-    from folder_extractor.config.settings import Settings
     import folder_extractor.config.settings
+    from folder_extractor.config.settings import Settings
 
     # Reset global Settings instance
     folder_extractor.config.settings.settings = Settings()

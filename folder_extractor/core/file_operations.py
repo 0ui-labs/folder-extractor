@@ -598,7 +598,8 @@ class HistoryManager:
 
         Args:
             operations: List of operation records
-            directory: Working directory (Path object, used to identify the history file)
+            directory: Working directory (Path object,
+                used to identify the history file)
 
         Returns:
             Path to the history file (as string)
@@ -634,7 +635,8 @@ class HistoryManager:
         Then loads from central config location.
 
         Args:
-            directory: Working directory (Path object, used to identify the history file)
+            directory: Working directory (Path object,
+                used to identify the history file)
 
         Returns:
             History data or None if not found
@@ -662,7 +664,8 @@ class HistoryManager:
         Also removes any legacy history file in the working directory.
 
         Args:
-            directory: Working directory (Path object, used to identify the history file)
+            directory: Working directory (Path object,
+                used to identify the history file)
 
         Returns:
             True if deleted, False if not found

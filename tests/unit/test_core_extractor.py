@@ -30,7 +30,6 @@ class TestEnhancedFileExtractor:
         self.mock_state_manager.start_operation = Mock(return_value="test-op-123")
         self.mock_state_manager.end_operation = Mock()
 
-        from folder_extractor.config.settings import Settings
 
         self.settings = Settings()
         self.extractor = EnhancedFileExtractor(
@@ -222,7 +221,6 @@ class TestEnhancedExtractionOrchestrator:
 
     def setup_method(self):
         """Set up test fixtures."""
-        from folder_extractor.config.settings import Settings
 
         self.settings = Settings()
         self.mock_extractor = Mock()

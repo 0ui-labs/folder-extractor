@@ -33,9 +33,7 @@ from fastapi import (
 from fastapi import Path as PathParam
 from watchdog.observers import Observer
 
-from folder_extractor.config.settings import Settings
-
-from folder_extractor.api.dependencies import get_orchestrator, get_zone_manager
+from folder_extractor.api.dependencies import get_zone_manager
 from folder_extractor.api.models import (
     ProcessRequest,
     ProcessResponse,
@@ -155,7 +153,10 @@ async def process_file(
     destination = file_path.parent
 
     # Get Settings from app state
-    if not hasattr(http_request.app.state, "settings") or http_request.app.state.settings is None:
+    if (
+        not hasattr(http_request.app.state, "settings")
+        or http_request.app.state.settings is None
+    ):
         raise HTTPException(
             status_code=503,
             detail="Settings nicht verfügbar",
@@ -164,8 +165,12 @@ async def process_file(
 
     # Create orchestrator with dependencies from app state
     state_manager = StateManager()
-    extractor = EnhancedFileExtractor(settings=settings, state_manager=state_manager)
-    orchestrator = EnhancedExtractionOrchestrator(extractor, state_manager=state_manager)
+    extractor = EnhancedFileExtractor(
+        settings=settings, state_manager=state_manager
+    )
+    orchestrator = EnhancedExtractionOrchestrator(
+        extractor, state_manager=state_manager
+    )
 
     # Define background processing function
     def process_in_background() -> None:
@@ -514,7 +519,10 @@ async def start_watcher(
     zone_path = zone["path"]
 
     # Get Settings from app state
-    if not hasattr(http_request.app.state, "settings") or http_request.app.state.settings is None:
+    if (
+        not hasattr(http_request.app.state, "settings")
+        or http_request.app.state.settings is None
+    ):
         raise HTTPException(
             status_code=503,
             detail="Settings nicht verfügbar",
@@ -532,8 +540,12 @@ async def start_watcher(
         # Create components for watching
         state_manager = StateManager()
         monitor = StabilityMonitor(state_manager)
-        extractor = EnhancedFileExtractor(settings=settings, state_manager=state_manager)
-        orchestrator = EnhancedExtractionOrchestrator(extractor, state_manager=state_manager)
+        extractor = EnhancedFileExtractor(
+            settings=settings, state_manager=state_manager
+        )
+        orchestrator = EnhancedExtractionOrchestrator(
+            extractor, state_manager=state_manager
+        )
 
         # Get ConnectionManager from app state for WebSocket broadcasting
         connection_manager: Optional[ConnectionManager] = getattr(

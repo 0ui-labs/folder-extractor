@@ -8,7 +8,11 @@ of using a global singleton.
 
 from unittest.mock import MagicMock
 
-from folder_extractor.config.settings import Settings, configure_from_args, get_all_categories
+from folder_extractor.config.settings import (
+    Settings,
+    configure_from_args,
+    get_all_categories,
+)
 
 
 class TestConfigureFromArgsWithExplicitSettings:
