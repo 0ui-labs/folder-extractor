@@ -141,6 +141,7 @@ class TestAddZone:
         zone_id = zone_manager.add_zone(name="Test", path=str(zone_path))
 
         zone = zone_manager.get_zone(zone_id)
+        assert zone is not None
 
         assert zone["enabled"] is True
         assert zone["auto_sort"] is False
@@ -269,6 +270,8 @@ class TestUpdateZone:
 
         assert result is True
         zone = zone_manager.get_zone(zone_id)
+        assert zone is not None
+
         assert zone["name"] == "Updated"
         assert zone["auto_sort"] is True
 
@@ -286,6 +289,8 @@ class TestUpdateZone:
         zone_manager.update_zone(zone_id, name="Updated")
 
         zone = zone_manager.get_zone(zone_id)
+        assert zone is not None
+
         assert zone["enabled"] is True
         assert zone["categories"] == ["pdf"]
 

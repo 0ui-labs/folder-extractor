@@ -17,7 +17,6 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
-from typing import List
 from unittest.mock import Mock
 
 from folder_extractor.core.file_operations import (
@@ -269,7 +268,7 @@ class TestPrepareGlobalHashIndexCallbacks:
             file1 = subdir / "test.txt"
             file1.write_text("content")
 
-            callback_calls: List[str] = []
+            callback_calls: list[str] = []
 
             def callback(phase: str) -> None:
                 callback_calls.append(phase)
@@ -291,7 +290,7 @@ class TestPrepareGlobalHashIndexCallbacks:
         The "end" callback must be called even if an error occurs during indexing.
         This ensures proper cleanup of UI state (e.g., progress indicators).
         """
-        callback_calls: List[str] = []
+        callback_calls: list[str] = []
 
         def callback(phase: str) -> None:
             callback_calls.append(phase)

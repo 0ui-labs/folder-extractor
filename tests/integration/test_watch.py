@@ -47,7 +47,7 @@ pytestmark = pytest.mark.skipif(
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: E402
 from folder_extractor.core.extractor import EnhancedExtractionOrchestrator  # noqa: E402
 from folder_extractor.core.monitor import StabilityMonitor  # noqa: E402
-from folder_extractor.core.state_manager import IStateManager
+from folder_extractor.core.state_manager import IStateManager  # noqa: E402
 from folder_extractor.core.watch import FolderEventHandler  # noqa: E402
 
 # =============================================================================
