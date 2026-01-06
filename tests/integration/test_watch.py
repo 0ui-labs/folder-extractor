@@ -1336,6 +1336,8 @@ class TestWatchModeWithFeatures:
             MockObserver.return_value = mock_observer_instance
 
             cli = EnhancedFolderExtractorCLI()
+            # Inject settings_fixture so configuration takes effect
+            cli.settings = settings_fixture
 
             def run_watch():
                 cli._execute_watch(watched)
@@ -1410,6 +1412,8 @@ class TestWatchModeWithFeatures:
             MockObserver.return_value = mock_observer_instance
 
             cli = EnhancedFolderExtractorCLI()
+            # Inject settings_fixture so configuration takes effect
+            cli.settings = settings_fixture
 
             def run_watch():
                 cli._execute_watch(watched)
@@ -1477,6 +1481,8 @@ class TestWatchModeWithFeatures:
             MockObserver.return_value = mock_observer_instance
 
             cli = EnhancedFolderExtractorCLI()
+            # Inject settings_fixture so configuration takes effect
+            cli.settings = settings_fixture
 
             def run_watch():
                 cli._execute_watch(watched)
@@ -1543,6 +1549,8 @@ class TestWatchModeWithFeatures:
             MockObserver.return_value = mock_observer_instance
 
             cli = EnhancedFolderExtractorCLI()
+            # Inject settings_fixture so configuration takes effect
+            cli.settings = settings_fixture
 
             def run_watch():
                 cli._execute_watch(watched)

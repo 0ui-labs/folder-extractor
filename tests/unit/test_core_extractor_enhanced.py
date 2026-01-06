@@ -1047,6 +1047,8 @@ class TestEnhancedFileExtractorIntegration:
 def orchestrator_with_mocks(settings_fixture):
     """Create EnhancedExtractionOrchestrator with mocked dependencies."""
     mock_extractor = Mock()
+    # Connect mock_extractor to settings_fixture so get() returns actual values
+    mock_extractor.settings = settings_fixture
     mock_state_manager = Mock()
 
     orchestrator = EnhancedExtractionOrchestrator(
@@ -1178,9 +1180,7 @@ class TestEnhancedExtractionOrchestrator:
         # Configure mocks
         orchestrator_with_mocks.mock_extractor.validate_security.return_value = None
         orchestrator_with_mocks.mock_extractor.discover_files.return_value = files
-        orchestrator_with_mocks.mock_extractor.settings.get.return_value = (
-            False  # dry_run=False
-        )
+        # Ensure dry_run is False (default in settings_fixture)
 
         # Mock ManagedOperation
         mock_operation = Mock()

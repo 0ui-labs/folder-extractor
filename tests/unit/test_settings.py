@@ -482,7 +482,6 @@ class TestGetAllCategories:
         from folder_extractor.config.constants import DEFAULT_CATEGORIES
         from folder_extractor.config.settings import get_all_categories
 
-        # Workaround: get_all_categories() uses global settings internally
         result = get_all_categories(settings_fixture)
         assert result == DEFAULT_CATEGORIES
 

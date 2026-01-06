@@ -349,4 +349,3 @@ def reset_state_manager() -> None:
         DeprecationWarning,
         stacklevel=2,
     )
-    pass

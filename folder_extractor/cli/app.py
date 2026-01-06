@@ -371,9 +371,8 @@ class EnhancedFolderExtractorCLI:
             observer.stop()
             observer.join()
             self.interface.show_watch_stopped()
-
-        # Reset custom_categories after watch mode completes
-        self.settings.set("custom_categories", [])
+            # Reset custom_categories after watch mode completes
+            self.settings.set("custom_categories", [])
 
         return 0
 

@@ -65,18 +65,16 @@ class TestStateManager:
 
     def test_operation_lifecycle(self, state_manager_fixture):
         """Test operation start and end."""
-        self.manager = state_manager_fixture
-
         # Start operation
-        op_id = self.manager.start_operation("extraction")
+        op_id = state_manager_fixture.start_operation("extraction")
 
         assert op_id is not None
         assert op_id.startswith("extraction_")
         assert "_1" in op_id or "_2" in op_id  # Contains counter
-        assert self.manager.get_current_operation_id() == op_id
+        assert state_manager_fixture.get_current_operation_id() == op_id
 
         # Get stats
-        stats = self.manager.get_operation_stats(op_id)
+        stats = state_manager_fixture.get_operation_stats(op_id)
         assert stats is not None
         assert stats.operation_type == "extraction"
         assert stats.start_time > 0
@@ -84,13 +82,13 @@ class TestStateManager:
 
         # End operation
         time.sleep(0.01)  # Ensure some time passes
-        self.manager.end_operation(op_id)
+        state_manager_fixture.end_operation(op_id)
 
         # Check stats updated
-        stats = self.manager.get_operation_stats(op_id)
+        stats = state_manager_fixture.get_operation_stats(op_id)
         assert stats.end_time is not None
         assert stats.end_time > stats.start_time
-        assert self.manager.get_current_operation_id() is None
+        assert state_manager_fixture.get_current_operation_id() is None
 
     def test_update_operation_stats(self, state_manager_fixture):
         """Test updating operation statistics."""

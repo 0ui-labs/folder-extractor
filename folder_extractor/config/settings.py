@@ -7,7 +7,7 @@ during execution, unlike constants which are fixed.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class Settings:
@@ -58,15 +58,15 @@ class Settings:
         """Set a setting value."""
         self._settings[key] = value
 
-    def update(self, settings: Dict[str, Any]) -> None:
+    def update(self, settings: dict[str, Any]) -> None:
         """Update multiple settings at once."""
         self._settings.update(settings)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Export settings as dictionary."""
         return self._settings.copy()
 
-    def from_dict(self, settings: Dict[str, Any]) -> None:
+    def from_dict(self, settings: dict[str, Any]) -> None:
         """Import settings from dictionary."""
         self._settings = settings.copy()
 
@@ -169,7 +169,7 @@ def configure_from_args(settings: Settings, args) -> None:
     settings.set("watch_mode", getattr(args, "watch", False))
 
 
-def get_all_categories(settings: Settings) -> List[str]:
+def get_all_categories(settings: Settings) -> list[str]:
     """
     Get combined list of user-defined and default categories.
 
