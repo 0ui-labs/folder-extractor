@@ -114,8 +114,8 @@ async def process_file(
 
     Args:
         request: ProcessRequest with filepath and optional settings.
+        http_request: FastAPI request for accessing app state.
         background_tasks: FastAPI BackgroundTasks for async processing.
-        orchestrator: Injected EnhancedExtractionOrchestrator.
 
     Returns:
         ProcessResponse with task ID and initial status.
@@ -481,6 +481,7 @@ async def start_watcher(
 
     Args:
         request: WatcherStartRequest with zone_id.
+        http_request: FastAPI request for accessing app state.
         zone_manager: Injected ZoneManager.
 
     Returns:

@@ -6,6 +6,7 @@ import os
 import sys
 from io import StringIO
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -1172,7 +1173,7 @@ class TestSmartWatchMode:
         original_set = self.cli.settings.set
         set_calls = []
 
-        def spy_set(key, value):
+        def spy_set(key, value) -> Any:
             set_calls.append((key, value))
             return original_set(key, value)
 

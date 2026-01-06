@@ -47,7 +47,7 @@ pytestmark = pytest.mark.skipif(
 from folder_extractor.cli.app import EnhancedFolderExtractorCLI  # noqa: E402
 from folder_extractor.core.extractor import EnhancedExtractionOrchestrator  # noqa: E402
 from folder_extractor.core.monitor import StabilityMonitor  # noqa: E402
-from folder_extractor.core.state_manager import IStateManager  # noqa: E402
+from folder_extractor.core.state_manager import IStateManager
 from folder_extractor.core.watch import FolderEventHandler  # noqa: E402
 
 # =============================================================================
@@ -1335,9 +1335,7 @@ class TestWatchModeWithFeatures:
         with patch("folder_extractor.cli.app.Observer") as MockObserver:
             MockObserver.return_value = mock_observer_instance
 
-            cli = EnhancedFolderExtractorCLI()
-            # Inject settings_fixture so configuration takes effect
-            cli.settings = settings_fixture
+            cli = EnhancedFolderExtractorCLI(settings=settings_fixture)
 
             def run_watch():
                 cli._execute_watch(watched)
@@ -1411,9 +1409,7 @@ class TestWatchModeWithFeatures:
         with patch("folder_extractor.cli.app.Observer") as MockObserver:
             MockObserver.return_value = mock_observer_instance
 
-            cli = EnhancedFolderExtractorCLI()
-            # Inject settings_fixture so configuration takes effect
-            cli.settings = settings_fixture
+            cli = EnhancedFolderExtractorCLI(settings=settings_fixture)
 
             def run_watch():
                 cli._execute_watch(watched)
@@ -1480,9 +1476,7 @@ class TestWatchModeWithFeatures:
         with patch("folder_extractor.cli.app.Observer") as MockObserver:
             MockObserver.return_value = mock_observer_instance
 
-            cli = EnhancedFolderExtractorCLI()
-            # Inject settings_fixture so configuration takes effect
-            cli.settings = settings_fixture
+            cli = EnhancedFolderExtractorCLI(settings=settings_fixture)
 
             def run_watch():
                 cli._execute_watch(watched)
@@ -1548,9 +1542,7 @@ class TestWatchModeWithFeatures:
         with patch("folder_extractor.cli.app.Observer") as MockObserver:
             MockObserver.return_value = mock_observer_instance
 
-            cli = EnhancedFolderExtractorCLI()
-            # Inject settings_fixture so configuration takes effect
-            cli.settings = settings_fixture
+            cli = EnhancedFolderExtractorCLI(settings=settings_fixture)
 
             def run_watch():
                 cli._execute_watch(watched)

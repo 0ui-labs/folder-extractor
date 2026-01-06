@@ -33,9 +33,14 @@ from folder_extractor.core.zone_manager import ZoneManager
 class EnhancedFolderExtractorCLI:
     """Enhanced CLI application with state management."""
 
-    def __init__(self):
-        """Initialize enhanced CLI application."""
-        self.settings = Settings()
+    def __init__(self, settings: Optional[Settings] = None):
+        """Initialize enhanced CLI application.
+
+        Args:
+            settings: Optional Settings instance for dependency injection.
+                     If None, creates a new Settings instance.
+        """
+        self.settings = settings or Settings()
         self.state_manager = StateManager()
         self.parser = create_parser()
         self.interface = create_console_interface(self.settings)

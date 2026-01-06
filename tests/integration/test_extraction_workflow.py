@@ -443,8 +443,7 @@ class TestStateManagement:
     def test_state_persistence(self, settings_fixture, state_manager_fixture):
         """Test that state persists within a CLI instance."""
         # Create CLI instance with injected fixtures
-        cli = EnhancedFolderExtractorCLI()
-        cli.settings = settings_fixture
+        cli = EnhancedFolderExtractorCLI(settings=settings_fixture)
         cli.state_manager = state_manager_fixture
 
         # Set some state on the CLI's state manager

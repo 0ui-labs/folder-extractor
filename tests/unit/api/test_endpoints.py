@@ -127,7 +127,7 @@ def app_with_endpoints(
         "folder_extractor.api.dependencies.ZoneManager",
         return_value=mock_zone_manager,
     ), patch(
-        "folder_extractor.api.dependencies.EnhancedExtractionOrchestrator",
+        "folder_extractor.api.endpoints.EnhancedExtractionOrchestrator",
         return_value=mock_orchestrator,
     ):
         from folder_extractor.api.server import app

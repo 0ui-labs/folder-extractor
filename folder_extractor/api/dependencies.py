@@ -2,7 +2,7 @@
 Dependency injection functions for FastAPI endpoints.
 
 This module provides reusable dependencies for accessing core components
-like ZoneManager, EnhancedFileExtractor, and EnhancedExtractionOrchestrator.
+like ZoneManager, Settings, SmartSorter, and KnowledgeGraph.
 Uses FastAPI's Depends() mechanism for automatic injection.
 """
 
@@ -13,11 +13,6 @@ from typing import TYPE_CHECKING, Optional
 from fastapi import HTTPException, Request
 
 from folder_extractor.config.settings import Settings
-from folder_extractor.core.extractor import (
-    EnhancedExtractionOrchestrator,
-    EnhancedFileExtractor,
-)
-from folder_extractor.core.state_manager import StateManager
 from folder_extractor.core.zone_manager import ZoneManager
 
 if TYPE_CHECKING:
@@ -72,50 +67,6 @@ def reset_zone_manager() -> None:
     """
     global _zone_manager
     _zone_manager = None
-
-
-# =============================================================================
-# Extractor Dependencies
-# =============================================================================
-
-
-def get_extractor(
-    request: Request,
-    state_manager: Optional[StateManager] = None,
-) -> EnhancedFileExtractor:
-    """
-    Create a new EnhancedFileExtractor instance with dependencies.
-
-    Args:
-        request: FastAPI request for accessing app state.
-        state_manager: Optional StateManager instance (created per-request if needed).
-
-    Returns:
-        A new EnhancedFileExtractor instance with injected dependencies.
-    """
-    settings = get_settings_from_app_state(request)
-    sm = state_manager or StateManager()
-    return EnhancedFileExtractor(settings=settings, state_manager=sm)
-
-
-def get_orchestrator(
-    request: Request,
-    state_manager: Optional[StateManager] = None,
-) -> EnhancedExtractionOrchestrator:
-    """
-    Create an EnhancedExtractionOrchestrator with dependencies.
-
-    Args:
-        request: FastAPI request for accessing app state.
-        state_manager: Optional StateManager instance (created per-request if needed).
-
-    Returns:
-        A new EnhancedExtractionOrchestrator instance.
-    """
-    settings = get_settings_from_app_state(request)
-    sm = state_manager or StateManager()
-    extractor = EnhancedFileExtractor(settings=settings, state_manager=sm)
-    return EnhancedExtractionOrchestrator(extractor, state_manager=sm)
 
 
 # =============================================================================

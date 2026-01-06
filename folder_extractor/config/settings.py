@@ -5,6 +5,8 @@ This module handles runtime configuration that can be modified
 during execution, unlike constants which are fixed.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Any, Optional
