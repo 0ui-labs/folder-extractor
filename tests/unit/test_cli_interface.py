@@ -17,7 +17,9 @@ from folder_extractor.config.constants import VERSION
 class TestConsoleInterface:
     """Test ConsoleInterface class with mocked Console."""
 
-    def test_show_welcome_prints_version_header(self, mock_console_class, settings_fixture):
+    def test_show_welcome_prints_version_header(
+        self, mock_console_class, settings_fixture
+    ):
         """Test welcome message prints version header in minimalist Unix style."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -33,7 +35,9 @@ class TestConsoleInterface:
         output = str(call_args[0][0])
         assert "Folder Extractor v" in output, f"Version header not found in: {output}"
 
-    def test_show_welcome_prints_separator_line(self, mock_console_class, settings_fixture):
+    def test_show_welcome_prints_separator_line(
+        self, mock_console_class, settings_fixture
+    ):
         """Test welcome message prints separator line after header."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -62,7 +66,9 @@ class TestConsoleInterface:
                 # Should be string or simple renderable, not Panel
                 assert not hasattr(arg, "renderable"), "Panel-like object detected"
 
-    def test_show_welcome_contains_exact_version(self, mock_console_class, settings_fixture):
+    def test_show_welcome_contains_exact_version(
+        self, mock_console_class, settings_fixture
+    ):
         """Test welcome message contains exact version from constants."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -77,7 +83,9 @@ class TestConsoleInterface:
             f"Expected version '{expected_version}' not found in: {output}"
         )
 
-    def test_show_welcome_separator_has_minimum_length(self, mock_console_class, settings_fixture):
+    def test_show_welcome_separator_has_minimum_length(
+        self, mock_console_class, settings_fixture
+    ):
         """Test welcome separator line has at least 20 dashes for visual separation."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -93,7 +101,9 @@ class TestConsoleInterface:
             f"Separator should have at least 20 dashes, found {dash_count}"
         )
 
-    def test_show_welcome_no_padding_wrapper(self, mock_console_class, settings_fixture):
+    def test_show_welcome_no_padding_wrapper(
+        self, mock_console_class, settings_fixture
+    ):
         """Test welcome message is printed directly without Padding wrapper."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -126,7 +136,9 @@ class TestConsoleInterface:
         assert call_args[0][0] == "Success!"
         assert call_args.kwargs.get("style") == interface.success_style
 
-    def test_show_message_success_uses_basic_green_style(self, mock_console_class, settings_fixture):
+    def test_show_message_success_uses_basic_green_style(
+        self, mock_console_class, settings_fixture
+    ):
         """Test success style uses only green color without bold or dim modifiers."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -155,7 +167,9 @@ class TestConsoleInterface:
         assert call_args[0][0] == "Error!"
         assert call_args.kwargs.get("style") == interface.error_style
 
-    def test_show_message_error_uses_basic_red_style(self, mock_console_class, settings_fixture):
+    def test_show_message_error_uses_basic_red_style(
+        self, mock_console_class, settings_fixture
+    ):
         """Test error style uses only red color without bold or dim modifiers."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -184,7 +198,9 @@ class TestConsoleInterface:
         assert call_args[0][0] == "Warning!"
         assert call_args.kwargs.get("style") == interface.warning_style
 
-    def test_show_message_warning_uses_basic_yellow_style(self, mock_console_class, settings_fixture):
+    def test_show_message_warning_uses_basic_yellow_style(
+        self, mock_console_class, settings_fixture
+    ):
         """Test warning style uses only yellow color without bold or dim modifiers."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -213,7 +229,9 @@ class TestConsoleInterface:
         assert call_args[0][0] == "Info!"
         assert call_args.kwargs.get("style") == interface.info_style
 
-    def test_show_message_info_uses_basic_white_style(self, mock_console_class, settings_fixture):
+    def test_show_message_info_uses_basic_white_style(
+        self, mock_console_class, settings_fixture
+    ):
         """Test info style uses only white color without bold or dim modifiers."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -281,7 +299,9 @@ class TestConsoleInterface:
 
         assert result is True
 
-    def test_confirm_operation_accepts_german_ja(self, mock_console_class, settings_fixture):
+    def test_confirm_operation_accepts_german_ja(
+        self, mock_console_class, settings_fixture
+    ):
         """Test German 'ja' is accepted as confirmation."""
         settings_fixture.set("confirm_operations", True)
         mock_console = MagicMock()
@@ -293,7 +313,9 @@ class TestConsoleInterface:
 
         assert result is True
 
-    def test_confirm_operation_accepts_german_j(self, mock_console_class, settings_fixture):
+    def test_confirm_operation_accepts_german_j(
+        self, mock_console_class, settings_fixture
+    ):
         """Test German 'j' is accepted as confirmation."""
         settings_fixture.set("confirm_operations", True)
         mock_console = MagicMock()
@@ -305,7 +327,9 @@ class TestConsoleInterface:
 
         assert result is True
 
-    def test_confirm_operation_accepts_english_yes(self, mock_console_class, settings_fixture):
+    def test_confirm_operation_accepts_english_yes(
+        self, mock_console_class, settings_fixture
+    ):
         """Test English 'yes' is accepted as confirmation."""
         settings_fixture.set("confirm_operations", True)
         mock_console = MagicMock()
@@ -317,7 +341,9 @@ class TestConsoleInterface:
 
         assert result is True
 
-    def test_confirm_operation_accepts_english_y(self, mock_console_class, settings_fixture):
+    def test_confirm_operation_accepts_english_y(
+        self, mock_console_class, settings_fixture
+    ):
         """Test English 'y' is accepted as confirmation."""
         settings_fixture.set("confirm_operations", True)
         mock_console = MagicMock()
@@ -329,7 +355,9 @@ class TestConsoleInterface:
 
         assert result is True
 
-    def test_confirm_operation_user_declines(self, mock_console_class, settings_fixture):
+    def test_confirm_operation_user_declines(
+        self, mock_console_class, settings_fixture
+    ):
         """Test user declining returns False."""
         settings_fixture.set("confirm_operations", True)
         mock_console = MagicMock()
@@ -343,7 +371,9 @@ class TestConsoleInterface:
         # File count message should still be shown
         mock_console.print.assert_called()
 
-    def test_confirm_operation_keyboard_interrupt(self, mock_console_class, settings_fixture):
+    def test_confirm_operation_keyboard_interrupt(
+        self, mock_console_class, settings_fixture
+    ):
         """Test KeyboardInterrupt during confirmation returns False."""
         settings_fixture.set("confirm_operations", True)
         mock_console = MagicMock()
@@ -367,7 +397,9 @@ class TestConsoleInterface:
 
         assert result is False
 
-    def test_show_progress_initializes_progress(self, mock_console_class, settings_fixture):
+    def test_show_progress_initializes_progress(
+        self, mock_console_class, settings_fixture
+    ):
         """Test first progress call initializes Progress component."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -394,7 +426,9 @@ class TestConsoleInterface:
             # Verify update was called
             mock_progress.update.assert_called()
 
-    def test_show_progress_no_padding_column(self, mock_console_class, settings_fixture):
+    def test_show_progress_no_padding_column(
+        self, mock_console_class, settings_fixture
+    ):
         """Test Progress is created without padding TextColumn (minimalist style)."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -417,7 +451,9 @@ class TestConsoleInterface:
                     f"Padding TextColumn detected in: {text_col_calls}"
                 )
 
-    def test_show_progress_has_minimal_columns(self, mock_console_class, settings_fixture):
+    def test_show_progress_has_minimal_columns(
+        self, mock_console_class, settings_fixture
+    ):
         """Test Progress uses only essential columns: Spinner, Text, and Bar."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -481,7 +517,9 @@ class TestConsoleInterface:
             assert "Permission denied" in error_message
             assert call_args.kwargs["style"] == interface.error_style
 
-    def test_show_progress_with_error_path_object(self, mock_console_class, settings_fixture):
+    def test_show_progress_with_error_path_object(
+        self, mock_console_class, settings_fixture
+    ):
         """Test error messages work with Path objects."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -540,7 +578,9 @@ class TestConsoleInterface:
             # Should have increased
             assert update_count_3 > update_count_2
 
-    def test_show_progress_error_bypasses_rate_limiting(self, mock_console_class, settings_fixture):
+    def test_show_progress_error_bypasses_rate_limiting(
+        self, mock_console_class, settings_fixture
+    ):
         """Test error messages bypass rate limiting."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -565,7 +605,9 @@ class TestConsoleInterface:
             call_args = mock_console.print.call_args
             assert "Permission denied" in call_args[0][0]
 
-    def test_show_progress_reuses_progress_instance(self, mock_console_class, settings_fixture):
+    def test_show_progress_reuses_progress_instance(
+        self, mock_console_class, settings_fixture
+    ):
         """Test subsequent calls reuse the same Progress instance."""
         mock_console_class.return_value = MagicMock()
 
@@ -589,7 +631,9 @@ class TestConsoleInterface:
             mock_progress_class.assert_called_once()
             mock_progress.start.assert_called_once()
 
-    def test_show_progress_long_filename_truncation(self, mock_console_class, settings_fixture):
+    def test_show_progress_long_filename_truncation(
+        self, mock_console_class, settings_fixture
+    ):
         """Test long filenames are truncated to 40 characters."""
         mock_console_class.return_value = MagicMock()
 
@@ -639,7 +683,9 @@ class TestConsoleInterface:
             assert interface.progress is None
             assert interface.task_id is None
 
-    def test_finish_progress_when_not_started(self, mock_console_class, settings_fixture):
+    def test_finish_progress_when_not_started(
+        self, mock_console_class, settings_fixture
+    ):
         """Test finish_progress is safe when progress was never started."""
         mock_console_class.return_value = MagicMock()
 
@@ -690,7 +736,9 @@ class TestConsoleInterface:
         call_args_str = str(mock_console.print.call_args_list)
         assert "abgebrochen" in call_args_str.lower()
 
-    def test_show_summary_success_prints_statistics_directly(self, mock_console_class, settings_fixture):
+    def test_show_summary_success_prints_statistics_directly(
+        self, mock_console_class, settings_fixture
+    ):
         """Test successful summary prints statistics in exact format with colors."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -759,7 +807,9 @@ class TestConsoleInterface:
             f"Missing alignment spacing in errors line: {errors_line}"
         )
 
-    def test_show_summary_success_no_table_used(self, mock_console_class, settings_fixture):
+    def test_show_summary_success_no_table_used(
+        self, mock_console_class, settings_fixture
+    ):
         """Test summary does not use Table component (minimalist style)."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -781,7 +831,9 @@ class TestConsoleInterface:
                 assert not hasattr(arg, "add_row"), "Table-like object detected"
                 assert not hasattr(arg, "add_column"), "Table-like object detected"
 
-    def test_show_summary_success_shows_created_folders(self, mock_console_class, settings_fixture):
+    def test_show_summary_success_shows_created_folders(
+        self, mock_console_class, settings_fixture
+    ):
         """Test successful summary shows created folders."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -798,7 +850,9 @@ class TestConsoleInterface:
         assert "PDF" in call_args_str
         assert "BILDER" in call_args_str
 
-    def test_show_summary_success_shows_removed_directories(self, mock_console_class, settings_fixture):
+    def test_show_summary_success_shows_removed_directories(
+        self, mock_console_class, settings_fixture
+    ):
         """Test successful summary shows removed directories count."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -811,7 +865,9 @@ class TestConsoleInterface:
         assert "5" in call_args_str
         assert "leere" in call_args_str.lower()
 
-    def test_show_summary_success_shows_undo_hint(self, mock_console_class, settings_fixture):
+    def test_show_summary_success_shows_undo_hint(
+        self, mock_console_class, settings_fixture
+    ):
         """Test successful summary shows undo hint."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -826,7 +882,9 @@ class TestConsoleInterface:
         call_args_str = str(mock_console.print.call_args_list)
         assert "rückgängig" in call_args_str.lower()
 
-    def test_show_summary_dry_run_no_undo_hint(self, mock_console_class, settings_fixture):
+    def test_show_summary_dry_run_no_undo_hint(
+        self, mock_console_class, settings_fixture
+    ):
         """Test undo hint is not shown in dry run mode."""
         settings_fixture.set("dry_run", True)
         mock_console = MagicMock()
@@ -842,7 +900,9 @@ class TestConsoleInterface:
         call_args_str = str(mock_console.print.call_args_list)
         assert "rückgängig" not in call_args_str.lower()
 
-    def test_show_summary_success_without_moved(self, mock_console_class, settings_fixture):
+    def test_show_summary_success_without_moved(
+        self, mock_console_class, settings_fixture
+    ):
         """Test summary without 'moved' key skips statistics but shows other info."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -863,7 +923,9 @@ class TestConsoleInterface:
         assert "PDF" in call_args_str
         assert "2" in call_args_str
 
-    def test_show_summary_success_shows_content_duplicates(self, mock_console_class, settings_fixture):
+    def test_show_summary_success_shows_content_duplicates(
+        self, mock_console_class, settings_fixture
+    ):
         """Test successful summary shows content duplicates when present."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -995,7 +1057,9 @@ class TestConsoleInterface:
         assert "Globale Inhalts-Duplikate" in call_args_str
         assert "2" in call_args_str
 
-    def test_show_summary_hides_zero_duplicate_categories(self, mock_console_class, settings_fixture):
+    def test_show_summary_hides_zero_duplicate_categories(
+        self, mock_console_class, settings_fixture
+    ):
         """Test summary hides duplicate categories when count is zero."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1040,7 +1104,9 @@ class TestConsoleInterface:
         assert "Duplikate" in call_args_str
         assert "7" in call_args_str
 
-    def test_show_summary_no_duplicates_when_all_zero(self, mock_console_class, settings_fixture):
+    def test_show_summary_no_duplicates_when_all_zero(
+        self, mock_console_class, settings_fixture
+    ):
         """Test summary shows no duplicate lines when all counts are zero."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1068,7 +1134,9 @@ class TestConsoleInterface:
 class TestIndexingSpinner:
     """Tests for indexing spinner functionality."""
 
-    def test_show_indexing_spinner_displays_message(self, mock_console_class, settings_fixture):
+    def test_show_indexing_spinner_displays_message(
+        self, mock_console_class, settings_fixture
+    ):
         """Test indexing spinner shows the indexing message."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1090,7 +1158,9 @@ class TestIndexingSpinner:
                 "Indiziere" in call_args[0][0] or "indiziere" in str(call_args).lower()
             )
 
-    def test_hide_indexing_spinner_stops_progress(self, mock_console_class, settings_fixture):
+    def test_hide_indexing_spinner_stops_progress(
+        self, mock_console_class, settings_fixture
+    ):
         """Test hiding indexing spinner stops the progress display."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1105,7 +1175,9 @@ class TestIndexingSpinner:
 
             mock_progress.stop.assert_called_once()
 
-    def test_hide_indexing_spinner_safe_when_not_started(self, mock_console_class, settings_fixture):
+    def test_hide_indexing_spinner_safe_when_not_started(
+        self, mock_console_class, settings_fixture
+    ):
         """Test hiding indexing spinner is safe when never started."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1114,7 +1186,9 @@ class TestIndexingSpinner:
         # Should not raise when spinner was never started
         interface.hide_indexing_spinner()
 
-    def test_show_indexing_spinner_quiet_mode(self, mock_console_class, settings_fixture):
+    def test_show_indexing_spinner_quiet_mode(
+        self, mock_console_class, settings_fixture
+    ):
         """Test indexing spinner not shown in quiet mode."""
         settings_fixture.set("quiet", True)
         mock_console = MagicMock()
@@ -1142,7 +1216,9 @@ def test_create_console_interface(mock_console_class, settings_fixture):
 class TestArchiveProgress:
     """Tests for archive extraction progress functionality."""
 
-    def test_show_archive_progress_extracting_shows_spinner(self, mock_console_class, settings_fixture):
+    def test_show_archive_progress_extracting_shows_spinner(
+        self, mock_console_class, settings_fixture
+    ):
         """Test extracting status shows spinner with archive name."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1162,7 +1238,9 @@ class TestArchiveProgress:
             call_args = mock_progress.add_task.call_args
             assert "test.zip" in str(call_args) or "Entpacke" in str(call_args)
 
-    def test_show_archive_progress_extracted_shows_success(self, mock_console_class, settings_fixture):
+    def test_show_archive_progress_extracted_shows_success(
+        self, mock_console_class, settings_fixture
+    ):
         """Test extracted status shows success message with file count."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1176,7 +1254,9 @@ class TestArchiveProgress:
         assert "test.zip" in output
         assert "5" in output
 
-    def test_show_archive_progress_error_shows_error_message(self, mock_console_class, settings_fixture):
+    def test_show_archive_progress_error_shows_error_message(
+        self, mock_console_class, settings_fixture
+    ):
         """Test error status shows error message with details."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1192,7 +1272,9 @@ class TestArchiveProgress:
         # Should use error style
         assert call_args.kwargs.get("style") == interface.error_style
 
-    def test_show_archive_progress_quiet_mode_no_output(self, mock_console_class, settings_fixture):
+    def test_show_archive_progress_quiet_mode_no_output(
+        self, mock_console_class, settings_fixture
+    ):
         """Test archive progress is suppressed in quiet mode."""
         settings_fixture.set("quiet", True)
         mock_console = MagicMock()
@@ -1203,7 +1285,9 @@ class TestArchiveProgress:
 
         mock_console.print.assert_not_called()
 
-    def test_show_archive_progress_finish_stops_spinner(self, mock_console_class, settings_fixture):
+    def test_show_archive_progress_finish_stops_spinner(
+        self, mock_console_class, settings_fixture
+    ):
         """Test finish status stops the spinner."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1240,7 +1324,9 @@ class TestArchiveProgress:
 class TestArchiveSummary:
     """Tests for archive statistics in show_summary."""
 
-    def test_show_summary_shows_archives_extracted_count(self, mock_console_class, settings_fixture):
+    def test_show_summary_shows_archives_extracted_count(
+        self, mock_console_class, settings_fixture
+    ):
         """Test summary displays number of archives extracted."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1259,7 +1345,9 @@ class TestArchiveSummary:
         assert "3" in call_args_str
         assert "Entpackt" in call_args_str
 
-    def test_show_summary_shows_archives_deleted_count(self, mock_console_class, settings_fixture):
+    def test_show_summary_shows_archives_deleted_count(
+        self, mock_console_class, settings_fixture
+    ):
         """Test summary displays number of archives deleted after extraction."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1279,7 +1367,9 @@ class TestArchiveSummary:
         assert "2" in call_args_str
         assert "gelöscht" in call_args_str.lower() or "Archive" in call_args_str
 
-    def test_show_summary_hides_archives_when_zero(self, mock_console_class, settings_fixture):
+    def test_show_summary_hides_archives_when_zero(
+        self, mock_console_class, settings_fixture
+    ):
         """Test summary hides archive lines when counts are zero."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1298,7 +1388,9 @@ class TestArchiveSummary:
         # Should NOT show archive lines when count is 0
         assert "Entpackt" not in call_args_str
 
-    def test_show_summary_hides_archives_when_key_missing(self, mock_console_class, settings_fixture):
+    def test_show_summary_hides_archives_when_key_missing(
+        self, mock_console_class, settings_fixture
+    ):
         """Test summary handles missing archive keys gracefully."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1316,7 +1408,9 @@ class TestArchiveSummary:
         # Should NOT show archive lines when keys missing
         assert "Entpackt" not in call_args_str
 
-    def test_show_summary_archive_order_after_moved(self, mock_console_class, settings_fixture):
+    def test_show_summary_archive_order_after_moved(
+        self, mock_console_class, settings_fixture
+    ):
         """Test archives appear after 'Verschoben' in summary."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1383,7 +1477,9 @@ class TestConsoleInterfaceStyles:
         assert interface.warning_style is not None
         assert interface.info_style is not None
 
-    def test_dedupe_style_exists_and_is_cyan(self, mock_console_class, settings_fixture):
+    def test_dedupe_style_exists_and_is_cyan(
+        self, mock_console_class, settings_fixture
+    ):
         """Test dedupe_style exists with cyan color and no modifiers."""
         mock_console_class.return_value = MagicMock()
 
@@ -1435,7 +1531,9 @@ class TestConsoleInterfaceAttributes:
         assert hasattr(interface, "task_id")
         assert interface.task_id is None
 
-    def test_last_progress_update_initialized(self, mock_console_class, settings_fixture):
+    def test_last_progress_update_initialized(
+        self, mock_console_class, settings_fixture
+    ):
         """Test last_progress_update is initialized to 0."""
         mock_console_class.return_value = MagicMock()
 
@@ -1444,7 +1542,9 @@ class TestConsoleInterfaceAttributes:
         assert hasattr(interface, "last_progress_update")
         assert interface.last_progress_update == 0
 
-    def test_progress_update_interval_configured(self, mock_console_class, settings_fixture):
+    def test_progress_update_interval_configured(
+        self, mock_console_class, settings_fixture
+    ):
         """Test progress_update_interval is configured."""
         mock_console_class.return_value = MagicMock()
 
@@ -1460,7 +1560,9 @@ class TestWatchModeUI:
 
     # --- Tests for show_watch_status ---
 
-    def test_show_watch_status_displays_path_with_icon(self, mock_console_class, settings_fixture):
+    def test_show_watch_status_displays_path_with_icon(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_status prints the watching message with path and eye icon."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1475,7 +1577,9 @@ class TestWatchModeUI:
         assert "/Users/test/Downloads" in output
         assert "Wache" in output or "wache" in output.lower()
 
-    def test_show_watch_status_uses_highlight_style(self, mock_console_class, settings_fixture):
+    def test_show_watch_status_uses_highlight_style(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_status uses blue highlight style."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1486,7 +1590,9 @@ class TestWatchModeUI:
         call_args = mock_console.print.call_args
         assert call_args.kwargs.get("style") == interface.highlight_style
 
-    def test_show_watch_status_accepts_path_object(self, mock_console_class, settings_fixture):
+    def test_show_watch_status_accepts_path_object(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_status accepts Path objects."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1499,7 +1605,9 @@ class TestWatchModeUI:
         output = str(call_args[0][0])
         assert "Downloads" in output
 
-    def test_show_watch_status_quiet_mode_no_output(self, mock_console_class, settings_fixture):
+    def test_show_watch_status_quiet_mode_no_output(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_status is suppressed in quiet mode."""
         settings_fixture.set("quiet", True)
         mock_console = MagicMock()
@@ -1562,7 +1670,9 @@ class TestWatchModeUI:
         assert "document.pdf" in output
         assert "Analysiere" in output
 
-    def test_show_watch_event_sorted_displays_success_message(self, mock_console_class, settings_fixture):
+    def test_show_watch_event_sorted_displays_success_message(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_event with sorted status shows success message."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1576,7 +1686,9 @@ class TestWatchModeUI:
         assert "document.pdf" in output
         assert "Sortiert" in output
 
-    def test_show_watch_event_error_displays_error_message(self, mock_console_class, settings_fixture):
+    def test_show_watch_event_error_displays_error_message(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_event with error status shows error message."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1590,7 +1702,9 @@ class TestWatchModeUI:
         assert "broken.pdf" in output
         assert "Fehler" in output
 
-    def test_show_watch_event_uses_appropriate_styles(self, mock_console_class, settings_fixture):
+    def test_show_watch_event_uses_appropriate_styles(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_event uses correct styles for each status."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1614,7 +1728,9 @@ class TestWatchModeUI:
                 f"Wrong style for status '{status}'"
             )
 
-    def test_show_watch_event_timestamp_format(self, mock_console_class, settings_fixture):
+    def test_show_watch_event_timestamp_format(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_event timestamp is in HH:MM:SS format."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1630,7 +1746,9 @@ class TestWatchModeUI:
         match = re.search(r"\[(\d{2}:\d{2}:\d{2})\]", output)
         assert match is not None, f"Timestamp not found in: {output}"
 
-    def test_show_watch_event_quiet_mode_no_output(self, mock_console_class, settings_fixture):
+    def test_show_watch_event_quiet_mode_no_output(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_event is suppressed in quiet mode."""
         settings_fixture.set("quiet", True)
         mock_console = MagicMock()
@@ -1641,7 +1759,9 @@ class TestWatchModeUI:
 
         mock_console.print.assert_not_called()
 
-    def test_show_watch_event_default_status_is_incoming(self, mock_console_class, settings_fixture):
+    def test_show_watch_event_default_status_is_incoming(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_event defaults to incoming status."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1655,7 +1775,9 @@ class TestWatchModeUI:
 
     # --- Tests for show_watch_stopped ---
 
-    def test_show_watch_stopped_displays_stopped_message(self, mock_console_class, settings_fixture):
+    def test_show_watch_stopped_displays_stopped_message(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_stopped prints the stopped message."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1668,7 +1790,9 @@ class TestWatchModeUI:
         output = str(call_args[0][0])
         assert "beendet" in output.lower() or "Watch-Mode" in output
 
-    def test_show_watch_stopped_uses_info_style(self, mock_console_class, settings_fixture):
+    def test_show_watch_stopped_uses_info_style(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_stopped uses info style."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1679,7 +1803,9 @@ class TestWatchModeUI:
         call_args = mock_console.print.call_args
         assert call_args.kwargs.get("style") == interface.info_style
 
-    def test_show_watch_stopped_quiet_mode_no_output(self, mock_console_class, settings_fixture):
+    def test_show_watch_stopped_quiet_mode_no_output(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_watch_stopped is suppressed in quiet mode."""
         settings_fixture.set("quiet", True)
         mock_console = MagicMock()
@@ -1697,7 +1823,9 @@ class TestSmartWatchUI:
 
     # --- Tests for show_smart_watch_status ---
 
-    def test_show_smart_watch_status_displays_banner(self, mock_console_class, settings_fixture):
+    def test_show_smart_watch_status_displays_banner(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_smart_watch_status displays the smart watch banner."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1719,7 +1847,9 @@ class TestSmartWatchUI:
         # Should contain banner header
         assert "Smart Watch" in call_args_str
 
-    def test_show_smart_watch_status_displays_path(self, mock_console_class, settings_fixture):
+    def test_show_smart_watch_status_displays_path(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_smart_watch_status displays the watch path."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1755,7 +1885,9 @@ class TestSmartWatchUI:
         call_args_str = str(mock_console.print.call_args_list)
         assert "{category}/{sender}/{year}" in call_args_str
 
-    def test_show_smart_watch_status_displays_categories(self, mock_console_class, settings_fixture):
+    def test_show_smart_watch_status_displays_categories(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_smart_watch_status displays configured categories."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1794,7 +1926,9 @@ class TestSmartWatchUI:
         # Should show "Ja" for recursive=True
         assert "Ja" in call_args_str or "ja" in call_args_str.lower()
 
-    def test_show_smart_watch_status_displays_exclusions(self, mock_console_class, settings_fixture):
+    def test_show_smart_watch_status_displays_exclusions(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_smart_watch_status displays excluded subfolders."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console
@@ -1834,7 +1968,9 @@ class TestSmartWatchUI:
         # Should NOT show exclusions line when empty
         assert "Ausgeschlossen" not in call_args_str
 
-    def test_show_smart_watch_status_quiet_mode_no_output(self, mock_console_class, settings_fixture):
+    def test_show_smart_watch_status_quiet_mode_no_output(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_smart_watch_status is suppressed in quiet mode."""
         settings_fixture.set("quiet", True)
         mock_console = MagicMock()
@@ -1910,7 +2046,9 @@ class TestSmartWatchUI:
         # Should show "Standard" or similar for empty categories
         assert "Standard" in call_args_str or "standard" in call_args_str.lower()
 
-    def test_show_smart_watch_status_displays_file_types(self, mock_console_class, settings_fixture):
+    def test_show_smart_watch_status_displays_file_types(
+        self, mock_console_class, settings_fixture
+    ):
         """Test show_smart_watch_status displays file type filter when provided."""
         mock_console = MagicMock()
         mock_console_class.return_value = mock_console

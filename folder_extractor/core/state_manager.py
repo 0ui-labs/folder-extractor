@@ -342,10 +342,11 @@ def reset_state_manager() -> None:
     Tests should create fresh StateManager() instances instead.
     """
     import warnings
+
     warnings.warn(
         "reset_state_manager() is deprecated. "
         "Create fresh StateManager() instances instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     pass

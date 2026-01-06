@@ -85,7 +85,9 @@ class TestEnhancedFileExtractor:
             include_hidden=False,
         )
 
-    def test_extract_files_saves_history(self, enhanced_extractor_with_mocks, settings_fixture, tmp_path):
+    def test_extract_files_saves_history(
+        self, enhanced_extractor_with_mocks, settings_fixture, tmp_path
+    ):
         """Test that history is saved after successful extraction (line 195)."""
         # Setup - set file_type_filter to avoid triggering empty directory removal
         settings_fixture.set("file_type_filter", [".txt"])
@@ -118,7 +120,9 @@ class TestEnhancedFileExtractor:
         assert result["moved"] == 3
         assert len(result["history"]) == 3
 
-    def test_extract_files_with_abort_signal(self, enhanced_extractor_with_mocks, settings_fixture, tmp_path):
+    def test_extract_files_with_abort_signal(
+        self, enhanced_extractor_with_mocks, settings_fixture, tmp_path
+    ):
         """Test that aborted flag is set when abort_signal is triggered (line 199)."""
         # Setup - set file_type_filter to avoid triggering empty directory removal
         settings_fixture.set("file_type_filter", [".txt"])
@@ -143,7 +147,9 @@ class TestEnhancedFileExtractor:
         # Verify aborted flag was set (line 199)
         assert result["aborted"] is True
 
-    def test_extract_files_removes_empty_directories(self, enhanced_extractor_with_mocks, settings_fixture, tmp_path):
+    def test_extract_files_removes_empty_directories(
+        self, enhanced_extractor_with_mocks, settings_fixture, tmp_path
+    ):
         """Test empty directory removal branch (lines 207-211)."""
         # Setup: Create actual file structure
         source_dir = tmp_path / "source"
@@ -190,7 +196,9 @@ class TestEnhancedFileExtractor:
                         settings_fixture.set("sort_by_type", False)
                         settings_fixture.set("file_type_filter", None)
 
-                        result = enhanced_extractor_with_mocks.extract_files(files, destination)
+                        result = enhanced_extractor_with_mocks.extract_files(
+                            files, destination
+                        )
 
         # Verify _remove_empty_directories was called (lines 207-211)
         mock_remove.assert_called_once()
@@ -229,7 +237,9 @@ class TestEnhancedFileExtractor:
         temp_files = [".DS_Store"]
 
         # Execute removal
-        result = enhanced_extractor_with_mocks._remove_empty_directories(tmp_path, temp_files)
+        result = enhanced_extractor_with_mocks._remove_empty_directories(
+            tmp_path, temp_files
+        )
 
         # Verify empty directories were removed (deepest first)
         # nested_empty, empty_subdir2 (becomes empty after nested_empty removed), and empty_subdir1
@@ -242,7 +252,9 @@ class TestEnhancedFileExtractor:
         assert non_empty.exists()
         assert (non_empty / "file.txt").exists()
 
-    def test_remove_empty_directories_respects_hidden_setting(self, enhanced_extractor_with_mocks, settings_fixture, tmp_path):
+    def test_remove_empty_directories_respects_hidden_setting(
+        self, enhanced_extractor_with_mocks, settings_fixture, tmp_path
+    ):
         """Test that _remove_empty_directories respects include_hidden setting."""
         # Create directory with only hidden file
         subdir = tmp_path / "subdir"
@@ -261,7 +273,9 @@ class TestEnhancedFileExtractor:
         assert not subdir.exists()
         assert not hidden_file.exists()
 
-    def test_remove_empty_directories_with_include_hidden(self, enhanced_extractor_with_mocks, settings_fixture, tmp_path):
+    def test_remove_empty_directories_with_include_hidden(
+        self, enhanced_extractor_with_mocks, settings_fixture, tmp_path
+    ):
         """Test that hidden files prevent directory removal when include_hidden=True."""
         # Create directory with only hidden file
         subdir = tmp_path / "subdir"
@@ -277,7 +291,9 @@ class TestEnhancedFileExtractor:
         assert result["removed"] == 0
         assert subdir.exists()
 
-    def test_remove_empty_directories_with_temp_files(self, enhanced_extractor_with_mocks, tmp_path):
+    def test_remove_empty_directories_with_temp_files(
+        self, enhanced_extractor_with_mocks, tmp_path
+    ):
         """Test that temp files don't prevent directory removal."""
         # Create directory with only temp file
         subdir = tmp_path / "subdir"
@@ -288,32 +304,42 @@ class TestEnhancedFileExtractor:
         temp_files = [".DS_Store"]
 
         # Execute removal
-        result = enhanced_extractor_with_mocks._remove_empty_directories(tmp_path, temp_files)
+        result = enhanced_extractor_with_mocks._remove_empty_directories(
+            tmp_path, temp_files
+        )
 
         # Directory SHOULD be removed because temp files are cleaned up first
         assert result["removed"] == 1
         assert not subdir.exists()
         assert not temp_file.exists()
 
-    def test_remove_empty_directories_skips_inaccessible_directories(self, enhanced_extractor_with_mocks, tmp_path):
+    def test_remove_empty_directories_skips_inaccessible_directories(
+        self, enhanced_extractor_with_mocks, tmp_path
+    ):
         """Directories that raise OSError on iterdir are skipped, not crashed on."""
         subdir = tmp_path / "subdir"
         subdir.mkdir()
 
         with patch.object(Path, "iterdir", side_effect=OSError("Permission denied")):
-            result = enhanced_extractor_with_mocks._remove_empty_directories(tmp_path, [])
+            result = enhanced_extractor_with_mocks._remove_empty_directories(
+                tmp_path, []
+            )
 
             assert result["removed"] == 0
             # Verify the error was logged in skipped
             assert len(result["skipped"]) > 0
 
-    def test_remove_empty_directories_skips_undeletable_directories(self, enhanced_extractor_with_mocks, tmp_path):
+    def test_remove_empty_directories_skips_undeletable_directories(
+        self, enhanced_extractor_with_mocks, tmp_path
+    ):
         """Directories that raise OSError on rmdir are skipped and preserved."""
         subdir = tmp_path / "subdir"
         subdir.mkdir()
 
         with patch.object(Path, "rmdir", side_effect=OSError("Cannot remove")):
-            result = enhanced_extractor_with_mocks._remove_empty_directories(tmp_path, [])
+            result = enhanced_extractor_with_mocks._remove_empty_directories(
+                tmp_path, []
+            )
 
             assert result["removed"] == 0
             assert subdir.exists()  # Directory preserved despite removal attempt
@@ -336,7 +362,9 @@ class TestEnhancedFileExtractor:
             )
 
         history_data = {"operationen": operations}
-        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = history_data
+        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = (
+            history_data
+        )
 
         # Mock ManagedOperation context manager
         mock_operation = Mock()
@@ -386,7 +414,9 @@ class TestEnhancedFileExtractor:
         ]
 
         history_data = {"operationen": operations}
-        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = history_data
+        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = (
+            history_data
+        )
 
         # Mock file_operations to raise exception on first call, succeed on second
         enhanced_extractor_with_mocks.mock_file_operations.move_file.side_effect = [
@@ -396,7 +426,9 @@ class TestEnhancedFileExtractor:
 
         # Mock ManagedOperation context manager
         mock_operation = Mock()
-        mock_operation.abort_signal = enhanced_extractor_with_mocks.abort_signal  # Not set
+        mock_operation.abort_signal = (
+            enhanced_extractor_with_mocks.abort_signal
+        )  # Not set
         mock_operation.update_stats = Mock()
         mock_operation.__enter__ = Mock(return_value=mock_operation)
         mock_operation.__exit__ = Mock(return_value=False)
@@ -418,7 +450,9 @@ class TestEnhancedFileExtractor:
         assert result["errors"] == 1  # One error occurred
 
         # Verify both operations were attempted
-        assert enhanced_extractor_with_mocks.mock_file_operations.move_file.call_count == 2
+        assert (
+            enhanced_extractor_with_mocks.mock_file_operations.move_file.call_count == 2
+        )
 
         # Verify progress was updated with error
         calls = mock_progress.increment.call_args_list
@@ -429,7 +463,9 @@ class TestEnhancedFileExtractor:
     def test_undo_no_history(self, enhanced_extractor_with_mocks, tmp_path):
         """Test undo when no history exists."""
         # Mock no history
-        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = None
+        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = (
+            None
+        )
 
         result = enhanced_extractor_with_mocks.undo_last_operation(tmp_path)
 
@@ -440,14 +476,18 @@ class TestEnhancedFileExtractor:
         """Test undo with empty operations list."""
         # Mock history with empty operations
         history_data = {}
-        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = history_data
+        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = (
+            history_data
+        )
 
         result = enhanced_extractor_with_mocks.undo_last_operation(tmp_path)
 
         assert result["status"] == "no_history"
         assert result["restored"] == 0
 
-    def test_undo_restores_deduplicated_file_by_copying(self, enhanced_extractor_with_mocks, tmp_path):
+    def test_undo_restores_deduplicated_file_by_copying(
+        self, enhanced_extractor_with_mocks, tmp_path
+    ):
         """Deduplicated files are restored by copying from the duplicate source.
 
         When a file was skipped during extraction because it was a duplicate
@@ -483,11 +523,15 @@ class TestEnhancedFileExtractor:
         ]
 
         history_data = {"operationen": operations}
-        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = history_data
+        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = (
+            history_data
+        )
 
         # Mock ManagedOperation context manager
         mock_operation = Mock()
-        mock_operation.abort_signal = enhanced_extractor_with_mocks.abort_signal  # Not set
+        mock_operation.abort_signal = (
+            enhanced_extractor_with_mocks.abort_signal
+        )  # Not set
         mock_operation.update_stats = Mock()
         mock_operation.__enter__ = Mock(return_value=mock_operation)
         mock_operation.__exit__ = Mock(return_value=False)
@@ -517,7 +561,9 @@ class TestEnhancedFileExtractor:
         # Verify: The original file in dest should still exist (copied, not moved)
         assert original_file.exists(), "Original file should still exist after copy"
 
-    def test_undo_deduplicated_file_source_deleted(self, enhanced_extractor_with_mocks, tmp_path):
+    def test_undo_deduplicated_file_source_deleted(
+        self, enhanced_extractor_with_mocks, tmp_path
+    ):
         """Undo gracefully handles missing source file for deduplicated entries.
 
         When a deduplicated file's source (neuer_pfad) no longer exists,
@@ -547,7 +593,9 @@ class TestEnhancedFileExtractor:
         ]
 
         history_data = {"operationen": operations}
-        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = history_data
+        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = (
+            history_data
+        )
 
         # Mock ManagedOperation context manager
         mock_operation = Mock()
@@ -557,8 +605,8 @@ class TestEnhancedFileExtractor:
         mock_operation.__exit__ = Mock(return_value=False)
 
         # Configure move_file mock to raise FileNotFoundError (realistic behavior)
-        enhanced_extractor_with_mocks.mock_file_operations.move_file.side_effect = FileNotFoundError(
-            f"Source file not found: {missing_file_path}"
+        enhanced_extractor_with_mocks.mock_file_operations.move_file.side_effect = (
+            FileNotFoundError(f"Source file not found: {missing_file_path}")
         )
 
         # Execute undo
@@ -582,7 +630,9 @@ class TestEnhancedFileExtractor:
             "File should not be created when source missing"
         )
 
-    def test_undo_global_duplicate_by_copying(self, enhanced_extractor_with_mocks, tmp_path):
+    def test_undo_global_duplicate_by_copying(
+        self, enhanced_extractor_with_mocks, tmp_path
+    ):
         """Global duplicates are restored by copying, same as content duplicates.
 
         Files marked with global_duplicate=True should be restored by copying
@@ -611,7 +661,9 @@ class TestEnhancedFileExtractor:
         ]
 
         history_data = {"operationen": operations}
-        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = history_data
+        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = (
+            history_data
+        )
 
         # Mock ManagedOperation context manager
         mock_operation = Mock()
@@ -642,7 +694,9 @@ class TestEnhancedFileExtractor:
         # Verify: Original file at dest should still exist (copied, not moved)
         assert original_file.exists(), "Original should still exist after copy"
 
-    def test_undo_duplicate_updates_progress_correctly(self, enhanced_extractor_with_mocks, tmp_path):
+    def test_undo_duplicate_updates_progress_correctly(
+        self, enhanced_extractor_with_mocks, tmp_path
+    ):
         """Progress is correctly tracked for mixed entries (normal + duplicates).
 
         When undoing a history with a mix of normal files and duplicates,
@@ -693,7 +747,9 @@ class TestEnhancedFileExtractor:
         ]
 
         history_data = {"operationen": operations}
-        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = history_data
+        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = (
+            history_data
+        )
 
         # Mock ManagedOperation context manager to track update_stats calls
         mock_operation = Mock()
@@ -738,7 +794,9 @@ class TestEnhancedFileExtractor:
                 args = call.args if call.args else ()
                 assert len(args) == 0 or args == ()
 
-    def test_undo_duplicate_respects_abort_signal_mid_operation(self, enhanced_extractor_with_mocks, tmp_path):
+    def test_undo_duplicate_respects_abort_signal_mid_operation(
+        self, enhanced_extractor_with_mocks, tmp_path
+    ):
         """Undo stops processing after abort signal is set during duplicate restore.
 
         When the abort signal is set during the copy operation for a duplicate,
@@ -787,7 +845,9 @@ class TestEnhancedFileExtractor:
         ]
 
         history_data = {"operationen": operations}
-        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = history_data
+        enhanced_extractor_with_mocks.mock_history_manager.load_history.return_value = (
+            history_data
+        )
 
         # Mock ManagedOperation - abort signal NOT set initially
         mock_operation = Mock()
@@ -836,7 +896,9 @@ class TestEnhancedFileExtractor:
             "Third file should NOT be restored"
         )
 
-    def test_extract_files_dry_run_no_history(self, enhanced_extractor_with_mocks, settings_fixture, tmp_path):
+    def test_extract_files_dry_run_no_history(
+        self, enhanced_extractor_with_mocks, settings_fixture, tmp_path
+    ):
         """Test that history is not saved in dry run mode."""
         # Setup
         files = [str(tmp_path / "file.txt")]
@@ -858,7 +920,9 @@ class TestEnhancedFileExtractor:
         # Verify history was NOT saved in dry run
         enhanced_extractor_with_mocks.mock_history_manager.save_history.assert_not_called()
 
-    def test_extract_files_no_history_when_no_files_moved(self, enhanced_extractor_with_mocks, settings_fixture, tmp_path):
+    def test_extract_files_no_history_when_no_files_moved(
+        self, enhanced_extractor_with_mocks, settings_fixture, tmp_path
+    ):
         """Test that history is not saved when no files were moved."""
         # Setup
         files = [str(tmp_path / "file.txt")]
@@ -879,7 +943,9 @@ class TestEnhancedFileExtractor:
         enhanced_extractor_with_mocks.mock_history_manager.save_history.assert_not_called()
         assert result["moved"] == 0
 
-    def test_extract_files_sort_by_type_mode(self, enhanced_extractor_with_mocks, settings_fixture, tmp_path):
+    def test_extract_files_sort_by_type_mode(
+        self, enhanced_extractor_with_mocks, settings_fixture, tmp_path
+    ):
         """Test extraction in sort by type mode."""
         # Setup
         files = [str(tmp_path / "file.txt")]
@@ -916,7 +982,9 @@ class TestEnhancedFileExtractor:
         mock_mover.move_files_sorted.assert_called_once()
         assert result["created_folders"] == ["TXT"]
 
-    def test_extract_files_updates_operation_stats(self, enhanced_extractor_with_mocks, settings_fixture, tmp_path):
+    def test_extract_files_updates_operation_stats(
+        self, enhanced_extractor_with_mocks, settings_fixture, tmp_path
+    ):
         """Test that operation stats are updated via state manager."""
         # Setup - set file_type_filter to avoid triggering empty directory removal
         settings_fixture.set("file_type_filter", [".txt"])
@@ -950,7 +1018,9 @@ class TestEnhancedFileExtractor:
 class TestEnhancedFileExtractorIntegration:
     """Integration tests with minimal mocking."""
 
-    def test_remove_empty_directories_complete_workflow(self, enhanced_extractor_with_mocks, tmp_path):
+    def test_remove_empty_directories_complete_workflow(
+        self, enhanced_extractor_with_mocks, tmp_path
+    ):
         """Integration test for complete empty directory removal workflow."""
         # Create complex directory structure
         (tmp_path / "level1" / "level2" / "level3").mkdir(parents=True)
@@ -960,7 +1030,9 @@ class TestEnhancedFileExtractorIntegration:
 
         # Remove empty directories
         temp_files = [".DS_Store", ".gitkeep"]
-        result = enhanced_extractor_with_mocks._remove_empty_directories(tmp_path, temp_files)
+        result = enhanced_extractor_with_mocks._remove_empty_directories(
+            tmp_path, temp_files
+        )
 
         # Verify correct directories were removed
         # level3, level2, level1 (eventually), empty_at_root should be removed
@@ -991,17 +1063,23 @@ def orchestrator_with_mocks(settings_fixture):
 class TestEnhancedExtractionOrchestrator:
     """Test EnhancedExtractionOrchestrator class."""
 
-    def test_init_with_default_state_manager(self, orchestrator_with_mocks, settings_fixture):
+    def test_init_with_default_state_manager(
+        self, orchestrator_with_mocks, settings_fixture
+    ):
         """Test __init__ creates default state manager when none provided."""
         # Create orchestrator without state manager - should create default instance
-        orchestrator = EnhancedExtractionOrchestrator(extractor=orchestrator_with_mocks.mock_extractor)
+        orchestrator = EnhancedExtractionOrchestrator(
+            extractor=orchestrator_with_mocks.mock_extractor
+        )
         # Verify default StateManager was created (not None)
         assert orchestrator.state_manager is not None
         # Verify it's a valid StateManager instance
-        assert hasattr(orchestrator.state_manager, 'get_abort_signal')
-        assert hasattr(orchestrator.state_manager, 'start_operation')
+        assert hasattr(orchestrator.state_manager, "get_abort_signal")
+        assert hasattr(orchestrator.state_manager, "start_operation")
 
-    def test_execute_extraction_success(self, orchestrator_with_mocks, settings_fixture, tmp_path):
+    def test_execute_extraction_success(
+        self, orchestrator_with_mocks, settings_fixture, tmp_path
+    ):
         """Test successful extraction workflow (lines 373-419)."""
         # Setup
         source_path = tmp_path / "source"
@@ -1029,7 +1107,9 @@ class TestEnhancedExtractionOrchestrator:
         mock_stats = Mock()
         mock_stats.duration = 1.5
         mock_stats.success_rate = 100.0
-        orchestrator_with_mocks.mock_state_manager.get_operation_stats.return_value = mock_stats
+        orchestrator_with_mocks.mock_state_manager.get_operation_stats.return_value = (
+            mock_stats
+        )
 
         with patch(
             "folder_extractor.core.extractor.ManagedOperation",
@@ -1040,7 +1120,9 @@ class TestEnhancedExtractionOrchestrator:
 
         # Verify workflow
         orchestrator_with_mocks.mock_extractor.validate_security.assert_called_once()
-        orchestrator_with_mocks.mock_extractor.discover_files.assert_called_once_with(Path(source_path))
+        orchestrator_with_mocks.mock_extractor.discover_files.assert_called_once_with(
+            Path(source_path)
+        )
         orchestrator_with_mocks.mock_extractor.extract_files.assert_called_once()
 
         # Verify result
@@ -1051,7 +1133,9 @@ class TestEnhancedExtractionOrchestrator:
         assert result["duration"] == 1.5
         assert result["success_rate"] == 100.0
 
-    def test_execute_extraction_no_files(self, orchestrator_with_mocks, settings_fixture, tmp_path):
+    def test_execute_extraction_no_files(
+        self, orchestrator_with_mocks, settings_fixture, tmp_path
+    ):
         """Test when no files found (lines 384-389)."""
         # Setup
         source_path = tmp_path / "source"
@@ -1081,7 +1165,9 @@ class TestEnhancedExtractionOrchestrator:
         # Verify extract_files was NOT called
         orchestrator_with_mocks.mock_extractor.extract_files.assert_not_called()
 
-    def test_execute_extraction_cancelled(self, orchestrator_with_mocks, settings_fixture, tmp_path):
+    def test_execute_extraction_cancelled(
+        self, orchestrator_with_mocks, settings_fixture, tmp_path
+    ):
         """Test when user cancels (lines 392-398)."""
         # Setup
         source_path = tmp_path / "source"
@@ -1092,7 +1178,9 @@ class TestEnhancedExtractionOrchestrator:
         # Configure mocks
         orchestrator_with_mocks.mock_extractor.validate_security.return_value = None
         orchestrator_with_mocks.mock_extractor.discover_files.return_value = files
-        orchestrator_with_mocks.mock_extractor.settings.get.return_value = False  # dry_run=False
+        orchestrator_with_mocks.mock_extractor.settings.get.return_value = (
+            False  # dry_run=False
+        )
 
         # Mock ManagedOperation
         mock_operation = Mock()
@@ -1122,7 +1210,9 @@ class TestEnhancedExtractionOrchestrator:
         # Verify extract_files was NOT called
         orchestrator_with_mocks.mock_extractor.extract_files.assert_not_called()
 
-    def test_execute_extraction_dry_run_no_confirmation(self, orchestrator_with_mocks, settings_fixture, tmp_path):
+    def test_execute_extraction_dry_run_no_confirmation(
+        self, orchestrator_with_mocks, settings_fixture, tmp_path
+    ):
         """Test that confirmation is skipped in dry run mode (line 392)."""
         # Setup
         source_path = tmp_path / "source"
@@ -1149,7 +1239,9 @@ class TestEnhancedExtractionOrchestrator:
         mock_operation.__enter__ = Mock(return_value=mock_operation)
         mock_operation.__exit__ = Mock(return_value=False)
 
-        orchestrator_with_mocks.mock_state_manager.get_operation_stats.return_value = None
+        orchestrator_with_mocks.mock_state_manager.get_operation_stats.return_value = (
+            None
+        )
 
         # Create confirmation callback that should NOT be called
         confirmation_callback = Mock(return_value=False)
@@ -1172,7 +1264,9 @@ class TestEnhancedExtractionOrchestrator:
         # Verify result
         assert result["status"] == "success"
 
-    def test_execute_extraction_security_error(self, orchestrator_with_mocks, settings_fixture, tmp_path):
+    def test_execute_extraction_security_error(
+        self, orchestrator_with_mocks, settings_fixture, tmp_path
+    ):
         """Test SecurityError handling (lines 421-426)."""
         # Setup
         source_path = tmp_path / "source"
@@ -1180,7 +1274,9 @@ class TestEnhancedExtractionOrchestrator:
 
         # Configure mock to raise SecurityError
         error_message = "Unsicherer Pfad"
-        orchestrator_with_mocks.mock_extractor.validate_security.side_effect = SecurityError(error_message)
+        orchestrator_with_mocks.mock_extractor.validate_security.side_effect = (
+            SecurityError(error_message)
+        )
 
         # Mock ManagedOperation
         mock_operation = Mock()
@@ -1203,7 +1299,9 @@ class TestEnhancedExtractionOrchestrator:
         orchestrator_with_mocks.mock_extractor.discover_files.assert_not_called()
         orchestrator_with_mocks.mock_extractor.extract_files.assert_not_called()
 
-    def test_execute_extraction_generic_error(self, orchestrator_with_mocks, settings_fixture, tmp_path):
+    def test_execute_extraction_generic_error(
+        self, orchestrator_with_mocks, settings_fixture, tmp_path
+    ):
         """Test generic Exception handling (lines 428-433)."""
         # Setup
         source_path = tmp_path / "source"
@@ -1211,7 +1309,9 @@ class TestEnhancedExtractionOrchestrator:
 
         # Configure mock to raise generic exception
         error_message = "Unexpected error"
-        orchestrator_with_mocks.mock_extractor.validate_security.side_effect = Exception(error_message)
+        orchestrator_with_mocks.mock_extractor.validate_security.side_effect = (
+            Exception(error_message)
+        )
 
         # Mock ManagedOperation
         mock_operation = Mock()
@@ -1234,7 +1334,9 @@ class TestEnhancedExtractionOrchestrator:
         orchestrator_with_mocks.mock_extractor.discover_files.assert_not_called()
         orchestrator_with_mocks.mock_extractor.extract_files.assert_not_called()
 
-    def test_execute_extraction_error_during_discovery(self, orchestrator_with_mocks, settings_fixture, tmp_path):
+    def test_execute_extraction_error_during_discovery(
+        self, orchestrator_with_mocks, settings_fixture, tmp_path
+    ):
         """Test error handling during file discovery phase."""
         # Setup
         source_path = tmp_path / "source"
@@ -1242,7 +1344,9 @@ class TestEnhancedExtractionOrchestrator:
 
         # Configure mocks
         orchestrator_with_mocks.mock_extractor.validate_security.return_value = None
-        orchestrator_with_mocks.mock_extractor.discover_files.side_effect = Exception("Discovery failed")
+        orchestrator_with_mocks.mock_extractor.discover_files.side_effect = Exception(
+            "Discovery failed"
+        )
 
         # Mock ManagedOperation
         mock_operation = Mock()
@@ -1261,7 +1365,9 @@ class TestEnhancedExtractionOrchestrator:
         assert "Fehler: Discovery failed" in result["message"]
         assert result["error"] is True
 
-    def test_execute_extraction_with_progress_callback(self, orchestrator_with_mocks, settings_fixture, tmp_path):
+    def test_execute_extraction_with_progress_callback(
+        self, orchestrator_with_mocks, settings_fixture, tmp_path
+    ):
         """Test extraction with progress callback."""
         # Setup
         source_path = tmp_path / "source"
@@ -1285,7 +1391,9 @@ class TestEnhancedExtractionOrchestrator:
         mock_operation.__enter__ = Mock(return_value=mock_operation)
         mock_operation.__exit__ = Mock(return_value=False)
 
-        orchestrator_with_mocks.mock_state_manager.get_operation_stats.return_value = None
+        orchestrator_with_mocks.mock_state_manager.get_operation_stats.return_value = (
+            None
+        )
 
         # Create progress callback
         progress_callback = Mock()
@@ -1318,23 +1426,28 @@ class TestEnhancedExtractionOrchestrator:
         }
 
         # Configure mock
-        orchestrator_with_mocks.mock_extractor.undo_last_operation.return_value = expected_result
+        orchestrator_with_mocks.mock_extractor.undo_last_operation.return_value = (
+            expected_result
+        )
 
         # Execute undo
         result = orchestrator_with_mocks.execute_undo(path)
 
         # Verify extractor method was called
-        orchestrator_with_mocks.mock_extractor.undo_last_operation.assert_called_once_with(Path(path))
+        orchestrator_with_mocks.mock_extractor.undo_last_operation.assert_called_once_with(
+            Path(path)
+        )
 
         # Verify result is passed through
         assert result == expected_result
 
 
-
 class TestProcessSingleFile:
     """Test process_single_file method for watch mode single-file processing."""
 
-    def test_process_single_file_skips_discovery(self, orchestrator_with_mocks, tmp_path):
+    def test_process_single_file_skips_discovery(
+        self, orchestrator_with_mocks, tmp_path
+    ):
         """Processing a single file bypasses file discovery entirely."""
         # Setup
         filepath = tmp_path / "new_file.pdf"
@@ -1376,13 +1489,17 @@ class TestProcessSingleFile:
         assert result["status"] == "success"
         assert result["moved"] == 1
 
-    def test_process_single_file_validates_security(self, orchestrator_with_mocks, tmp_path):
+    def test_process_single_file_validates_security(
+        self, orchestrator_with_mocks, tmp_path
+    ):
         """Security validation is performed before processing."""
         filepath = tmp_path / "file.txt"
         filepath.touch()
 
         # Configure mock to raise security error
-        orchestrator_with_mocks.mock_extractor.validate_security.side_effect = SecurityError("Unsafe path")
+        orchestrator_with_mocks.mock_extractor.validate_security.side_effect = (
+            SecurityError("Unsafe path")
+        )
 
         # Mock ManagedOperation
         mock_operation = Mock()
@@ -1398,7 +1515,9 @@ class TestProcessSingleFile:
         assert result["status"] == "security_error"
         assert "Unsafe path" in result["message"]
 
-    def test_process_single_file_respects_abort_signal(self, orchestrator_with_mocks, tmp_path):
+    def test_process_single_file_respects_abort_signal(
+        self, orchestrator_with_mocks, tmp_path
+    ):
         """Abort signal from state_manager is checked before processing."""
         filepath = tmp_path / "file.txt"
         filepath.touch()
@@ -1425,7 +1544,9 @@ class TestProcessSingleFile:
         orchestrator_with_mocks.mock_extractor.extract_files.assert_not_called()
         assert result["status"] == "aborted"
 
-    def test_process_single_file_handles_nonexistent_file(self, orchestrator_with_mocks, tmp_path):
+    def test_process_single_file_handles_nonexistent_file(
+        self, orchestrator_with_mocks, tmp_path
+    ):
         """Gracefully handles attempt to process a file that doesn't exist."""
         filepath = tmp_path / "nonexistent.txt"
 
@@ -1454,14 +1575,19 @@ class TestProcessSingleFile:
             or "not exist" in result["message"].lower()
         )
 
-    def test_process_single_file_passes_progress_callback(self, orchestrator_with_mocks, tmp_path):
+    def test_process_single_file_passes_progress_callback(
+        self, orchestrator_with_mocks, tmp_path
+    ):
         """Progress callback is forwarded to extract_files."""
         filepath = tmp_path / "file.pdf"
         filepath.touch()
 
         # Configure mocks
         orchestrator_with_mocks.mock_extractor.validate_security.return_value = None
-        orchestrator_with_mocks.mock_extractor.extract_files.return_value = {"moved": 1, "errors": 0}
+        orchestrator_with_mocks.mock_extractor.extract_files.return_value = {
+            "moved": 1,
+            "errors": 0,
+        }
 
         progress_callback = Mock()
 

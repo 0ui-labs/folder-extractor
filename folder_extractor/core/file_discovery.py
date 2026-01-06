@@ -33,9 +33,7 @@ class IFileDiscovery(ABC):
         pass
 
     @abstractmethod
-    def check_weblink_domain(
-        self, filepath: Path, allowed_domains: List[str]
-    ) -> bool:
+    def check_weblink_domain(self, filepath: Path, allowed_domains: List[str]) -> bool:
         """Check if a weblink file matches allowed domains."""
         pass
 
@@ -171,9 +169,7 @@ class FileDiscovery(IFileDiscovery):
 
         return found_files
 
-    def check_weblink_domain(
-        self, filepath: Path, allowed_domains: List[str]
-    ) -> bool:
+    def check_weblink_domain(self, filepath: Path, allowed_domains: List[str]) -> bool:
         """
         Check if a weblink file (.url or .webloc) is from an allowed domain.
 
@@ -199,9 +195,7 @@ class FileDiscovery(IFileDiscovery):
             # Inner methods have their own exception handling
             return False
 
-    def _calculate_depth(
-        self, base_dir: Path, current_dir: Path
-    ) -> int:
+    def _calculate_depth(self, base_dir: Path, current_dir: Path) -> int:
         """
         Calculate the depth of current directory relative to base.
 

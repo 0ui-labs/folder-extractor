@@ -168,12 +168,12 @@ class TestPrepareGlobalHashIndexFiltering:
             for paths in hash_index.values():
                 all_indexed_paths.extend(str(p) for p in paths)
 
-            assert str(file1.resolve()) not in [str(Path(p).resolve()) for p in all_indexed_paths], (
-                f"Source file {file1} should be filtered from hash index"
-            )
-            assert str(file2.resolve()) not in [str(Path(p).resolve()) for p in all_indexed_paths], (
-                f"Source file {file2} should be filtered from hash index"
-            )
+            assert str(file1.resolve()) not in [
+                str(Path(p).resolve()) for p in all_indexed_paths
+            ], f"Source file {file1} should be filtered from hash index"
+            assert str(file2.resolve()) not in [
+                str(Path(p).resolve()) for p in all_indexed_paths
+            ], f"Source file {file2} should be filtered from hash index"
 
     def test_does_not_filter_files_in_root_directory(self):
         """
@@ -294,6 +294,7 @@ class TestPrepareGlobalHashIndexCallbacks:
         file_ops = Mock(spec=FileOperations)
         # Make build_hash_index raise an error
         from folder_extractor.core.file_operations import FileOperationError
+
         file_ops.build_hash_index.side_effect = FileOperationError("Test error")
 
         file_mover = FileMover(file_ops, indexing_callback=callback)
@@ -345,8 +346,12 @@ class TestPrepareGlobalHashIndexReturnValue:
             assert len(result) == 2, "Should return 2-tuple (files, hash_index)"
 
             sorted_files, hash_index = result
-            assert hasattr(sorted_files, '__iter__'), "First element should be iterable (files)"
-            assert isinstance(hash_index, dict), "Second element should be dict (hash_index)"
+            assert hasattr(sorted_files, "__iter__"), (
+                "First element should be iterable (files)"
+            )
+            assert isinstance(hash_index, dict), (
+                "Second element should be dict (hash_index)"
+            )
 
     def test_hash_index_maps_hashes_to_path_lists(self):
         """

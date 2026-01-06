@@ -108,9 +108,7 @@ class IFileOperations(ABC):  # pragma: no cover
         pass
 
     @abstractmethod
-    def remove_empty_directories(
-        self, path: Path, include_hidden: bool = False
-    ) -> int:
+    def remove_empty_directories(self, path: Path, include_hidden: bool = False) -> int:
         """Remove empty directories recursively."""
         pass
 
@@ -120,9 +118,7 @@ class IFileOperations(ABC):  # pragma: no cover
         pass
 
     @abstractmethod
-    def calculate_file_hash(
-        self, filepath: Path, algorithm: str = "sha256"
-    ) -> str:
+    def calculate_file_hash(self, filepath: Path, algorithm: str = "sha256") -> str:
         """Calculate the hash of a file.
 
         Args:
@@ -233,9 +229,7 @@ class FileOperations(IFileOperations):
                 return new_name
             counter += 1
 
-    def remove_empty_directories(
-        self, path: Path, include_hidden: bool = False
-    ) -> int:
+    def remove_empty_directories(self, path: Path, include_hidden: bool = False) -> int:
         """
         Remove empty directories recursively.
 
@@ -249,9 +243,7 @@ class FileOperations(IFileOperations):
         removed_count = 0
 
         # Walk directory tree bottom-up using sorted list of all subdirectories
-        all_dirs = sorted(
-            path.rglob("*"), key=lambda p: len(p.parts), reverse=True
-        )
+        all_dirs = sorted(path.rglob("*"), key=lambda p: len(p.parts), reverse=True)
 
         for dir_path in all_dirs:
             # Skip non-directories (rglob returns files too)
@@ -320,9 +312,7 @@ class FileOperations(IFileOperations):
             # No extension
             return NO_EXTENSION_FOLDER
 
-    def calculate_file_hash(
-        self, filepath: Path, algorithm: str = "sha256"
-    ) -> str:
+    def calculate_file_hash(self, filepath: Path, algorithm: str = "sha256") -> str:
         """
         Calculate the hash of a file using the specified algorithm.
 
@@ -590,9 +580,7 @@ class HistoryManager:
             pass  # Ignore errors (e.g., permission denied, not supported)
 
     @staticmethod
-    def save_history(
-        operations: List[Dict[str, Any]], directory: Path
-    ) -> str:
+    def save_history(operations: List[Dict[str, Any]], directory: Path) -> str:
         """
         Save operation history to file in central config location.
 
@@ -1100,9 +1088,7 @@ class FileMover:
         destination: Path,
         dry_run: bool = False,
         progress_callback: Optional[Callable[..., None]] = None,
-        folder_override_callback: Optional[
-            Callable[[Path], Optional[str]]
-        ] = None,
+        folder_override_callback: Optional[Callable[[Path], Optional[str]]] = None,
         deduplicate: bool = False,
         global_dedup: bool = False,
     ) -> Tuple[int, int, int, int, int, List[Dict[str, Any]], List[str]]:

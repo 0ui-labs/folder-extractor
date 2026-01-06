@@ -165,9 +165,7 @@ async def process_file(
 
     # Create orchestrator with dependencies from app state
     state_manager = StateManager()
-    extractor = EnhancedFileExtractor(
-        settings=settings, state_manager=state_manager
-    )
+    extractor = EnhancedFileExtractor(settings=settings, state_manager=state_manager)
     orchestrator = EnhancedExtractionOrchestrator(
         extractor, state_manager=state_manager
     )

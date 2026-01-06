@@ -30,7 +30,6 @@ class TestEnhancedFileExtractor:
         self.mock_state_manager.start_operation = Mock(return_value="test-op-123")
         self.mock_state_manager.end_operation = Mock()
 
-
         self.settings = Settings()
         self.extractor = EnhancedFileExtractor(
             settings=self.settings, state_manager=self.mock_state_manager

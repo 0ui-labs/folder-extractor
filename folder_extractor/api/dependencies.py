@@ -139,10 +139,7 @@ def get_settings_from_app_state(request: Request) -> Settings:
     Raises:
         HTTPException: 503 if Settings is not available.
     """
-    if (
-        not hasattr(request.app.state, "settings")
-        or request.app.state.settings is None
-    ):
+    if not hasattr(request.app.state, "settings") or request.app.state.settings is None:
         raise HTTPException(
             status_code=503,
             detail="Settings nicht verfügbar",

@@ -173,7 +173,9 @@ class TestGetExtractor:
 
             result = get_extractor(mock_request)
             assert result is mock_instance
-            mock_ext_class.assert_called_once_with(settings=mock_settings, state_manager=mock_state_manager)
+            mock_ext_class.assert_called_once_with(
+                settings=mock_settings, state_manager=mock_state_manager
+            )
 
     def test_creates_new_instance_each_call(self) -> None:
         """Each call creates a new EnhancedFileExtractor instance."""
@@ -181,9 +183,7 @@ class TestGetExtractor:
             "folder_extractor.api.dependencies.EnhancedFileExtractor"
         ) as mock_ext_class, patch(
             "folder_extractor.api.dependencies.get_settings_from_app_state"
-        ) as mock_get_settings, patch(
-            "folder_extractor.api.dependencies.StateManager"
-        ):
+        ) as mock_get_settings, patch("folder_extractor.api.dependencies.StateManager"):
             mock_settings = MagicMock()
             mock_get_settings.return_value = mock_settings
 
@@ -235,8 +235,12 @@ class TestGetOrchestrator:
             result = get_orchestrator(mock_request)
 
             assert result is mock_orchestrator
-            mock_ext_class.assert_called_once_with(settings=mock_settings, state_manager=mock_state_manager)
-            mock_orch_class.assert_called_once_with(mock_extractor, state_manager=mock_state_manager)
+            mock_ext_class.assert_called_once_with(
+                settings=mock_settings, state_manager=mock_state_manager
+            )
+            mock_orch_class.assert_called_once_with(
+                mock_extractor, state_manager=mock_state_manager
+            )
 
 
 # =============================================================================

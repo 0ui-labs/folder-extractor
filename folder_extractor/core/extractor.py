@@ -578,9 +578,7 @@ class EnhancedFileExtractor(IEnhancedExtractor):
 
         return results
 
-    def _remove_empty_directories(
-        self, path: Path, temp_files: list
-    ) -> Dict[str, Any]:
+    def _remove_empty_directories(self, path: Path, temp_files: list) -> Dict[str, Any]:
         """Remove empty directories after extraction.
 
         Args:

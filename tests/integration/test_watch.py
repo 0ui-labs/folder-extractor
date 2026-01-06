@@ -1572,7 +1572,9 @@ class TestWatchModeWithFeatures:
             "Archive should be processed (extracted or moved)"
         )
 
-    def test_watch_mode_with_sort_and_deduplicate_combined(self, e2e_watch_env, settings_fixture):
+    def test_watch_mode_with_sort_and_deduplicate_combined(
+        self, e2e_watch_env, settings_fixture
+    ):
         """Combined sort-by-type and deduplicate work together.
 
         When both --sort-by-type and --deduplicate are active,

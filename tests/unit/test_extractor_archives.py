@@ -136,7 +136,6 @@ class TestIsArchive:
         assert extractor._is_archive(Path(filename)) is False
 
 
-
 class TestGetArchiveHandler:
     """Tests for archive handler selection based on file type."""
 
@@ -171,11 +170,12 @@ class TestGetArchiveHandler:
         assert handler is None
 
 
-
 class TestProcessArchives:
     """Tests for archive processing behavior."""
 
-    def test_returns_unchanged_files_when_feature_disabled(self, extractor, settings_fixture, tmp_path):
+    def test_returns_unchanged_files_when_feature_disabled(
+        self, extractor, settings_fixture, tmp_path
+    ):
         """When extract_archives is False, files are returned unchanged."""
         settings_fixture.set("extract_archives", False)
 
@@ -305,7 +305,9 @@ class TestProcessArchives:
         # Archive should still exist
         assert zip_path.exists()
 
-    def test_handles_extraction_errors_gracefully(self, extractor, settings_fixture, tmp_path):
+    def test_handles_extraction_errors_gracefully(
+        self, extractor, settings_fixture, tmp_path
+    ):
         """Extraction errors don't crash the process, they're counted."""
         settings_fixture.set("extract_archives", True)
 
@@ -355,7 +357,9 @@ class TestProcessArchives:
         # Progress callback should have been called
         assert len(progress_calls) > 0
 
-    def test_respects_abort_signal(self, extractor, settings_fixture, create_zip_archive, tmp_path):
+    def test_respects_abort_signal(
+        self, extractor, settings_fixture, create_zip_archive, tmp_path
+    ):
         """Processing stops when abort signal is set."""
         settings_fixture.set("extract_archives", True)
 

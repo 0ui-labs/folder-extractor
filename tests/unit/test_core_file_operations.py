@@ -135,7 +135,9 @@ class TestFileOperations:
     def test_determine_type_folder_no_extension(self):
         """Test folder determination for files without extension."""
         assert self.file_ops.determine_type_folder(Path("README")) == "OHNE_ERWEITERUNG"
-        assert self.file_ops.determine_type_folder(Path("Makefile")) == "OHNE_ERWEITERUNG"
+        assert (
+            self.file_ops.determine_type_folder(Path("Makefile")) == "OHNE_ERWEITERUNG"
+        )
 
     def test_determine_type_folder_with_path(self):
         """Test folder determination with Path object."""
@@ -163,7 +165,6 @@ class TestFileOperations:
             assert not (temp_path / "empty1").exists()
             assert not (temp_path / "empty2").exists()
             assert non_empty.exists()
-
 
     def test_remove_empty_directories_with_hidden(self):
         """Test removing directories with hidden files."""
@@ -517,7 +518,6 @@ class TestHistoryManager:
             assert "operationen" in loaded
             assert len(loaded["operationen"]) == 1
             assert loaded["operationen"][0]["original_pfad"] == "/old/path/file.txt"
-
 
     def test_load_nonexistent_history(self):
         """Test loading when no history exists."""

@@ -93,8 +93,7 @@ class EnhancedFolderExtractorCLI:
         path = Path(path)
         # Create extractor and orchestrator
         extractor = EnhancedFileExtractor(
-            settings=self.settings,
-            state_manager=self.state_manager
+            settings=self.settings, state_manager=self.state_manager
         )
         orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
 
@@ -170,8 +169,7 @@ class EnhancedFolderExtractorCLI:
         path = Path(path)
         # Create extractor and orchestrator
         extractor = EnhancedFileExtractor(
-            settings=self.settings,
-            state_manager=self.state_manager
+            settings=self.settings, state_manager=self.state_manager
         )
         orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
 
@@ -223,8 +221,7 @@ class EnhancedFolderExtractorCLI:
         # Create monitor and orchestrator
         monitor = StabilityMonitor(self.state_manager)
         extractor = EnhancedFileExtractor(
-            settings=self.settings,
-            state_manager=self.state_manager
+            settings=self.settings, state_manager=self.state_manager
         )
         orchestrator = EnhancedExtractionOrchestrator(extractor, self.state_manager)
 

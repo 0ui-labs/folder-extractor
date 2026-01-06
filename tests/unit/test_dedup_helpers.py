@@ -209,9 +209,7 @@ class TestCheckGlobalDuplicate:
 
             # Build hash index
             file_hash = file_ops.calculate_file_hash(existing)
-            hash_index: dict[str, list[Path]] = {
-                file_hash: [existing]
-            }
+            hash_index: dict[str, list[Path]] = {file_hash: [existing]}
 
             result = file_mover._check_global_duplicate(
                 source_path=source,
@@ -274,9 +272,7 @@ class TestCheckGlobalDuplicate:
 
             # Hash index contains only the source file itself
             file_hash = file_ops.calculate_file_hash(source)
-            hash_index: dict[str, list[Path]] = {
-                file_hash: [source]
-            }
+            hash_index: dict[str, list[Path]] = {file_hash: [source]}
 
             result = file_mover._check_global_duplicate(
                 source_path=source,
@@ -307,9 +303,7 @@ class TestCheckGlobalDuplicate:
             file_mover = FileMover(file_ops)
 
             file_hash = file_ops.calculate_file_hash(existing)
-            hash_index: dict[str, list[Path]] = {
-                file_hash: [existing]
-            }
+            hash_index: dict[str, list[Path]] = {file_hash: [existing]}
 
             result = file_mover._check_global_duplicate(
                 source_path=source,
@@ -375,9 +369,7 @@ class TestCheckGlobalDuplicate:
             file_mover = FileMover(file_ops)
 
             file_hash = file_ops.calculate_file_hash(existing1)
-            hash_index: dict[str, list[Path]] = {
-                file_hash: [existing1, existing2]
-            }
+            hash_index: dict[str, list[Path]] = {file_hash: [existing1, existing2]}
 
             result = file_mover._check_global_duplicate(
                 source_path=source,

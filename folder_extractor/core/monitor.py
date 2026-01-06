@@ -34,9 +34,7 @@ class StabilityMonitor:
         """
         self.state_manager = state_manager
 
-    def wait_for_file_ready(
-        self, filepath: Path, timeout: int = 60
-    ) -> bool:
+    def wait_for_file_ready(self, filepath: Path, timeout: int = 60) -> bool:
         """Wait until file is fully written and ready for processing.
 
         Monitors file size stability and lock status. Returns True when

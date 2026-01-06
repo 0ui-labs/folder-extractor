@@ -319,7 +319,9 @@ class TestBackwardCompatibility:
         settings_str = Settings()
         settings_str.set("dry_run", True)
         state_mgr_str = StateManager()
-        extractor_str = EnhancedFileExtractor(settings=settings_str, state_manager=state_mgr_str)
+        extractor_str = EnhancedFileExtractor(
+            settings=settings_str, state_manager=state_mgr_str
+        )
         orchestrator_str = EnhancedExtractionOrchestrator(extractor_str, state_mgr_str)
 
         result_from_string = orchestrator_str.execute_extraction(
@@ -330,8 +332,12 @@ class TestBackwardCompatibility:
         settings_path = Settings()
         settings_path.set("dry_run", True)
         state_mgr_path = StateManager()
-        extractor_path = EnhancedFileExtractor(settings=settings_path, state_manager=state_mgr_path)
-        orchestrator_path = EnhancedExtractionOrchestrator(extractor_path, state_mgr_path)
+        extractor_path = EnhancedFileExtractor(
+            settings=settings_path, state_manager=state_mgr_path
+        )
+        orchestrator_path = EnhancedExtractionOrchestrator(
+            extractor_path, state_mgr_path
+        )
 
         result_from_path = orchestrator_path.execute_extraction(
             test_dir, confirmation_callback=lambda x: True

@@ -413,7 +413,9 @@ class TestConfigureFromArgs:
 
         assert settings_fixture.get("watch_mode") is False
 
-    def test_watch_mode_from_args_defaults_to_false_when_missing(self, settings_fixture):
+    def test_watch_mode_from_args_defaults_to_false_when_missing(
+        self, settings_fixture
+    ):
         """Test configure_from_args defaults watch_mode to False when args.watch is missing."""
         args = MagicMock(
             spec=[

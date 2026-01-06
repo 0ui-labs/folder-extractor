@@ -69,9 +69,7 @@ class TestFileDiscovery:
         (subdir / "data.json").touch()
 
         # Filter for specific types
-        txt_files = self.file_discovery.find_files(
-            tmp_path, file_type_filter=[".txt"]
-        )
+        txt_files = self.file_discovery.find_files(tmp_path, file_type_filter=[".txt"])
         assert len(txt_files) == 1
         assert txt_files[0].endswith("doc.txt")
 
@@ -130,13 +128,11 @@ class TestFileDiscovery:
 
         # Check domain
         assert (
-            self.file_discovery.check_weblink_domain(url_file, ["youtube.com"])
-            is True
+            self.file_discovery.check_weblink_domain(url_file, ["youtube.com"]) is True
         )
 
         assert (
-            self.file_discovery.check_weblink_domain(url_file, ["github.com"])
-            is False
+            self.file_discovery.check_weblink_domain(url_file, ["github.com"]) is False
         )
 
     def test_check_webloc_file(self, tmp_path):
@@ -179,8 +175,7 @@ class TestFileDiscovery:
         invalid_url.write_text("Not a valid URL file")
 
         assert (
-            self.file_discovery.check_weblink_domain(invalid_url, ["any.com"])
-            is False
+            self.file_discovery.check_weblink_domain(invalid_url, ["any.com"]) is False
         )
 
         # Invalid .webloc file
@@ -248,9 +243,7 @@ class TestFileDiscovery:
         txt_file = tmp_path / "link.txt"
         txt_file.write_text("https://example.com")
 
-        result = self.file_discovery.check_weblink_domain(
-            txt_file, ["example.com"]
-        )
+        result = self.file_discovery.check_weblink_domain(txt_file, ["example.com"])
         assert result is False
 
     def test_check_weblink_accepts_path_object(self, tmp_path):

@@ -360,7 +360,9 @@ class TestStateManagerEdgeCases:
         assert op_id is not None
         successful_listener.assert_called_once()
 
-    def test_faulty_state_change_listener_does_not_prevent_state_update(self, state_manager_fixture):
+    def test_faulty_state_change_listener_does_not_prevent_state_update(
+        self, state_manager_fixture
+    ):
         """A faulty state_changed listener does not prevent state from being updated."""
         manager = state_manager_fixture
 
@@ -373,7 +375,9 @@ class TestStateManagerEdgeCases:
         manager.set_value("key", "value")
         assert manager.get_value("key") == "value"
 
-    def test_load_state_preserves_existing_state_on_missing_file(self, state_manager_fixture):
+    def test_load_state_preserves_existing_state_on_missing_file(
+        self, state_manager_fixture
+    ):
         """Loading from a nonexistent file preserves existing state."""
         manager = state_manager_fixture
         manager.set_value("existing", "value")
@@ -450,7 +454,9 @@ class TestEventListenerBehavior:
         listener1.assert_called_once_with(data="test")
         listener2.assert_called_once_with(data="test")
 
-    def test_remove_listener_for_unregistered_event_is_safe(self, state_manager_fixture):
+    def test_remove_listener_for_unregistered_event_is_safe(
+        self, state_manager_fixture
+    ):
         """Removing a listener for an event that was never registered does not affect other events."""
         manager = state_manager_fixture
         registered_listener = Mock()

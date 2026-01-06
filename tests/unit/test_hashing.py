@@ -399,7 +399,6 @@ class TestCalculateFileHashEdgeCases:
         expected = hashlib.sha256(content).hexdigest()
         assert result == expected
 
-
     def test_hash_exactly_chunk_size(self, temp_dir):
         """File with exactly chunk size (8192 bytes) is hashed correctly.
 
