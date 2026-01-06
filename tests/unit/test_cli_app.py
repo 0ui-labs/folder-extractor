@@ -1166,6 +1166,16 @@ class TestSmartWatchMode:
         mock_ai_client_class = Mock(return_value=mock_ai_client)
         mock_smart_sorter_class = Mock()
 
+        # Spy on settings.set to verify it's called with categories
+        original_set = self.cli.settings.set
+        set_calls = []
+
+        def spy_set(key, value):
+            set_calls.append((key, value))
+            return original_set(key, value)
+
+        self.cli.settings.set = spy_set
+
         with patch("folder_extractor.cli.app.Observer", return_value=mock_observer):
             with patch(
                 "folder_extractor.cli.app.ZoneManager", return_value=mock_zone_manager
@@ -1181,19 +1191,19 @@ class TestSmartWatchMode:
                                 with patch("time.sleep"):
                                     self.cli._execute_watch_smart("zone-123")
 
+        # Verify settings.set was called with custom_categories
+        assert ("custom_categories", ["Finanzen", "Verträge", "Medizin"]) in set_calls
+
         # AsyncGeminiClient and SmartSorter should be created
         mock_ai_client_class.assert_called_once()
         mock_smart_sorter_class.assert_called_once()
         call_kwargs = mock_smart_sorter_class.call_args.kwargs
         assert call_kwargs.get("client") == mock_ai_client
-        # SmartSorter should receive temp_settings with zone's custom_categories
-        temp_settings = call_kwargs.get("settings")
-        assert temp_settings is not None
-        assert temp_settings.get("custom_categories") == [
-            "Finanzen",
-            "Verträge",
-            "Medizin",
-        ]
+        # SmartSorter should receive self.settings
+        settings_obj = call_kwargs.get("settings")
+        assert settings_obj is not None
+        assert settings_obj is self.cli.settings
+        # Settings object should have the zone's categories set (via spy verification above)
 
     def test_execute_watch_smart_creates_handler_with_smart_sorter(self):
         """Test that SmartFolderEventHandler is created with SmartSorter."""

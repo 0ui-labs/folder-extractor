@@ -274,6 +274,8 @@ class TestEnhancedExtractionOrchestrator:
     def test_execute_extraction_cancelled(self):
         """Test extraction when user cancels."""
         self.mock_extractor.discover_files.return_value = ["/file.txt"]
+        # Mock settings to ensure dry_run is False so confirmation is checked
+        self.mock_extractor.settings.get.return_value = False
 
         # Confirmation callback returns False
         confirmation = Mock(return_value=False)
@@ -288,6 +290,8 @@ class TestEnhancedExtractionOrchestrator:
     def test_execute_extraction_confirmed(self):
         """Test extraction when user confirms (branch 393->404)."""
         self.mock_extractor.discover_files.return_value = ["/file.txt"]
+        # Mock settings to ensure dry_run is False so confirmation is checked
+        self.mock_extractor.settings.get.return_value = False
         self.mock_extractor.extract_files.return_value = {
             "status": "success",
             "moved": 1,
