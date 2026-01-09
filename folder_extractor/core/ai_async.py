@@ -65,6 +65,25 @@ class IAIClient(ABC):
         """
         pass
 
+    @abstractmethod
+    async def generate_response(
+        self, prompt: str, json_response: bool = False
+    ) -> str | dict[str, Any]:
+        """
+        Generate a response from a text-only prompt.
+
+        Args:
+            prompt: The text prompt for the AI model
+            json_response: If True, returns parsed JSON dict; if False, returns text
+
+        Returns:
+            Text response (str) or parsed JSON response (dict)
+
+        Raises:
+            AIClientError: If generation fails after all retries
+        """
+        pass
+
 
 class AsyncGeminiClient(IAIClient):
     """
@@ -194,6 +213,76 @@ class AsyncGeminiClient(IAIClient):
             # Always cleanup temporary files
             if needs_cleanup:
                 self._cleanup_temp_file(optimized_path)
+
+    @ai_retry
+    async def generate_response(
+        self, prompt: str, json_response: bool = False
+    ) -> str | dict[str, Any]:
+        """
+        Generate response from text-only prompt using Gemini.
+
+        Sends text prompt to Gemini model and returns the response.
+        Automatically retries on rate limits (429) and server errors (5xx).
+
+        Args:
+            prompt: The text prompt for the AI model
+            json_response: If True, expects JSON response and returns parsed dict.
+                If False, returns plain text string (default).
+
+        Returns:
+            - If json_response=True: Parsed JSON response as dictionary
+            - If json_response=False: Text response as string
+
+        Raises:
+            AIClientError: If prompt is empty, generation fails after retries,
+                or JSON parsing fails (when json_response=True)
+
+        Notes:
+            This method is used for chat/conversational interactions where
+            no file analysis is required. For file analysis, use analyze_file().
+        """
+        if not prompt or not prompt.strip():
+            raise AIClientError("Prompt cannot be empty")
+
+        try:
+            logger.debug(f"Generating response for prompt: {prompt[:100]}...")
+
+            # Configure generation for JSON or text response
+            if json_response:
+                response = await self.model.generate_content_async(
+                    prompt,
+                    generation_config={"response_mime_type": "application/json"},
+                )
+            else:
+                response = await self.model.generate_content_async(prompt)
+
+            if not response.text:
+                raise AIClientError("Model returned empty response")
+
+            # Parse JSON if requested
+            if json_response:
+                try:
+                    result = json.loads(response.text)
+                    logger.info("JSON response generated successfully")
+                    return result
+                except json.JSONDecodeError as e:
+                    raise AIClientError(
+                        f"Failed to parse JSON response: {e}. "
+                        f"Response was: {response.text[:200]}..."
+                    ) from e
+
+            logger.info("Text response generated successfully")
+            return response.text
+
+        except (ResourceExhausted, InternalServerError, ServiceUnavailable):
+            # Re-raise retriable exceptions for @ai_retry decorator to handle
+            raise
+        except AIClientError:
+            # Re-raise our own errors (not retriable)
+            raise
+        except Exception as e:
+            # Wrap only non-retriable, unexpected errors
+            raise AIClientError(f"Text generation failed: {e}") from e
 
     def _cleanup_temp_file(self, filepath: Path) -> None:
         """Clean up temporary file created by preprocessor.

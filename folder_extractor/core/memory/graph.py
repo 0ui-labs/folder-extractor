@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import re
-import tempfile
 import threading
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -520,8 +519,8 @@ Use DISTINCT to avoid duplicate results when joining through relationships."""
     async def _call_gemini_for_text(self, prompt: str) -> dict[str, Any]:
         """Call Gemini API for pure text analysis without file upload.
 
-        Uses a temporary file approach to leverage the existing
-        AsyncGeminiClient infrastructure.
+        Uses the text-only generate_response API with JSON mode for
+        efficient Natural Language to Cypher translation.
 
         Args:
             prompt: Text prompt to send to Gemini.
@@ -536,21 +535,17 @@ Use DISTINCT to avoid duplicate results when joining through relationships."""
         from folder_extractor.core.ai_async import AIClientError, AsyncGeminiClient
 
         try:
-            # Create temporary file securely (NamedTemporaryFile avoids race conditions)
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False, encoding="utf-8"
-            ) as f:
-                f.write("Query translation request")
-                temp_file = Path(f.name)
+            client = AsyncGeminiClient()
+            # Use direct text API with JSON response mode (no file upload needed)
+            result = await client.generate_response(prompt, json_response=True)
 
-            try:
-                client = AsyncGeminiClient()
-                result = await client.analyze_file(temp_file, "text/plain", prompt)
-                return result
-            finally:
-                # Always cleanup temp file
-                if temp_file.exists():
-                    temp_file.unlink()
+            # Type guard: ensure result is dict (should always be true with json_response=True)
+            if not isinstance(result, dict):
+                raise KnowledgeGraphError(
+                    f"Expected dict from JSON response, got {type(result).__name__}"
+                )
+
+            return result
 
         except AIClientError as e:
             raise KnowledgeGraphError(f"AI translation failed: {e}") from e
