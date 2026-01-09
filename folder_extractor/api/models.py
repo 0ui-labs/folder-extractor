@@ -22,12 +22,18 @@ class ProcessRequest(BaseModel):
 
     Attributes:
         filepath: Absolute path to the file to process.
+        destination: Target directory for organized file (optional, defaults to
+            filepath parent).
         sort_by_type: Whether to sort files by type into subfolders.
         deduplicate: Enable content-based deduplication (same name + content).
         global_dedup: Check against entire target directory for duplicates.
     """
 
     filepath: str = Field(..., min_length=1, description="Absolute path to file")
+    destination: Optional[str] = Field(
+        default=None,
+        description="Target directory (defaults to filepath parent)",
+    )
     sort_by_type: bool = Field(default=False, description="Sort by file type")
     deduplicate: bool = Field(default=False, description="Content-based deduplication")
     global_dedup: bool = Field(default=False, description="Global deduplication check")
@@ -42,6 +48,11 @@ class ZoneConfig(BaseModel):
         enabled: Whether the zone is active.
         auto_sort: Automatically sort files by type.
         categories: List of allowed file extensions (e.g., ["pdf", "jpg"]).
+        folder_structure: Template for target path (e.g., "{category}/{sender}/{year}").
+        file_types: Allowed file extensions for filtering.
+        recursive: Whether to watch subdirectories.
+        exclude_subfolders: Subfolder names to exclude when recursive.
+        ignore_patterns: Glob patterns for files to ignore.
     """
 
     name: str = Field(..., min_length=1, max_length=100, description="Zone name")
@@ -50,6 +61,20 @@ class ZoneConfig(BaseModel):
     auto_sort: bool = Field(default=False, description="Auto-sort by type")
     categories: List[str] = Field(
         default_factory=list, description="Allowed file types"
+    )
+    folder_structure: str = Field(
+        default="{category}/{sender}/{year}",
+        description="Path template with placeholders",
+    )
+    file_types: List[str] = Field(
+        default_factory=list, description="File extension filter"
+    )
+    recursive: bool = Field(default=False, description="Watch subdirectories")
+    exclude_subfolders: List[str] = Field(
+        default_factory=list, description="Exclude these subfolders when recursive"
+    )
+    ignore_patterns: List[str] = Field(
+        default_factory=list, description="Glob patterns to ignore"
     )
 
 
@@ -64,6 +89,11 @@ class ZoneUpdateRequest(BaseModel):
         enabled: New enabled status.
         auto_sort: New auto-sort setting.
         categories: New list of allowed file types.
+        folder_structure: New path template.
+        file_types: New file extension filter.
+        recursive: New recursive setting.
+        exclude_subfolders: New excluded subfolders.
+        ignore_patterns: New ignore patterns.
     """
 
     name: Optional[str] = Field(
@@ -74,6 +104,19 @@ class ZoneUpdateRequest(BaseModel):
     auto_sort: Optional[bool] = Field(default=None, description="Auto-sort")
     categories: Optional[List[str]] = Field(
         default=None, description="Allowed file types"
+    )
+    folder_structure: Optional[str] = Field(
+        default=None, description="Path template with placeholders"
+    )
+    file_types: Optional[List[str]] = Field(
+        default=None, description="File extension filter"
+    )
+    recursive: Optional[bool] = Field(default=None, description="Watch subdirectories")
+    exclude_subfolders: Optional[List[str]] = Field(
+        default=None, description="Exclude subfolders when recursive"
+    )
+    ignore_patterns: Optional[List[str]] = Field(
+        default=None, description="Glob patterns to ignore"
     )
 
 
@@ -129,6 +172,11 @@ class ZoneResponse(BaseModel):
         auto_sort: Whether auto-sorting is enabled.
         categories: List of allowed file types.
         created_at: Zone creation timestamp (optional, not stored by ZoneManager).
+        folder_structure: Path template with placeholders.
+        file_types: File extension filter.
+        recursive: Whether to watch subdirectories.
+        exclude_subfolders: Excluded subfolders when recursive.
+        ignore_patterns: Glob patterns to ignore.
     """
 
     id: str = Field(..., description="Zone UUID")
@@ -139,6 +187,17 @@ class ZoneResponse(BaseModel):
     categories: List[str] = Field(..., description="Allowed file types")
     created_at: Optional[datetime] = Field(
         default=None, description="Creation timestamp"
+    )
+    folder_structure: str = Field(
+        default="{category}/{sender}/{year}", description="Path template"
+    )
+    file_types: List[str] = Field(default_factory=list, description="File filter")
+    recursive: bool = Field(default=False, description="Watch subdirectories")
+    exclude_subfolders: List[str] = Field(
+        default_factory=list, description="Excluded subfolders"
+    )
+    ignore_patterns: List[str] = Field(
+        default_factory=list, description="Ignore patterns"
     )
 
 

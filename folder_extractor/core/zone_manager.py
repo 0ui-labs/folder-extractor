@@ -27,7 +27,19 @@ class ZoneManagerError(Exception):
     pass
 
 
-class ZoneConfig(TypedDict):
+class _ZoneConfigRequired(TypedDict):
+    """Required fields for ZoneConfig."""
+
+    id: str
+    name: str
+    path: str
+    enabled: bool
+    auto_sort: bool
+    categories: list[str]
+    created_at: str
+
+
+class ZoneConfig(_ZoneConfigRequired, total=False):
     """Configuration for a single dropzone.
 
     Attributes:
@@ -38,15 +50,18 @@ class ZoneConfig(TypedDict):
         auto_sort: Whether to automatically sort files by type.
         categories: List of allowed file extensions (empty = all).
         created_at: ISO 8601 timestamp when the zone was created.
+        folder_structure: Template for target path (e.g., "{category}/{sender}/{year}").
+        file_types: Allowed file extensions for filtering (empty = all).
+        recursive: Whether to watch subdirectories.
+        exclude_subfolders: Subfolder names to exclude when recursive.
+        ignore_patterns: Glob patterns for files to ignore.
     """
 
-    id: str
-    name: str
-    path: str
-    enabled: bool
-    auto_sort: bool
-    categories: list[str]
-    created_at: str
+    folder_structure: str
+    file_types: list[str]
+    recursive: bool
+    exclude_subfolders: list[str]
+    ignore_patterns: list[str]
 
 
 class SmartWatchProfile(TypedDict, total=False):
@@ -174,6 +189,11 @@ class ZoneManager:
         enabled: bool = True,
         auto_sort: bool = False,
         categories: Optional[list[str]] = None,
+        folder_structure: str = "{category}/{sender}/{year}",
+        file_types: Optional[list[str]] = None,
+        recursive: bool = False,
+        exclude_subfolders: Optional[list[str]] = None,
+        ignore_patterns: Optional[list[str]] = None,
     ) -> str:
         """Add a new zone.
 
@@ -183,6 +203,11 @@ class ZoneManager:
             enabled: Whether the zone is active (default: True).
             auto_sort: Whether to auto-sort files (default: False).
             categories: List of allowed file extensions (default: []).
+            folder_structure: Template for target path (default: "{category}/{sender}/{year}").
+            file_types: Allowed file extensions for filtering (default: []).
+            recursive: Whether to watch subdirectories (default: False).
+            exclude_subfolders: Subfolder names to exclude when recursive (default: []).
+            ignore_patterns: Glob patterns for files to ignore (default: []).
 
         Returns:
             The unique zone ID (UUID string).
@@ -206,6 +231,11 @@ class ZoneManager:
                 "auto_sort": auto_sort,
                 "categories": categories if categories is not None else [],
                 "created_at": created_at,
+                "folder_structure": folder_structure,
+                "file_types": file_types if file_types is not None else [],
+                "recursive": recursive,
+                "exclude_subfolders": exclude_subfolders if exclude_subfolders is not None else [],
+                "ignore_patterns": ignore_patterns if ignore_patterns is not None else [],
             }
             self._zones[zone_id] = zone
             self._save_zones()
@@ -256,7 +286,8 @@ class ZoneManager:
 
         Args:
             zone_id: The ID of the zone to update.
-            **kwargs: Fields to update (name, path, enabled, auto_sort, categories).
+            **kwargs: Fields to update (name, path, enabled, auto_sort, categories,
+                folder_structure, file_types, recursive, exclude_subfolders, ignore_patterns).
 
         Returns:
             True if the zone was updated, False if it didn't exist.
@@ -264,7 +295,18 @@ class ZoneManager:
         Raises:
             ZoneManagerError: If the new path is invalid.
         """
-        allowed_fields = {"name", "path", "enabled", "auto_sort", "categories"}
+        allowed_fields = {
+            "name",
+            "path",
+            "enabled",
+            "auto_sort",
+            "categories",
+            "folder_structure",
+            "file_types",
+            "recursive",
+            "exclude_subfolders",
+            "ignore_patterns",
+        }
 
         with self._lock:
             if zone_id not in self._zones:
@@ -275,7 +317,7 @@ class ZoneManager:
             # Validate path if being updated - use resolved path for consistency
             if "path" in kwargs:
                 resolved_path = self._validate_path(kwargs["path"])
-                kwargs["path"] = resolved_path
+                kwargs["path"] = str(resolved_path)
 
             # Validate name if being updated
             if "name" in kwargs and not kwargs["name"]:

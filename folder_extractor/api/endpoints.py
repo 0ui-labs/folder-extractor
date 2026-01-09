@@ -56,7 +56,7 @@ from folder_extractor.core.extractor import (
 )
 from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.state_manager import StateManager
-from folder_extractor.core.watch import FolderEventHandler
+from folder_extractor.core.watch import FolderEventHandler, SmartFolderEventHandler
 from folder_extractor.core.zone_manager import ZoneManager, ZoneManagerError
 
 # =============================================================================
@@ -149,8 +149,8 @@ async def process_file(
     # Generate task ID for tracking
     task_id = str(uuid.uuid4())
 
-    # Determine destination (file's directory if not specified)
-    destination = file_path.parent
+    # Determine destination (from request or file's directory as fallback)
+    destination = Path(request.destination) if request.destination else file_path.parent
 
     # Get Settings from app state
     if (
@@ -161,11 +161,25 @@ async def process_file(
             status_code=503,
             detail="Settings nicht verfügbar",
         )
-    settings = http_request.app.state.settings
+    app_settings = http_request.app.state.settings
+
+    # Clone app settings to avoid mutating global state
+    # Create a new Settings instance configured per-request
+    from folder_extractor.config.settings import Settings
+
+    request_settings = Settings()
+    request_settings.from_dict(app_settings.to_dict())
+
+    # Apply request-specific flags from ProcessRequest payload
+    request_settings.set("sort_by_type", request.sort_by_type)
+    request_settings.set("deduplicate", request.deduplicate)
+    request_settings.set("global_dedup", request.global_dedup)
 
     # Create orchestrator with dependencies from app state
     state_manager = StateManager()
-    extractor = EnhancedFileExtractor(settings=settings, state_manager=state_manager)
+    extractor = EnhancedFileExtractor(
+        settings=request_settings, state_manager=state_manager
+    )
     orchestrator = EnhancedExtractionOrchestrator(
         extractor, state_manager=state_manager
     )
@@ -245,6 +259,11 @@ async def list_zones(
             auto_sort=zone["auto_sort"],
             categories=zone.get("categories", []),
             created_at=_parse_iso_timestamp(zone.get("created_at")),
+            folder_structure=zone.get("folder_structure", "{category}/{sender}/{year}"),
+            file_types=zone.get("file_types", []),
+            recursive=zone.get("recursive", False),
+            exclude_subfolders=zone.get("exclude_subfolders", []),
+            ignore_patterns=zone.get("ignore_patterns", []),
         )
         for zone in zones
     ]
@@ -311,6 +330,11 @@ async def create_zone(
             enabled=request.enabled,
             auto_sort=request.auto_sort,
             categories=request.categories or [],
+            folder_structure=request.folder_structure,
+            file_types=request.file_types or [],
+            recursive=request.recursive,
+            exclude_subfolders=request.exclude_subfolders or [],
+            ignore_patterns=request.ignore_patterns or [],
         )
     except ZoneManagerError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -333,6 +357,11 @@ async def create_zone(
         auto_sort=zone["auto_sort"],
         categories=zone.get("categories", []),
         created_at=_parse_iso_timestamp(zone.get("created_at")),
+        folder_structure=zone.get("folder_structure", "{category}/{sender}/{year}"),
+        file_types=zone.get("file_types", []),
+        recursive=zone.get("recursive", False),
+        exclude_subfolders=zone.get("exclude_subfolders", []),
+        ignore_patterns=zone.get("ignore_patterns", []),
     )
 
 
@@ -429,6 +458,16 @@ async def update_zone(
         update_data["auto_sort"] = request.auto_sort
     if request.categories is not None:
         update_data["categories"] = request.categories
+    if request.folder_structure is not None:
+        update_data["folder_structure"] = request.folder_structure
+    if request.file_types is not None:
+        update_data["file_types"] = request.file_types
+    if request.recursive is not None:
+        update_data["recursive"] = request.recursive
+    if request.exclude_subfolders is not None:
+        update_data["exclude_subfolders"] = request.exclude_subfolders
+    if request.ignore_patterns is not None:
+        update_data["ignore_patterns"] = request.ignore_patterns
 
     # Update the zone
     try:
@@ -459,6 +498,11 @@ async def update_zone(
         auto_sort=zone["auto_sort"],
         categories=zone.get("categories", []),
         created_at=_parse_iso_timestamp(zone.get("created_at")),
+        folder_structure=zone.get("folder_structure", "{category}/{sender}/{year}"),
+        file_types=zone.get("file_types", []),
+        recursive=zone.get("recursive", False),
+        exclude_subfolders=zone.get("exclude_subfolders", []),
+        ignore_patterns=zone.get("ignore_patterns", []),
     )
 
 
@@ -562,19 +606,52 @@ async def start_watcher(
             event_callback = broadcaster.get_event_callback()
             logger.info(f"WebSocket broadcasting enabled for zone {zone_id}")
 
-        # Create event handler with WebSocket callbacks
-        handler = FolderEventHandler(
-            orchestrator=orchestrator,
-            monitor=monitor,
-            state_manager=state_manager,
-            progress_callback=progress_callback,
-            on_event_callback=event_callback,
-            websocket_callback=websocket_callback,
-        )
+        # Determine which handler to use based on auto_sort setting
+        use_smart_handler = zone.get("auto_sort", False)
+        smart_sorter = getattr(http_request.app.state, "smart_sorter", None)
 
-        # Create and configure observer
+        if use_smart_handler and smart_sorter is not None:
+            # Use SmartFolderEventHandler for AI-powered categorization
+            logger.info(f"Using SmartFolderEventHandler for zone {zone_id}")
+            handler = SmartFolderEventHandler(
+                smart_sorter=smart_sorter,
+                monitor=monitor,
+                state_manager=state_manager,
+                base_path=Path(zone_path),
+                folder_structure=zone.get("folder_structure", "{category}/{sender}/{year}"),
+                file_types=zone.get("file_types"),
+                ignore_patterns=zone.get("ignore_patterns"),
+                exclude_subfolders=zone.get("exclude_subfolders"),
+                recursive=zone.get("recursive", False),
+                progress_callback=progress_callback,
+                on_event_callback=event_callback,
+                websocket_callback=websocket_callback,
+            )
+        else:
+            # Use standard FolderEventHandler
+            if use_smart_handler:
+                logger.warning(
+                    f"SmartSorter not available for zone {zone_id}, "
+                    "falling back to standard handler"
+                )
+            logger.info(f"Using FolderEventHandler for zone {zone_id}")
+            handler = FolderEventHandler(
+                orchestrator=orchestrator,
+                monitor=monitor,
+                state_manager=state_manager,
+                base_path=Path(zone_path),
+                file_types=zone.get("file_types"),
+                ignore_patterns=zone.get("ignore_patterns"),
+                exclude_subfolders=zone.get("exclude_subfolders"),
+                recursive=zone.get("recursive", False),
+                progress_callback=progress_callback,
+                on_event_callback=event_callback,
+                websocket_callback=websocket_callback,
+            )
+
+        # Create and configure observer with zone's recursive setting
         observer = Observer()
-        observer.schedule(handler, zone_path, recursive=False)
+        observer.schedule(handler, zone_path, recursive=zone.get("recursive", False))
 
         # Start observer
         try:
