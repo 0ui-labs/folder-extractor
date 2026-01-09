@@ -28,6 +28,7 @@ from folder_extractor.core.extractor import EnhancedExtractionOrchestrator
 from folder_extractor.core.file_operations import FileOperations
 from folder_extractor.core.monitor import StabilityMonitor
 from folder_extractor.core.state_manager import IStateManager
+from folder_extractor.utils.path_validators import is_safe_path
 
 if TYPE_CHECKING:
     from folder_extractor.core.smart_sorter import SmartSorter
@@ -57,6 +58,11 @@ class FolderEventHandler(FileSystemEventHandler):
         orchestrator: Extraction orchestrator for processing files.
         monitor: Stability monitor for file readiness detection.
         state_manager: State manager for abort signal handling.
+        base_path: Base directory for the watch zone.
+        file_types: Optional list of allowed file extensions.
+        ignore_patterns: Patterns for files to ignore.
+        exclude_subfolders: Subfolders to exclude when recursive=True.
+        recursive: Whether subdirectories are watched.
         progress_callback: Optional callback for progress updates.
     """
 
@@ -65,6 +71,11 @@ class FolderEventHandler(FileSystemEventHandler):
         orchestrator: EnhancedExtractionOrchestrator,
         monitor: StabilityMonitor,
         state_manager: IStateManager,
+        base_path: Optional[Path] = None,
+        file_types: Optional[list[str]] = None,
+        ignore_patterns: Optional[list[str]] = None,
+        exclude_subfolders: Optional[list[str]] = None,
+        recursive: bool = False,
         progress_callback: ProgressCallback = None,
         on_event_callback: EventCallback = None,
         websocket_callback: WebSocketCallback = None,
@@ -75,6 +86,12 @@ class FolderEventHandler(FileSystemEventHandler):
             orchestrator: Extraction orchestrator instance.
             monitor: Stability monitor instance.
             state_manager: State manager instance.
+            base_path: Base directory for the watch zone (required for
+                subfolder filtering).
+            file_types: Optional list of allowed file extensions.
+            ignore_patterns: Glob patterns for files to ignore.
+            exclude_subfolders: Subfolder names to exclude when recursive=True.
+            recursive: Whether subdirectories are watched.
             progress_callback: Optional callback for progress updates.
                 Signature: (current, total, filename, error) -> None
             on_event_callback: Optional callback for UI event updates.
@@ -88,6 +105,11 @@ class FolderEventHandler(FileSystemEventHandler):
         self.orchestrator = orchestrator
         self.monitor = monitor
         self.state_manager = state_manager
+        self.base_path = Path(base_path).resolve() if base_path else None
+        self.file_types = [ft.lower().lstrip(".") for ft in (file_types or [])]
+        self.ignore_patterns = ignore_patterns or []
+        self.exclude_subfolders = exclude_subfolders or []
+        self.recursive = recursive
         self.progress_callback = progress_callback
         self.on_event_callback = on_event_callback
         self.websocket_callback = websocket_callback
@@ -266,6 +288,49 @@ class FolderEventHandler(FileSystemEventHandler):
         # These patterns catch compound extensions like .pdf.crdownload
         return any(filename.endswith(ext) for ext in (".crdownload", ".part", ".tmp"))
 
+    def _should_skip_file(self, filepath: Path) -> bool:
+        """Check if file should be skipped based on filters.
+
+        Checks:
+        - Temp files (extensions and patterns)
+        - File type filter (if configured)
+        - Ignore patterns
+        - Excluded subfolders (when recursive)
+
+        Args:
+            filepath: Path to check.
+
+        Returns:
+            True if file should be skipped.
+        """
+        filename = filepath.name
+        extension = filepath.suffix.lower().lstrip(".")
+
+        # Skip temp files
+        if self._is_temp_file(filepath):
+            return True
+
+        # Check file type filter
+        if self.file_types and extension not in self.file_types:
+            return True
+
+        # Check ignore patterns
+        for pattern in self.ignore_patterns:
+            if fnmatch.fnmatch(filename, pattern):
+                return True
+
+        # Check excluded subfolders (when recursive)
+        if self.recursive and self.exclude_subfolders and self.base_path:
+            try:
+                relative = filepath.relative_to(self.base_path)
+                for part in relative.parts[:-1]:  # Exclude filename
+                    if part in self.exclude_subfolders:
+                        return True
+            except ValueError:
+                pass  # Not relative to base_path
+
+        return False
+
     def _process_file(self, filepath: Path) -> None:
         """Process a new file: wait for stability, then extract.
 
@@ -276,9 +341,9 @@ class FolderEventHandler(FileSystemEventHandler):
             All errors are caught and logged to prevent watcher crash.
         """
         try:
-            # Check if this is a temp file
-            if self._is_temp_file(filepath):
-                logger.debug(f"Ignoring temp file: {filepath}")
+            # Check if file should be skipped based on filters
+            if self._should_skip_file(filepath):
+                logger.debug(f"Skipping file based on filters: {filepath}")
                 return
 
             # Prevent duplicate processing
@@ -321,7 +386,7 @@ class FolderEventHandler(FileSystemEventHandler):
                 # Process single file directly - avoid full directory scan
                 results = self.orchestrator.process_single_file(
                     filepath=filepath,
-                    destination=filepath.parent,
+                    destination=self.base_path or filepath.parent,
                     progress_callback=self.progress_callback,
                 )
 
@@ -404,7 +469,16 @@ class SmartFolderEventHandler(FileSystemEventHandler):
         self.smart_sorter = smart_sorter
         self.monitor = monitor
         self.state_manager = state_manager
-        self.base_path = Path(base_path).resolve()
+
+        # Validate base_path is in a safe location
+        resolved_base = Path(base_path).resolve()
+        if not is_safe_path(resolved_base):
+            raise ValueError(
+                f"base_path must be in an allowed folder (Desktop, Downloads, or Documents). "
+                f"Got: {resolved_base}"
+            )
+
+        self.base_path = resolved_base
         self.folder_structure = folder_structure
         self.file_types = [ft.lower().lstrip(".") for ft in (file_types or [])]
         self.ignore_patterns = ignore_patterns or []
@@ -567,6 +641,17 @@ class SmartFolderEventHandler(FileSystemEventHandler):
 
         # Build target path
         target_dir = self._build_target_path(result, filepath)
+
+        # Validate target_dir is in a safe location (prevent path traversal)
+        if not is_safe_path(target_dir):
+            error_msg = (
+                f"Security violation: target directory escapes safe folders. "
+                f"Target: {target_dir}. Allowed folders: Desktop, Downloads, Documents."
+            )
+            logger.error(error_msg)
+            self._safe_event("error", filepath.name, error_msg)
+            raise ValueError(error_msg)
+
         target_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate unique filename
