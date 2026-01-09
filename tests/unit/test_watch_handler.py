@@ -31,7 +31,7 @@ class TestFolderEventHandler:
             self.orchestrator,
             self.monitor,
             self.state_manager,
-            self.progress_callback,
+            progress_callback=self.progress_callback,
         )
 
     def test_initialization_stores_dependencies(self) -> None:
@@ -355,6 +355,106 @@ class TestFolderEventHandler:
         # Callback exception was logged as warning
         assert "callback" in caplog.text.lower()
         assert "exception" in caplog.text.lower()
+
+    def test_watch_mode_uses_base_path_as_destination(self, tmp_path: Path) -> None:
+        """File in watch root should use base_path as destination, not filepath.parent.
+
+        REGRESSION TEST for bug: watch-mode-no-move
+        This test verifies that watch mode uses self.base_path instead of computing
+        filepath.parent, which is critical when filepath is in a subdirectory.
+        """
+        # Arrange - create a scenario where base_path != filepath.parent
+        watch_root = tmp_path / "watch_root"
+        watch_root.mkdir()
+
+        # File is in a subdirectory, so filepath.parent != watch_root
+        subdir = watch_root / "incoming"
+        subdir.mkdir()
+        test_file = subdir / "document.pdf"
+        test_file.write_text("test content")
+
+        # Create handler with base_path set to watch_root
+        handler = FolderEventHandler(
+            orchestrator=self.orchestrator,
+            monitor=self.monitor,
+            state_manager=self.state_manager,
+            base_path=watch_root,  # ✅ Key: base_path is watch_root
+            progress_callback=self.progress_callback,
+        )
+
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        # Act
+        handler.on_created(event)
+
+        # Assert
+        # CRITICAL: Verify destination is base_path, NOT filepath.parent
+        call_args = self.orchestrator.process_single_file.call_args
+        assert call_args is not None
+
+        # Get the destination argument (can be positional or keyword)
+        if "destination" in call_args.kwargs:
+            destination = call_args.kwargs["destination"]
+        else:
+            destination = call_args[0][1]  # Second positional argument
+
+        # ✅ PASS after fix: destination should be watch_root (base_path)
+        # ❌ FAIL before fix: destination is subdir (filepath.parent)
+        assert destination == watch_root, (
+            f"Expected destination to be base_path ({watch_root}), "
+            f"but got {destination}. filepath.parent would be {test_file.parent}"
+        )
+
+        # Verify process_single_file was called (file not skipped)
+        self.orchestrator.process_single_file.assert_called_once()
+
+    def test_watch_mode_fallback_when_base_path_none(self, tmp_path: Path) -> None:
+        """Handler should fall back to filepath.parent if base_path is None.
+
+        This test ensures backward compatibility when base_path is not configured.
+        """
+        # Arrange
+        test_file = tmp_path / "document.pdf"
+        test_file.write_text("test content")
+
+        # Create handler WITHOUT base_path
+        handler = FolderEventHandler(
+            orchestrator=self.orchestrator,
+            monitor=self.monitor,
+            state_manager=self.state_manager,
+            base_path=None,  # ✅ Key: base_path is None
+            progress_callback=self.progress_callback,
+        )
+
+        event = FileCreatedEvent(str(test_file))
+
+        self.monitor.wait_for_file_ready.return_value = True
+        self.orchestrator.process_single_file.return_value = {"status": "success"}
+
+        # Act
+        handler.on_created(event)
+
+        # Assert
+        call_args = self.orchestrator.process_single_file.call_args
+        assert call_args is not None
+
+        # Get destination argument
+        if "destination" in call_args.kwargs:
+            destination = call_args.kwargs["destination"]
+        else:
+            destination = call_args[0][1]
+
+        # ✅ Fallback to filepath.parent for backward compatibility
+        assert destination == test_file.parent, (
+            f"Expected fallback to filepath.parent ({test_file.parent}), "
+            f"but got {destination}"
+        )
+
+        # Verify process_single_file was still called
+        self.orchestrator.process_single_file.assert_called_once()
 
 
 class TestTempFileFiltering:
@@ -789,3 +889,108 @@ class TestWebSocketCallback:
         handler.on_created(event)
 
         self.websocket_callback.assert_not_called()
+
+
+class TestSmartWatchSecurity:
+    """Security tests for SmartFolderEventHandler path validation.
+
+    Verifies that Smart-Watch mode enforces safe folder policy and prevents
+    files from being moved to unsafe locations via path traversal or AI-generated
+    paths that escape the safe folders.
+    """
+
+    def setup_method(self) -> None:
+        """Set up test fixtures before each test method."""
+        pytest.importorskip(
+            "folder_extractor.core.smart_sorter",
+            reason="SmartSorter requires Python 3.9+"
+        )
+        from folder_extractor.core.smart_sorter import SmartSorter
+        from folder_extractor.core.watch import SmartFolderEventHandler
+
+        self.SmartFolderEventHandler = SmartFolderEventHandler
+        self.state_manager = StateManager()
+        self.monitor = Mock(spec=StabilityMonitor)
+        self.smart_sorter = Mock(spec=SmartSorter)
+
+    def test_smart_watch_rejects_unsafe_base_path(self, tmp_path: Path) -> None:
+        """SmartFolderEventHandler must reject base_path outside safe folders.
+
+        SECURITY TEST: Prevents Smart-Watch from operating in unsafe locations
+        like /tmp, /etc, or arbitrary directories outside Desktop/Downloads/Documents.
+        """
+        # Arrange - create unsafe base_path (not in safe folders)
+        unsafe_base = tmp_path / "unsafe_location"
+        unsafe_base.mkdir()
+
+        # Act & Assert - initialization or first file processing should fail
+        with pytest.raises((ValueError, PermissionError)) as exc_info:
+            handler = self.SmartFolderEventHandler(
+                smart_sorter=self.smart_sorter,
+                monitor=self.monitor,
+                state_manager=self.state_manager,
+                base_path=unsafe_base,
+            )
+
+        # Verify error message mentions safe folders
+        error_msg = str(exc_info.value).lower()
+        assert any(
+            keyword in error_msg
+            for keyword in ["safe", "allowed", "desktop", "downloads", "documents"]
+        )
+
+    def test_smart_watch_validates_resolved_target_path(self, tmp_path: Path) -> None:
+        """SmartFolderEventHandler must validate target_dir escapes safe folders.
+
+        SECURITY TEST: Defense-in-depth - even if sanitization is bypassed somehow,
+        is_safe_path validation must catch unsafe target directories before file moves.
+        """
+        # Arrange - create a safe base_path in Downloads
+        home = Path.home()
+        safe_base = home / "Downloads" / "test_watch_security"
+        safe_base.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # Create test file in safe location
+            test_file = safe_base / "document.pdf"
+            test_file.write_text("test content")
+
+            # Create handler with SAFE base_path
+            handler = self.SmartFolderEventHandler(
+                smart_sorter=self.smart_sorter,
+                monitor=self.monitor,
+                state_manager=self.state_manager,
+                base_path=safe_base,
+                folder_structure="{category}",
+            )
+
+            # Mock AI to return safe-looking data
+            async def mock_process_file(filepath, mime_type):
+                return {"category": "Invoices"}
+
+            self.smart_sorter.process_file = mock_process_file
+            self.monitor.wait_for_file_ready.return_value = True
+
+            # Mock _build_target_path to return an UNSAFE path
+            # This simulates a bypass in sanitization or other vulnerability
+            unsafe_path = tmp_path / "evil"  # Outside safe folders!
+            original_build = handler._build_target_path
+            handler._build_target_path = Mock(return_value=unsafe_path)
+
+            # Act - process file should detect unsafe target_dir and raise ValueError
+            import asyncio
+            with pytest.raises(ValueError) as exc_info:
+                asyncio.run(handler._process_file_smart(test_file, timeout=30))
+
+            # Assert - error mentions security violation
+            error_msg = str(exc_info.value).lower()
+            assert "security" in error_msg or "safe" in error_msg
+
+            # Verify file was NOT moved to unsafe location
+            assert not (unsafe_path / "document.pdf").exists()
+
+        finally:
+            # Cleanup
+            if safe_base.exists():
+                import shutil
+                shutil.rmtree(safe_base, ignore_errors=True)
