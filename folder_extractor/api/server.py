@@ -441,7 +441,7 @@ async def _handle_chat_message(
 ) -> None:
     """Process a chat message from the client.
 
-    If SmartSorter is available, forwards the message for AI analysis.
+    If AI client is available, forwards the message for text generation.
     Otherwise, sends an error response.
 
     Args:
@@ -456,8 +456,8 @@ async def _handle_chat_message(
     )
     await manager.send_personal_message(typing_msg.to_dict(), websocket)
 
-    # Check if AI is available
-    if not hasattr(app.state, "smart_sorter") or app.state.smart_sorter is None:
+    # Check if AI client is available
+    if not hasattr(app.state, "ai_client") or app.state.ai_client is None:
         error_msg = WebSocketMessage(
             type="error",
             data={
@@ -471,11 +471,8 @@ async def _handle_chat_message(
     try:
         # Use AI client for chat response
         ai_client = app.state.ai_client
-        if ai_client:
-            prompt = f"Benutzer fragt: {message}\n\nAntworte kurz auf Deutsch."
-            response_text = await ai_client.generate_response(prompt=prompt)
-        else:
-            response_text = "KI-Client nicht initialisiert."
+        prompt = f"Benutzer fragt: {message}\n\nAntworte kurz auf Deutsch."
+        response_text = await ai_client.generate_response(prompt=prompt)
 
         response_msg = WebSocketMessage(
             type="chat",
@@ -486,13 +483,23 @@ async def _handle_chat_message(
         )
         await manager.send_personal_message(response_msg.to_dict(), websocket)
 
-    except Exception as e:
+    except AIClientError as e:
         logger.error(f"AI chat error: {e}")
         error_msg = WebSocketMessage(
             type="error",
             data={
                 "message": f"Fehler bei KI-Antwort: {e}",
                 "code": "AI_ERROR",
+            },
+        )
+        await manager.send_personal_message(error_msg.to_dict(), websocket)
+    except Exception as e:
+        logger.error(f"Unexpected chat error: {e}", exc_info=True)
+        error_msg = WebSocketMessage(
+            type="error",
+            data={
+                "message": "Interner Serverfehler bei Chat-Verarbeitung.",
+                "code": "INTERNAL_ERROR",
             },
         )
         await manager.send_personal_message(error_msg.to_dict(), websocket)
