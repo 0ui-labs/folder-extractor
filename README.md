@@ -2,7 +2,7 @@
 
 An intelligent tool for extracting and organizing files from nested folder structures. From simple CLI operations to AI-powered document management.
 
-**Version 2.0.0** | [CHANGELOG](CHANGELOG.md) | [Guide](ANLEITUNG.md) | [Architecture](ARCHITECTURE.md)
+**Version 2.0.0** | [CHANGELOG](CHANGELOG.md) | [Guide](docs/ANLEITUNG.md) | [Architecture](docs/ARCHITECTURE.md)
 
 ## ✨ Highlights
 
@@ -405,8 +405,8 @@ GEMINI_API_KEY=your-api-key-here
 
 ## 📖 Documentation
 
-- **[ANLEITUNG.md](ANLEITUNG.md)** - Comprehensive user guide in German
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Architecture documentation and design patterns
+- **[ANLEITUNG.md](docs/ANLEITUNG.md)** - Comprehensive user guide in German
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Architecture documentation and design patterns
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
 - **[CLAUDE.md](CLAUDE.md)** - Developer guide for Claude Code
 
@@ -475,7 +475,7 @@ folder-extractor --ask "Which insurance documents do I have from 2024?"
 
 ## 🤝 Contributing
 
-Contributions are welcome! See [ARCHITECTURE.md](ARCHITECTURE.md) for details on codebase structure.
+Contributions are welcome! See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for details on codebase structure.
 
 **Development:**
 ```bash

@@ -1,10 +1,10 @@
 # 🗂️ Folder Extractor
 
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](../LICENSE)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](tests/)
 [![Code Style](https://img.shields.io/badge/code%20style-ruff-D7FF64.svg)](https://github.com/astral-sh/ruff)
-[![Version](https://img.shields.io/badge/version-2.0.0-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0-orange.svg)](../CHANGELOG.md)
 
 > **🇩🇪 Deutsche Version:** Hier klicken für die [deutsche Dokumentation](README_DE.md).
 
@@ -268,8 +268,8 @@ For detailed architectural information, please check [ARCHITECTURE.md](ARCHITECT
 - **[README_DE.md](README_DE.md)** - Vollständige Dokumentation (Deutsch)
 - **[ANLEITUNG.md](ANLEITUNG.md)** - Ausführliche Bedienungsanleitung (Deutsch)
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Architecture documentation and design patterns
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
-- **[CLAUDE.md](CLAUDE.md)** - Developer guide for Claude Code
+- **[CHANGELOG.md](../CHANGELOG.md)** - Version history and changes
+- **[CLAUDE.md](../CLAUDE.md)** - Developer guide for Claude Code
 
 ---
 
@@ -287,7 +287,7 @@ For detailed architectural information, please check [ARCHITECTURE.md](ARCHITECT
 
 MIT License - Copyright (c) 2024-2026 Philipp Briese
 
-See [LICENSE](LICENSE) file for details.
+See [LICENSE](../LICENSE) file for details.
 
 ---
 

@@ -2,7 +2,7 @@
 
 Ein intelligentes Tool zum Extrahieren und Organisieren von Dateien aus verschachtelten Ordnerstrukturen. Von einfachen CLI-Operationen bis hin zu AI-gestützter Dokumentenverwaltung.
 
-**Version 2.0.0** | [CHANGELOG](CHANGELOG.md) | [Anleitung](ANLEITUNG.md) | [Architektur](ARCHITECTURE.md)
+**Version 2.0.0** | [CHANGELOG](../CHANGELOG.md) | [Anleitung](ANLEITUNG.md) | [Architektur](ARCHITECTURE.md)
 
 ## ✨ Highlights
 
@@ -407,8 +407,8 @@ GEMINI_API_KEY=your-api-key-here
 
 - **[ANLEITUNG.md](ANLEITUNG.md)** - Ausführliche Bedienungsanleitung auf Deutsch
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Architektur-Dokumentation und Design Patterns
-- **[CHANGELOG.md](CHANGELOG.md)** - Versionshistorie und Änderungen
-- **[CLAUDE.md](CLAUDE.md)** - Entwickler-Anleitung für Claude Code
+- **[CHANGELOG.md](../CHANGELOG.md)** - Versionshistorie und Änderungen
+- **[CLAUDE.md](../CLAUDE.md)** - Entwickler-Anleitung für Claude Code
 
 ## 💻 Systemanforderungen
 

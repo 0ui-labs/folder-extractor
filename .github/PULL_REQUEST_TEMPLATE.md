@@ -12,7 +12,7 @@ Please provide a clear and concise description of what this PR does.
 
 ## ✅ Checklist
 
-- [ ] I have read the [CONTRIBUTING.md](CONTRIBUTING.md) guidelines
+- [ ] I have read the [CONTRIBUTING.md](docs/CONTRIBUTING.md) guidelines
 - [ ] My code follows the project's code style
 - [ ] I have added tests for my changes
 - [ ] All existing tests pass
